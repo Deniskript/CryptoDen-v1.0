@@ -184,6 +184,11 @@ class TelegramBot:
                 await callback.answer("⚠️ Бот уже запущен!", show_alert=True)
                 return
             
+            # Сразу обновляем UI
+            await callback.message.edit_text(
+                "🚀 *Запускаю бота...*\n\nПожалуйста, подождите...",
+                parse_mode=ParseMode.MARKDOWN
+            )
             await callback.answer("🚀 Запускаю...")
             
             # Обновляем список активных монет
@@ -195,11 +200,15 @@ class TelegramBot:
             # Запускаем монитор в фоне
             asyncio.create_task(self.monitor.start())
             
-            # Ждём немного и обновляем сообщение
-            await asyncio.sleep(2)
+            # Ждём пока monitor.running станет True
+            for _ in range(10):  # Максимум 5 секунд
+                await asyncio.sleep(0.5)
+                if self.monitor.running:
+                    break
             
+            # Обновляем с новыми кнопками
             text = await self._get_status_text()
-            keyboard = get_main_keyboard(True, self.monitor.ai_enabled)
+            keyboard = get_main_keyboard(self.monitor.running, self.monitor.ai_enabled)
             
             await callback.message.edit_text(
                 text,
@@ -244,24 +253,30 @@ class TelegramBot:
         @self.dp.callback_query(F.data == "toggle_ai")
         async def cb_toggle_ai(callback: CallbackQuery):
             if not self._is_admin(callback.from_user.id):
+                await callback.answer("⛔ Доступ запрещён", show_alert=True)
                 return
             
+            # Переключаем AI
             self.monitor.ai_enabled = not self.monitor.ai_enabled
             status = "включён ✅" if self.monitor.ai_enabled else "выключен ❌"
             
             await callback.answer(f"🧠 AI {status}")
             
+            # Обновляем текст и кнопки (кнопка AI меняется!)
             text = await self._get_status_text()
             keyboard = get_main_keyboard(
                 self.monitor.running,
                 self.monitor.ai_enabled
             )
             
-            await callback.message.edit_text(
-                text,
-                parse_mode=ParseMode.MARKDOWN,
-                reply_markup=keyboard
-            )
+            try:
+                await callback.message.edit_text(
+                    text,
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=keyboard
+                )
+            except Exception as e:
+                logger.debug(f"Toggle AI edit error: {e}")
         
         # ============ CALLBACK: ИНФОРМАЦИЯ ============
         
@@ -428,18 +443,26 @@ _= 15% от баланса_
         
         @self.dp.callback_query(F.data == "refresh")
         async def cb_refresh(callback: CallbackQuery):
-            await callback.answer("🔄 Обновлено")
+            # Сначала показываем что обновляем
+            await callback.answer("🔄 Обновляю...")
+            
+            # Обновляем текст и кнопки
             text = await self._get_status_text()
             keyboard = get_main_keyboard(
                 self.monitor.running,
                 self.monitor.ai_enabled
             )
             
-            await callback.message.edit_text(
-                text,
-                parse_mode=ParseMode.MARKDOWN,
-                reply_markup=keyboard
-            )
+            try:
+                await callback.message.edit_text(
+                    text,
+                    parse_mode=ParseMode.MARKDOWN,
+                    reply_markup=keyboard
+                )
+            except Exception as e:
+                # Если сообщение не изменилось, просто уведомляем
+                logger.debug(f"Refresh edit error: {e}")
+                await callback.answer("✅ Уже актуально")
         
         @self.dp.callback_query(F.data == "back")
         async def cb_back(callback: CallbackQuery):
