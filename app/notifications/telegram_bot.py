@@ -1,25 +1,20 @@
 """
-Telegram Bot — Чистый интерфейс с WebApp
+Telegram Bot — Чистый интерфейс
+Управление ТОЛЬКО через WebApp
 """
 import asyncio
 import json
 import os
-from datetime import datetime, timezone
 from typing import Optional, Dict
 
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
-from aiogram.types import BotCommand, CallbackQuery
+from aiogram.types import BotCommand
 
 from app.core.config import settings
 from app.core.logger import logger
-from app.bot.keyboards import (
-    get_main_keyboard,
-    get_start_button,
-    get_stop_button,
-    get_confirm_stop
-)
+from app.bot.keyboards import get_main_keyboard
 
 # Файлы данных
 SETTINGS_FILE = "/root/crypto-bot/data/webapp_settings.json"
@@ -27,7 +22,7 @@ START_REQUESTED_FILE = "/root/crypto-bot/data/start_requested.json"
 
 
 class TelegramBot:
-    """Telegram бот с WebApp настройками"""
+    """Telegram бот — текст + Reply Keyboard"""
     
     def __init__(self):
         self.bot: Optional[Bot] = None
@@ -37,13 +32,6 @@ class TelegramBot:
         
         self._monitor = None
         self._trade_manager = None
-        
-        # Монеты (для запуска без WebApp)
-        self.enabled_coins: Dict[str, bool] = {
-            'BTC': True, 'ETH': True, 'BNB': True,
-            'SOL': True, 'XRP': True, 'ADA': True,
-            'DOGE': True, 'LINK': False, 'AVAX': False
-        }
         
         self._setup()
     
@@ -85,19 +73,15 @@ class TelegramBot:
         ]
         await self.bot.set_my_commands(commands)
     
-    def _get_status_message(self) -> str:
-        """Формирует сообщение статуса"""
+    def _get_status_text(self) -> str:
+        """Текст статуса — БЕЗ кнопок!"""
         
         running = self.monitor.running
+        status = "🟢 *БОТ РАБОТАЕТ*" if running else "🔴 *БОТ ОСТАНОВЛЕН*"
         
-        if running:
-            status = "🟢 БОТ РАБОТАЕТ"
-        else:
-            status = "🔴 БОТ ОСТАНОВЛЕН"
-        
-        # Данные
         balance = self.monitor.current_balance
         trade_size = balance * self.monitor.balance_percent_per_trade
+        percent = int(self.monitor.balance_percent_per_trade * 100)
         active = len(self.trade_manager.get_active_trades())
         max_trades = self.monitor.max_open_trades
         
@@ -106,32 +90,40 @@ class TelegramBot:
         total_pnl = stats.get('total_pnl', 0)
         win_rate = stats.get('win_rate', 0)
         
-        pnl_emoji = "📈" if today_pnl >= 0 else "📉"
-        
-        # AI и режим
         ai = "✅" if self.monitor.ai_enabled else "❌"
         mode = "📝 Paper" if self.monitor.paper_trading else "💰 LIVE"
-        
-        # Рынок
-        market_mode = self.monitor.market_context.get('market_mode', 'NORMAL')
-        market_emoji = {"NORMAL": "🟢", "NEWS_ALERT": "🟡", "WAIT_EVENT": "🔴"}.get(market_mode, "⚪")
         
         text = f"""
 {status}
 
 🧠 AI: {ai}  •  {mode}
-{market_emoji} Рынок: {market_mode}
 
 ━━━━━━━━━━━━━━━━━━━━━━
-💰 Баланс: ${balance:,.2f}
-💵 Сделка: ${trade_size:,.2f} ({int(self.monitor.balance_percent_per_trade*100)}%)
-📊 Позиции: {active}/{max_trades}
+💰 *Баланс:* ${balance:,.2f}
+💵 *Сделка:* ${trade_size:,.2f} ({percent}%)
+📊 *Позиции:* {active}/{max_trades}
 ━━━━━━━━━━━━━━━━━━━━━━
-{pnl_emoji} Сегодня: ${today_pnl:+,.2f}
-💎 Всего: ${total_pnl:+,.2f}
-🎯 Win Rate: {win_rate:.1f}%
+📈 *Сегодня:* ${today_pnl:+,.2f}
+💎 *Всего:* ${total_pnl:+,.2f}
+🎯 *Win Rate:* {win_rate:.1f}%
+
+_Управление через 🎛 Панель управления_
 """
         return text.strip()
+    
+    def _apply_settings(self, settings_data: dict):
+        """Применить настройки из WebApp"""
+        if not settings_data:
+            return
+        
+        self.monitor.ai_enabled = settings_data.get('ai_enabled', True)
+        self.monitor.paper_trading = settings_data.get('paper_trading', True)
+        self.monitor.balance_percent_per_trade = settings_data.get('risk_percent', 15) / 100
+        self.monitor.max_open_trades = settings_data.get('max_trades', 6)
+        self.monitor.min_confidence = settings_data.get('ai_confidence', 60)
+        
+        coins = settings_data.get('coins', {})
+        self.monitor.symbols = [c for c, enabled in coins.items() if enabled]
     
     def _register_handlers(self):
         """Регистрация обработчиков"""
@@ -145,7 +137,14 @@ class TelegramBot:
                 return
             
             await self._set_commands()
-            await self._send_main_screen(message)
+            
+            text = self._get_status_text()
+            # Отправляем ТОЛЬКО текст + Reply Keyboard (БЕЗ inline!)
+            await message.answer(
+                text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=get_main_keyboard()
+            )
         
         @self.dp.message(Command("help"))
         async def cmd_help(message: types.Message):
@@ -153,131 +152,67 @@ class TelegramBot:
                 return
             
             text = """
-❓ Помощь CryptoDen Bot
+❓ *Помощь CryptoDen Bot*
 
-Управление:
-🚀 Запустить — открывает настройки
-🛑 Остановить — останавливает торговлю
+*🎛 Панель управления* — открывает настройки:
+• Запустить / Остановить бота
+• API ключи Bybit
+• Выбор монет
+• Настройки рисков
+• AI параметры
 
-Информация:
+*Кнопки:*
 📊 Статус — текущее состояние
-📈 Сделки — открытые позиции
+📈 Сделки — открытые позиции  
 📰 Новости — рыночный контекст
 📋 История — закрытые сделки
-
-Правила:
-• Сделка = 15% от баланса
-• Макс 6 сделок одновременно
-• Стратегии из бэктеста
 """
-            await message.answer(text, reply_markup=get_main_keyboard())
+            await message.answer(text, parse_mode=ParseMode.MARKDOWN)
         
         # === WEBAPP DATA ===
         
         @self.dp.message(F.web_app_data)
         async def handle_webapp_data(message: types.Message):
-            """Получение данных из WebApp"""
+            """Получение команд из WebApp"""
             if not self._is_admin(message.from_user.id):
                 return
             
             try:
                 data = json.loads(message.web_app_data.data)
+                action = data.get('action')
                 
-                if data.get('action') == 'start_bot':
+                if action == 'start_bot':
                     settings_data = data.get('settings', {})
+                    self._apply_settings(settings_data)
                     
-                    # Применяем настройки
-                    self.monitor.ai_enabled = settings_data.get('ai_enabled', True)
-                    self.monitor.paper_trading = settings_data.get('paper_trading', True)
-                    self.monitor.balance_percent_per_trade = settings_data.get('risk_percent', 15) / 100
-                    self.monitor.max_open_trades = settings_data.get('max_trades', 6)
-                    self.monitor.min_confidence = settings_data.get('ai_confidence', 60)
-                    
-                    # Монеты
-                    coins = settings_data.get('coins', {})
-                    self.monitor.symbols = [c for c, enabled in coins.items() if enabled]
-                    self.enabled_coins = coins
-                    
-                    # Запускаем
-                    await message.answer(
-                        "🚀 Запускаю бота...",
-                        reply_markup=get_main_keyboard()
-                    )
-                    
+                    await message.answer("🚀 *Запускаю бота...*", parse_mode=ParseMode.MARKDOWN)
                     asyncio.create_task(self.monitor.start())
                     
                     await asyncio.sleep(2)
-                    await self._send_main_screen(message)
+                    text = self._get_status_text()
+                    await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+                
+                elif action == 'stop_bot':
+                    await self.monitor.stop()
+                    text = "🛑 *Бот остановлен*\n\n" + self._get_status_text()
+                    await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+                
+                elif action == 'update_settings':
+                    settings_data = data.get('settings', {})
+                    self._apply_settings(settings_data)
+                    await message.answer("✅ *Настройки сохранены*", parse_mode=ParseMode.MARKDOWN)
                     
             except Exception as e:
                 logger.error(f"WebApp data error: {e}")
-                await message.answer(f"❌ Ошибка: {e}")
         
-        # === CALLBACK (start/stop) ===
-        
-        @self.dp.callback_query(F.data == "start_bot")
-        async def cb_start(callback: CallbackQuery):
-            """Запуск без WebApp"""
-            if not self._is_admin(callback.from_user.id):
-                return
-            
-            if self.monitor.running:
-                await callback.answer("⚠️ Бот уже запущен!")
-                return
-            
-            # Запускаем с текущими настройками
-            self.monitor.symbols = [c for c, enabled in self.enabled_coins.items() if enabled]
-            
-            await callback.message.edit_text("🚀 Запускаю бота...")
-            await callback.answer()
-            
-            asyncio.create_task(self.monitor.start())
-            
-            await asyncio.sleep(2)
-            await self._send_main_screen(callback.message, edit=True)
-        
-        @self.dp.callback_query(F.data == "stop_bot")
-        async def cb_stop(callback: CallbackQuery):
-            if not self._is_admin(callback.from_user.id):
-                return
-            
-            if not self.monitor.running:
-                await callback.answer("⚠️ Бот не запущен!")
-                return
-            
-            active = len(self.trade_manager.get_active_trades())
-            
-            await callback.message.edit_text(
-                f"🛑 Остановить бота?\n\n"
-                f"⚠️ Активных сделок: {active}\n"
-                f"Они останутся открытыми!",
-                reply_markup=get_confirm_stop()
-            )
-        
-        @self.dp.callback_query(F.data == "confirm_stop")
-        async def cb_confirm_stop(callback: CallbackQuery):
-            if not self._is_admin(callback.from_user.id):
-                return
-            
-            await self.monitor.stop()
-            await callback.answer("🛑 Бот остановлен")
-            await self._send_main_screen(callback.message, edit=True)
-        
-        @self.dp.callback_query(F.data == "cancel_stop")
-        async def cb_cancel_stop(callback: CallbackQuery):
-            if not self._is_admin(callback.from_user.id):
-                return
-            
-            await callback.answer("Отменено")
-            await self._send_main_screen(callback.message, edit=True)
-        
-        # === REPLY KEYBOARD ===
+        # === REPLY KEYBOARD HANDLERS ===
         
         @self.dp.message(F.text == "📊 Статус")
         async def btn_status(message: types.Message):
             if not self._is_admin(message.from_user.id):
                 return
-            await self._send_main_screen(message)
+            text = self._get_status_text()
+            await message.answer(text, parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(F.text == "📈 Сделки")
         async def btn_trades(message: types.Message):
@@ -287,26 +222,19 @@ class TelegramBot:
             trades = self.trade_manager.get_active_trades()
             
             if not trades:
-                text = "📭 Нет активных сделок"
+                text = "📭 *Нет активных сделок*"
             else:
-                text = f"📈 Активные сделки ({len(trades)}):\n"
-                
-                total_pnl = 0
+                text = f"📈 *Активные сделки ({len(trades)}):*\n"
                 for t in trades:
                     emoji = "🟢" if t.unrealized_pnl >= 0 else "🔴"
                     dir_emoji = "📈" if t.direction == "LONG" else "📉"
-                    total_pnl += t.unrealized_pnl
-                    
                     text += f"""
-{dir_emoji} {t.symbol} {t.direction}
+{dir_emoji} *{t.symbol}* {t.direction}
 ┣ Вход: ${t.entry_price:,.4f}
-┣ Сейчас: ${t.current_price:,.4f}
 ┣ {emoji} P&L: {t.unrealized_pnl_percent:+.2f}%
 ┗ SL: ${t.stop_loss:,.2f} | TP: ${t.take_profit:,.2f}
 """
-                text += f"\n💰 Общий P&L: ${total_pnl:+.2f}"
-            
-            await message.answer(text.strip(), reply_markup=get_main_keyboard())
+            await message.answer(text.strip(), parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(F.text == "📰 Новости")
         async def btn_news(message: types.Message):
@@ -314,34 +242,23 @@ class TelegramBot:
                 return
             
             context = self.monitor.market_context
-            
             if not context:
-                await message.answer(
-                    "📰 Новости не загружены\n\nЗапустите бота.",
-                    reply_markup=get_main_keyboard()
-                )
+                await message.answer("📰 *Нет данных*\n\nЗапустите бота через 🎛 Панель управления", parse_mode=ParseMode.MARKDOWN)
                 return
             
             mode = context.get('market_mode', 'UNKNOWN')
             mode_emoji = {"NORMAL": "🟢", "NEWS_ALERT": "🟡", "WAIT_EVENT": "🔴"}.get(mode, "⚪")
             
-            text = f"📰 Рынок: {mode} {mode_emoji}\n\n"
+            text = f"📰 *Рынок: {mode}* {mode_emoji}\n\n"
             
             news = context.get('news', [])[:5]
-            if news:
-                for n in news:
-                    s = n.get('sentiment', 0)
-                    emoji = "🟢" if s > 0 else "🔴" if s < 0 else "⚪"
-                    title = n.get('title', '')[:45]
-                    text += f"{emoji} {title}...\n"
+            for n in news:
+                s = n.get('sentiment', 0)
+                emoji = "🟢" if s > 0 else "🔴" if s < 0 else "⚪"
+                title = n.get('title', '')[:40]
+                text += f"{emoji} {title}...\n"
             
-            events = context.get('calendar', [])
-            if events:
-                text += "\n📅 События:\n"
-                for e in events[:3]:
-                    text += f"⏰ {e.get('event', '')}\n"
-            
-            await message.answer(text.strip(), reply_markup=get_main_keyboard())
+            await message.answer(text.strip(), parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(F.text == "📋 История")
         async def btn_history(message: types.Message):
@@ -351,39 +268,38 @@ class TelegramBot:
             history = self.trade_manager.trade_history[-10:]
             
             if not history:
-                await message.answer("📋 История пуста", reply_markup=get_main_keyboard())
+                await message.answer("📋 *История пуста*", parse_mode=ParseMode.MARKDOWN)
                 return
             
-            text = f"📋 Последние сделки:\n\n"
-            
+            text = "📋 *Последние сделки:*\n\n"
             for t in reversed(history):
                 emoji = "✅" if t.unrealized_pnl >= 0 else "❌"
-                text += f"{emoji} {t.symbol} {t.direction}: {t.unrealized_pnl_percent:+.2f}%\n"
+                text += f"{emoji} {t.symbol}: {t.unrealized_pnl_percent:+.2f}%\n"
             
             stats = self.trade_manager.get_statistics()
-            text += f"\nИтого: ${stats.get('total_pnl', 0):+.2f}"
+            text += f"\n*Итого:* ${stats.get('total_pnl', 0):+.2f}"
+            await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(F.text == "❓ Помощь")
+        async def btn_help(message: types.Message):
+            if not self._is_admin(message.from_user.id):
+                return
             
-            await message.answer(text, reply_markup=get_main_keyboard())
-    
-    async def _send_main_screen(self, message: types.Message, edit: bool = False):
-        """Отправить главный экран"""
-        
-        text = self._get_status_message()
-        
-        if self.monitor.running:
-            inline_kb = get_stop_button()
-        else:
-            inline_kb = get_start_button()
-        
-        if edit:
-            try:
-                await message.edit_text(text, reply_markup=inline_kb)
-            except:
-                await message.answer(text, reply_markup=inline_kb)
-        else:
-            # Отправляем статус с inline кнопкой
-            await message.answer(text, reply_markup=inline_kb)
-            # Reply keyboard устанавливается автоматически
+            text = """
+❓ *Как пользоваться ботом*
+
+1️⃣ Нажмите *🎛 Панель управления*
+2️⃣ Настройте API ключи Bybit
+3️⃣ Выберите монеты для торговли
+4️⃣ Настройте риски
+5️⃣ Нажмите *ЗАПУСТИТЬ БОТА*
+
+*Правила:*
+• 15% от баланса на сделку
+• Максимум 6 сделок
+• AI анализирует каждый сигнал
+"""
+            await message.answer(text, parse_mode=ParseMode.MARKDOWN)
     
     # === УВЕДОМЛЕНИЯ ===
     
@@ -391,48 +307,46 @@ class TelegramBot:
         if not self.enabled:
             return
         try:
-            await self.bot.send_message(self.admin_id, text)
+            await self.bot.send_message(self.admin_id, text, parse_mode=ParseMode.MARKDOWN)
         except Exception as e:
             logger.error(f"Telegram error: {e}")
     
     async def notify_signal(self, signal):
         emoji = "📈" if signal.direction == "LONG" else "📉"
         text = f"""
-{emoji} СИГНАЛ: {signal.symbol}
+{emoji} *СИГНАЛ: {signal.symbol}*
 
 {signal.direction} • {signal.strategy_name}
 WR: {signal.win_rate:.1f}%
 
 Entry: ${signal.entry_price:,.4f}
-SL: ${signal.stop_loss:,.4f} | TP: ${signal.take_profit:,.4f}
 """
         await self.send_message(text.strip())
     
     async def notify_trade_opened(self, trade):
         emoji = "📈" if trade.direction == "LONG" else "📉"
         text = f"""
-✅ ОТКРЫТА: {trade.symbol}
+✅ *ОТКРЫТА: {trade.symbol}*
 
 {emoji} {trade.direction} • ${trade.value_usdt:,.2f}
-Entry: ${trade.entry_price:,.4f}
-SL: ${trade.stop_loss:,.4f} | TP: ${trade.take_profit:,.4f}
+🎯 Entry: ${trade.entry_price:,.4f}
 """
         await self.send_message(text.strip())
     
     async def notify_trade_closed(self, trade):
         emoji = "✅" if trade.unrealized_pnl >= 0 else "❌"
-        reason = trade.close_reason.value if trade.close_reason else "unknown"
+        reason = trade.close_reason.value if trade.close_reason else "manual"
         text = f"""
-{emoji} ЗАКРЫТА: {trade.symbol}
+{emoji} *ЗАКРЫТА: {trade.symbol}*
 
-P&L: {trade.unrealized_pnl_percent:+.2f}% (${trade.unrealized_pnl:+.2f})
+P&L: *{trade.unrealized_pnl_percent:+.2f}%* (${trade.unrealized_pnl:+.2f})
 Причина: {reason}
 """
         await self.send_message(text.strip())
     
     async def notify_ai_decision(self, decision):
         text = f"""
-🧠 AI: {decision.action.value.upper()}
+🧠 *AI: {decision.action.value.upper()}*
 
 Confidence: {decision.confidence}%
 {decision.reason}
@@ -440,30 +354,17 @@ Confidence: {decision.confidence}%
         await self.send_message(text.strip())
     
     async def notify_error(self, error: str):
-        await self.send_message(f"⚠️ Ошибка: {error}")
-    
-    async def notify_startup(self):
-        """Уведомление о готовности"""
-        enabled_count = sum(1 for v in self.enabled_coins.values() if v)
-        
-        text = f"""
-🤖 CryptoDen Bot Ready!
-
-📊 Монет: {enabled_count}
-📱 Отправь /start для управления
-"""
-        await self.send_message(text.strip())
+        await self.send_message(f"⚠️ *Ошибка:* {error}")
     
     async def start_polling(self):
         if not self.enabled:
-            logger.warning("Telegram not configured")
             return
         await self._set_commands()
-        logger.info("📱 Telegram bot polling started")
         
         # Запускаем фоновую проверку запроса запуска из WebApp
         asyncio.create_task(self._check_start_request())
         
+        logger.info("📱 Telegram bot started")
         await self.dp.start_polling(self.bot)
     
     async def _check_start_request(self):
@@ -490,22 +391,12 @@ Confidence: {decision.confidence}%
     async def _apply_settings_and_start(self, settings_data: dict):
         """Применить настройки из WebApp и запустить бота"""
         try:
-            # Применяем настройки
-            self.monitor.ai_enabled = settings_data.get('ai_enabled', True)
-            self.monitor.paper_trading = settings_data.get('paper_trading', True)
-            self.monitor.balance_percent_per_trade = settings_data.get('risk_percent', 15) / 100
-            self.monitor.max_open_trades = settings_data.get('max_trades', 6)
-            self.monitor.min_confidence = settings_data.get('ai_confidence', 60)
-            
-            # Монеты
-            coins = settings_data.get('coins', {})
-            self.monitor.symbols = [c for c, enabled in coins.items() if enabled]
-            self.enabled_coins = coins
+            self._apply_settings(settings_data)
             
             logger.info(f"📱 WebApp settings applied: {len(self.monitor.symbols)} coins")
             
             # Уведомляем
-            await self.send_message("🚀 Запускаю бота из WebApp...")
+            await self.send_message("🚀 *Запускаю бота из WebApp...*")
             
             # Запускаем
             asyncio.create_task(self.monitor.start())
@@ -513,16 +404,12 @@ Confidence: {decision.confidence}%
             await asyncio.sleep(3)
             
             # Отправляем статус
-            text = self._get_status_message()
-            await self.bot.send_message(
-                self.admin_id, 
-                text, 
-                reply_markup=get_stop_button()
-            )
+            text = self._get_status_text()
+            await self.bot.send_message(self.admin_id, text, parse_mode=ParseMode.MARKDOWN)
             
         except Exception as e:
             logger.error(f"Apply settings error: {e}")
-            await self.send_message(f"❌ Ошибка: {e}")
+            await self.send_message(f"❌ *Ошибка:* {e}")
     
     async def stop(self):
         if self.bot:

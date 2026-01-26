@@ -22,21 +22,18 @@ async def main():
     logger.info("")
     logger.info("📱 Waiting for Telegram commands...")
     logger.info("")
-    logger.info("💡 Available commands:")
-    logger.info("   /run    — 🚀 Start trading bot")
-    logger.info("   /stop   — 🛑 Stop trading bot")
-    logger.info("   /pause  — ⏸️ Toggle AI on/off")
-    logger.info("   /status — 📊 Bot status")
-    logger.info("   /live   — 💰 Switch Paper/Live mode")
+    logger.info("💡 Control bot via Telegram WebApp:")
+    logger.info("   🎛 Панель управления — Settings & Start/Stop")
+    logger.info("   📊 Статус — Current status")
+    logger.info("   📈 Сделки — Active trades")
+    logger.info("   📰 Новости — Market context")
+    logger.info("   📋 История — Trade history")
     logger.info("")
-    logger.info("💰 Tokens are saved: AI works only when bot is running!")
+    logger.info("💰 AI works only when bot is running!")
     logger.info("=" * 60)
     
-    # Уведомляем о готовности
-    await telegram_bot.notify_startup()
-    
     # Только слушаем Telegram команды
-    # Бот НЕ торгует пока не получит /run
+    # Управление через WebApp
     await telegram_bot.start_polling()
 
 
