@@ -160,15 +160,7 @@ class MarketMonitor:
         # Первоначальная загрузка новостей
         await self._update_news_context()
         
-        # Отправляем в Telegram
-        await telegram_bot.send_message(
-            f"🚀 *CryptoDen Bot Started*\n\n"
-            f"📊 Symbols: {len(self.symbols)}\n"
-            f"🧠 AI: {'Enabled' if self.ai_enabled else 'Disabled'}\n"
-            f"📝 Mode: {'Paper' if self.paper_trading else 'LIVE'}\n"
-            f"💰 Balance: ${self.current_balance:,.2f}\n"
-            f"📦 Trade size: ${self.get_trade_size():,.2f}"
-        )
+        # НЕ отправляем сообщение здесь - telegram_bot сам отправит статус
         
         # Основной цикл
         async with self.bybit:
@@ -187,16 +179,7 @@ class MarketMonitor:
         self.running = False
         self._update_status_file()
         
-        stats = trade_manager.get_statistics()
-        active = len(trade_manager.get_active_trades())
-        
-        await telegram_bot.send_message(
-            f"🛑 *Bot Stopped*\n\n"
-            f"📊 Циклов: {self.check_count}\n"
-            f"📈 Активных: {active}\n"
-            f"💰 P&L: ${stats.get('total_pnl', 0):+.2f}\n"
-            f"💵 Баланс: ${self.current_balance:,.2f}"
-        )
+        # НЕ отправляем сообщение здесь - telegram_bot сам отправит статус
         logger.info("🛑 Monitor stopped")
     
     async def _main_cycle(self):
