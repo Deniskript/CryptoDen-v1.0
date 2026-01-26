@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     """Настройки приложения"""
     
     # === Telegram ===
-    telegram_bot_token: str = Field(default="", env="TELEGRAM_BOT_TOKEN")
-    admin_chat_id: Optional[int] = Field(default=None, env="ADMIN_CHAT_ID")
+    telegram_bot_token: str = Field(default="", alias="BOT_TOKEN")
+    admin_chat_id: Optional[int] = Field(default=None, alias="ADMIN_CHAT_ID")
     
     # === Bybit ===
     bybit_api_key: Optional[str] = Field(default=None, env="BYBIT_API_KEY")
