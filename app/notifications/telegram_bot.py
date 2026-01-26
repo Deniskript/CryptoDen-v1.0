@@ -258,24 +258,118 @@ _Управление через 🎛 Панель управления_
             if not self._is_admin(message.from_user.id):
                 return
             
-            context = self.monitor.market_context
-            if not context:
-                await message.answer("📰 *Нет данных*\n\nЗапустите бота через 🎛 Панель управления", parse_mode=ParseMode.MARKDOWN)
-                return
+            # Загружаем новости ВСЕГДА, даже если бот остановлен
+            loading_msg = await message.answer("📰 *Загружаю новости...*", parse_mode=ParseMode.MARKDOWN)
             
-            mode = context.get('market_mode', 'UNKNOWN')
-            mode_emoji = {"NORMAL": "🟢", "NEWS_ALERT": "🟡", "WAIT_EVENT": "🔴"}.get(mode, "⚪")
-            
-            text = f"📰 *Рынок: {mode}* {mode_emoji}\n\n"
-            
-            news = context.get('news', [])[:5]
-            for n in news:
-                s = n.get('sentiment', 0)
-                emoji = "🟢" if s > 0 else "🔴" if s < 0 else "⚪"
-                title = n.get('title', '')[:40]
-                text += f"{emoji} {title}...\n"
-            
-            await message.answer(text.strip(), parse_mode=ParseMode.MARKDOWN)
+            try:
+                # Получаем свежие новости
+                from app.intelligence.news_parser import news_parser
+                news_data = await news_parser.get_market_context()
+                
+                news = news_data.get('news', [])
+                market_mode = news_data.get('market_mode', 'NORMAL')
+                
+                if not news:
+                    await loading_msg.edit_text(
+                        "📰 *Новости*\n\n_Нет актуальных новостей_",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    return
+                
+                # Режим рынка
+                mode_info = {
+                    'NORMAL': ('🟢', 'Нормальный', 'Можно торговать'),
+                    'NEWS_ALERT': ('🟡', 'Осторожность', 'Важные новости'),
+                    'WAIT_EVENT': ('🔴', 'Ожидание', 'Важное событие скоро')
+                }
+                mode_emoji, mode_name, mode_desc = mode_info.get(market_mode, ('⚪', 'Неизвестно', ''))
+                
+                text = f"""📰 *Новости крипторынка*
+
+{mode_emoji} *Режим: {mode_name}*
+_{mode_desc}_
+
+━━━━━━━━━━━━━━━━━━━━━━
+"""
+                
+                # Словарь переводов
+                translations = {
+                    'fed': '🏦 ФРС', 'rate': 'ставка', 'rates': 'ставки',
+                    'fomc': 'заседание ФРС', 'powell': 'Пауэлл', 'inflation': 'инфляция',
+                    'sec': '⚖️ SEC', 'etf': 'ETF', 'approve': 'одобрение',
+                    'reject': 'отклонение', 'delay': 'отсрочка', 'regulation': 'регулирование',
+                    'bitcoin': '₿ BTC', 'btc': '₿ BTC', 'halving': 'халвинг',
+                    'whale': '🐋 кит', 'whales': '🐋 киты',
+                    'ethereum': 'Ξ ETH', 'eth': 'Ξ ETH',
+                    'rally': '📈 рост', 'crash': '📉 обвал', 'pump': '🚀 рост',
+                    'dump': '💥 падение', 'bullish': '🐂 бычий', 'bearish': '🐻 медвежий',
+                    'all-time high': '🏆 ATH', 'ath': '🏆 ATH',
+                    'blackrock': '🏢 BlackRock', 'grayscale': '🏢 Grayscale',
+                    'binance': 'Binance', 'coinbase': 'Coinbase',
+                    'hack': '🔓 взлом', 'exploit': '🔓 эксплойт',
+                    'lawsuit': '⚖️ иск', 'ban': '🚫 запрет',
+                    'trump': '🇺🇸 Трамп', 'china': '🇨🇳 Китай',
+                }
+                
+                def get_hint(title: str) -> str:
+                    hints = []
+                    title_lower = title.lower()
+                    for eng, rus in translations.items():
+                        if eng in title_lower and rus not in hints:
+                            hints.append(rus)
+                    return ' • '.join(hints[:3]) if hints else None
+                
+                def get_impact_emoji(sentiment: float, importance: str) -> str:
+                    if importance == 'HIGH':
+                        return '🔴' if sentiment < 0 else '🟢' if sentiment > 0 else '🟡'
+                    elif importance == 'MEDIUM':
+                        return '🟠' if sentiment < 0 else '🟢' if sentiment > 0 else '⚪'
+                    return '⚪'
+                
+                def get_impact_text(sentiment: float) -> str:
+                    if sentiment > 0.3:
+                        return '💹 Позитивно'
+                    elif sentiment < -0.3:
+                        return '📉 Негативно'
+                    return '➖ Нейтрально'
+                
+                # Новости
+                for n in news[:6]:
+                    title = n.get('title', '')
+                    sentiment = n.get('sentiment', 0)
+                    importance = n.get('importance', 'LOW')
+                    
+                    impact_emoji = get_impact_emoji(sentiment, importance)
+                    hint = get_hint(title)
+                    impact = get_impact_text(sentiment)
+                    
+                    if len(title) > 55:
+                        title = title[:52] + '...'
+                    
+                    text += f"\n{impact_emoji} *{title}*\n"
+                    if hint:
+                        text += f"   📝 _{hint}_\n"
+                    text += f"   {impact}\n"
+                
+                # События
+                events = news_data.get('calendar', [])
+                if events:
+                    text += "\n━━━━━━━━━━━━━━━━━━━━━━\n📅 *События:*\n"
+                    for e in events[:3]:
+                        event_name = e.get('event', '')
+                        text += f"⏰ {event_name}\n"
+                
+                from datetime import datetime
+                text += f"\n_Обновлено: {datetime.now().strftime('%H:%M')}_"
+                
+                await loading_msg.edit_text(text.strip(), parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"News error: {e}")
+                await loading_msg.edit_text(
+                    f"📰 *Ошибка загрузки*\n\n_{str(e)[:80]}_",
+                    parse_mode=ParseMode.MARKDOWN
+                )
         
         @self.dp.message(F.text == "📋 История")
         async def btn_history(message: types.Message):
