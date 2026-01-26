@@ -1,0 +1,47 @@
+{
+  "symbol": "BTC",
+  "start_date": "2024-01-01T00:05:00",
+  "end_date": "2024-12-31T23:55:00",
+  "interval": "5m",
+  "parameters": {
+    "check_interval_hours": 1,
+    "max_hold_hours": 5,
+    "sl_percent": 0.75,
+    "tp_percent": 1.5,
+    "min_score": 30
+  },
+  "summary": {
+    "total_trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "breakeven": 0,
+    "timeout": 0,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "total_pnl_percent": 0.0,
+    "avg_pnl_percent": 0.0,
+    "best_trade_pnl": 0.0,
+    "worst_trade_pnl": 0.0,
+    "max_win_streak": 0,
+    "max_loss_streak": 0
+  },
+  "regime_stats": {},
+  "strategy_stats": {},
+  "brain_stats": {
+    "total_analyses": 8779,
+    "signals_generated": 0,
+    "module_errors": 0,
+    "fallback_used": 6616,
+    "filtered_by_cooldown": 0,
+    "filtered_by_regime": 1145,
+    "filtered_by_consensus": 0,
+    "filtered_by_score": 0,
+    "filtered_by_trend": 0,
+    "filtered_by_volatility": 1018,
+    "filtered_by_confidence": 0,
+    "signal_rate": 0.0,
+    "error_rate": 0.0,
+    "fallback_rate": 0.7536165850324639
+  },
+  "trades": []
+}

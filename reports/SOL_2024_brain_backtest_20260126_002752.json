@@ -1,0 +1,321 @@
+{
+  "symbol": "SOL",
+  "start_date": "2024-01-01T01:00:00",
+  "end_date": "2024-12-31T23:00:00",
+  "interval": "1h",
+  "parameters": {
+    "check_interval_hours": 4,
+    "max_hold_hours": 24,
+    "sl_percent": 2.0,
+    "tp_percent": 4.0,
+    "min_score": 30
+  },
+  "summary": {
+    "total_trades": 5,
+    "wins": 3,
+    "losses": 2,
+    "breakeven": 0,
+    "timeout": 0,
+    "win_rate": 60.0,
+    "profit_factor": 1.41,
+    "total_pnl_percent": 1.99,
+    "avg_pnl_percent": 0.4,
+    "best_trade_pnl": 2.88,
+    "worst_trade_pnl": -3.05,
+    "max_win_streak": 2,
+    "max_loss_streak": 1
+  },
+  "regime_stats": {
+    "uptrend": {
+      "total": 2,
+      "wins": 1,
+      "losses": 1,
+      "pnl": -0.16275052445325056,
+      "win_rate": 50.0
+    },
+    "ranging": {
+      "total": 1,
+      "wins": 1,
+      "losses": 0,
+      "pnl": 2.242669631448835,
+      "win_rate": 100.0
+    },
+    "strong_uptrend": {
+      "total": 2,
+      "wins": 1,
+      "losses": 1,
+      "pnl": -0.09013352615654546,
+      "win_rate": 50.0
+    }
+  },
+  "strategy_stats": {
+    "Scalping": {
+      "total_votes": 5,
+      "correct_direction": 3,
+      "wrong_direction": 2,
+      "neutral_votes": 0,
+      "accuracy": 60.0
+    },
+    "Swing": {
+      "total_votes": 5,
+      "correct_direction": 3,
+      "wrong_direction": 2,
+      "neutral_votes": 0,
+      "accuracy": 60.0
+    },
+    "SmartMoney": {
+      "total_votes": 5,
+      "correct_direction": 2,
+      "wrong_direction": 0,
+      "neutral_votes": 3,
+      "accuracy": 100.0
+    },
+    "Divergence": {
+      "total_votes": 5,
+      "correct_direction": 1,
+      "wrong_direction": 0,
+      "neutral_votes": 4,
+      "accuracy": 100.0
+    },
+    "TrendFollowing": {
+      "total_votes": 5,
+      "correct_direction": 2,
+      "wrong_direction": 2,
+      "neutral_votes": 1,
+      "accuracy": 50.0
+    }
+  },
+  "brain_stats": {
+    "total_analyses": 2183,
+    "signals_generated": 5,
+    "module_errors": 0,
+    "fallback_used": 1255,
+    "filtered_by_cooldown": 0,
+    "filtered_by_regime": 928,
+    "filtered_by_consensus": 1099,
+    "filtered_by_score": 67,
+    "filtered_by_trend": 2,
+    "filtered_by_volatility": 0,
+    "filtered_by_confidence": 82,
+    "signal_rate": 0.0022904260192395786,
+    "error_rate": 0.0,
+    "fallback_rate": 0.5748969308291342
+  },
+  "trades": [
+    {
+      "id": 1,
+      "timestamp": "2024-03-21T13:00:00",
+      "symbol": "SOL",
+      "direction": "LONG",
+      "entry_price": 187.2,
+      "stop_loss": 181.49464285714285,
+      "take_profit": 198.61071428571427,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: uptrend",
+        "✅ ATR: 2.03%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 34.811383189940415,
+        "ema_21": 186.59481082380708,
+        "ema_50": 184.32896868460145,
+        "ema_200": 181.5373,
+        "atr": 3.8035714285714226,
+        "atr_percent": 2.0318223443223413,
+        "adx": 25.155455059355592
+      },
+      "exit_price": 181.49464285714285,
+      "exit_timestamp": "2024-03-22T13:00:00",
+      "pnl_percent": -3.05,
+      "result": "LOSS",
+      "hold_hours": 24,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 2,
+      "timestamp": "2024-05-05T09:00:00",
+      "symbol": "SOL",
+      "direction": "LONG",
+      "entry_price": 145.73,
+      "stop_loss": 143.62785714285712,
+      "take_profit": 149.9342857142857,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: uptrend",
+        "✅ ATR: 0.96%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 33.718689788054135,
+        "ema_21": 145.36393693448875,
+        "ema_50": 143.67906987391407,
+        "ema_200": 137.1555,
+        "atr": 1.4014285714285717,
+        "atr_percent": 0.9616609973434239,
+        "adx": 26.19926199261988
+      },
+      "exit_price": 149.9342857142857,
+      "exit_timestamp": "2024-05-06T09:00:00",
+      "pnl_percent": 2.88,
+      "result": "WIN",
+      "hold_hours": 24,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "id": 3,
+      "timestamp": "2024-07-21T13:00:00",
+      "symbol": "SOL",
+      "direction": "LONG",
+      "entry_price": 172.18,
+      "stop_loss": 170.24928571428572,
+      "take_profit": 176.0414285714286,
+      "score": 60,
+      "confidence": 0.48,
+      "market_regime": "ranging",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: ranging",
+        "✅ ATR: 0.75%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 60",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 40.839694656488575,
+        "ema_21": 172.10659620617125,
+        "ema_50": 169.878772592329,
+        "ema_200": 157.93715,
+        "atr": 1.287142857142864,
+        "atr_percent": 0.7475565438162759,
+        "adx": 16.886930983847282
+      },
+      "exit_price": 176.0414285714286,
+      "exit_timestamp": "2024-07-22T13:00:00",
+      "pnl_percent": 2.24,
+      "result": "WIN",
+      "hold_hours": 24,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "id": 4,
+      "timestamp": "2024-09-20T21:00:00",
+      "symbol": "SOL",
+      "direction": "LONG",
+      "entry_price": 147.25,
+      "stop_loss": 144.57464285714286,
+      "take_profit": 152.60071428571428,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 1.21%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 30.126849894291766,
+        "ema_21": 146.79296113231683,
+        "ema_50": 143.32829811823245,
+        "ema_200": 136.07184999999998,
+        "atr": 1.7835714285714244,
+        "atr_percent": 1.2112539413048722,
+        "adx": 56.146179401993734
+      },
+      "exit_price": 144.57464285714286,
+      "exit_timestamp": "2024-09-21T21:00:00",
+      "pnl_percent": -1.82,
+      "result": "LOSS",
+      "hold_hours": 24,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 5,
+      "timestamp": "2024-09-21T01:00:00",
+      "symbol": "SOL",
+      "direction": "LONG",
+      "entry_price": 145.36,
+      "stop_loss": 142.66428571428574,
+      "take_profit": 150.75142857142856,
+      "score": 60,
+      "confidence": 0.48,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "LONG",
+        "TrendFollowing": "NEUTRAL"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 1.24%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 60",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'Divergence': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 24.66019417475711,
+        "ema_21": 146.71111751169516,
+        "ema_50": 143.80788414463967,
+        "ema_200": 136.31425,
+        "atr": 1.7971428571428507,
+        "atr_percent": 1.2363393348533644,
+        "adx": 49.853658536585094
+      },
+      "exit_price": 147.87,
+      "exit_timestamp": "2024-09-22T01:00:00",
+      "pnl_percent": 1.73,
+      "result": "WIN",
+      "hold_hours": 24,
+      "exit_reason": "Timeout"
+    }
+  ]
+}

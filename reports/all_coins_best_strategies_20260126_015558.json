@@ -1,0 +1,138 @@
+{
+  "generated_at": "2026-01-26T01:55:58.509085",
+  "parameters": {
+    "tp_percent": 0.3,
+    "sl_percent": 0.5,
+    "risk_reward": 0.6,
+    "timeframe": "5m",
+    "year": 2024
+  },
+  "summary": {
+    "total_coins": 10,
+    "coins_60_plus_wr": 10,
+    "coins_50_plus_wr": 10,
+    "total_pnl": 112.39
+  },
+  "results": {
+    "BTC": {
+      "strategy": "RSI(21) > 80",
+      "direction": "SHORT",
+      "win_rate": 65.02,
+      "total_pnl": 7.4,
+      "total_trades": 323,
+      "trades_per_day": 0.88,
+      "wins": 210,
+      "losses": 113,
+      "profit_factor": 1.13,
+      "max_drawdown": 6.68
+    },
+    "ETH": {
+      "strategy": "Stoch(14,3)<25 + MACD cross UP",
+      "direction": "LONG",
+      "win_rate": 65.78,
+      "total_pnl": 7.28,
+      "total_trades": 263,
+      "trades_per_day": 0.72,
+      "wins": 173,
+      "losses": 90,
+      "profit_factor": 1.17,
+      "max_drawdown": 4.13
+    },
+    "BNB": {
+      "strategy": "RSI(14)<30 + Price>EMA(50)",
+      "direction": "LONG",
+      "win_rate": 69.23,
+      "total_pnl": 13.49,
+      "total_trades": 234,
+      "trades_per_day": 0.64,
+      "wins": 162,
+      "losses": 72,
+      "profit_factor": 1.39,
+      "max_drawdown": 2.4
+    },
+    "SOL": {
+      "strategy": "RSI(14)<30 + Price>EMA(50)",
+      "direction": "LONG",
+      "win_rate": 66.32,
+      "total_pnl": 8.9,
+      "total_trades": 291,
+      "trades_per_day": 0.8,
+      "wins": 193,
+      "losses": 98,
+      "profit_factor": 1.18,
+      "max_drawdown": 5.1
+    },
+    "XRP": {
+      "strategy": "RSI<40 + Stoch<30 + Price>EMA50",
+      "direction": "LONG",
+      "win_rate": 65.03,
+      "total_pnl": 18.73,
+      "total_trades": 915,
+      "trades_per_day": 2.5,
+      "wins": 595,
+      "losses": 320,
+      "profit_factor": 1.12,
+      "max_drawdown": 4.46
+    },
+    "ADA": {
+      "strategy": "RSI(14)<30 + Price>EMA(50)",
+      "direction": "LONG",
+      "win_rate": 66.05,
+      "total_pnl": 8.14,
+      "total_trades": 271,
+      "trades_per_day": 0.74,
+      "wins": 179,
+      "losses": 92,
+      "profit_factor": 1.18,
+      "max_drawdown": 5.9
+    },
+    "DOGE": {
+      "strategy": "Stoch(14,3)<30 + MACD cross UP",
+      "direction": "LONG",
+      "win_rate": 64.6,
+      "total_pnl": 7.45,
+      "total_trades": 404,
+      "trades_per_day": 1.1,
+      "wins": 261,
+      "losses": 143,
+      "profit_factor": 1.11,
+      "max_drawdown": 5.0
+    },
+    "MATIC": {
+      "strategy": "RSI(14)<30 + Price>EMA(50)",
+      "direction": "LONG",
+      "win_rate": 67.72,
+      "total_pnl": 6.6,
+      "total_trades": 158,
+      "trades_per_day": 0.62,
+      "wins": 107,
+      "losses": 51,
+      "profit_factor": 1.26,
+      "max_drawdown": 2.7
+    },
+    "LINK": {
+      "strategy": "RSI(14)<30 + Price>EMA(50)",
+      "direction": "LONG",
+      "win_rate": 68.77,
+      "total_pnl": 14.3,
+      "total_trades": 285,
+      "trades_per_day": 0.78,
+      "wins": 196,
+      "losses": 89,
+      "profit_factor": 1.32,
+      "max_drawdown": 4.3
+    },
+    "AVAX": {
+      "strategy": "Double bottom pattern",
+      "direction": "LONG",
+      "win_rate": 64.04,
+      "total_pnl": 20.1,
+      "total_trades": 1635,
+      "trades_per_day": 4.47,
+      "wins": 1047,
+      "losses": 588,
+      "profit_factor": 1.07,
+      "max_drawdown": 14.2
+    }
+  }
+}

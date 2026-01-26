@@ -1,0 +1,10 @@
+{
+  "generated_at": "2026-01-26T16:33:08.827064",
+  "parameters": {
+    "tp_percent": 0.3,
+    "sl_percent": 0.5,
+    "timeframe": "5m"
+  },
+  "comparison": {},
+  "stable_strategies": {}
+}

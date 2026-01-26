@@ -1,0 +1,701 @@
+{
+  "symbol": "BTC",
+  "start_date": "2024-01-01T01:00:00",
+  "end_date": "2024-12-31T23:00:00",
+  "interval": "1h",
+  "parameters": {
+    "check_interval_hours": 4,
+    "max_hold_hours": 24,
+    "sl_percent": 2.0,
+    "tp_percent": 4.0,
+    "min_score": 30
+  },
+  "summary": {
+    "total_trades": 14,
+    "wins": 6,
+    "losses": 8,
+    "breakeven": 0,
+    "timeout": 0,
+    "win_rate": 42.9,
+    "profit_factor": 0.86,
+    "total_pnl_percent": -1.38,
+    "avg_pnl_percent": -0.1,
+    "best_trade_pnl": 1.82,
+    "worst_trade_pnl": -2.25,
+    "max_win_streak": 2,
+    "max_loss_streak": 2
+  },
+  "regime_stats": {
+    "strong_uptrend": {
+      "total": 12,
+      "wins": 4,
+      "losses": 8,
+      "pnl": -4.617009631182617,
+      "win_rate": 33.33333333333333
+    },
+    "uptrend": {
+      "total": 2,
+      "wins": 2,
+      "losses": 0,
+      "pnl": 3.234022801885993,
+      "win_rate": 100.0
+    }
+  },
+  "strategy_stats": {
+    "Scalping": {
+      "total_votes": 14,
+      "correct_direction": 6,
+      "wrong_direction": 8,
+      "neutral_votes": 0,
+      "accuracy": 42.857142857142854
+    },
+    "Swing": {
+      "total_votes": 14,
+      "correct_direction": 6,
+      "wrong_direction": 8,
+      "neutral_votes": 0,
+      "accuracy": 42.857142857142854
+    },
+    "SmartMoney": {
+      "total_votes": 14,
+      "correct_direction": 4,
+      "wrong_direction": 4,
+      "neutral_votes": 6,
+      "accuracy": 50.0
+    },
+    "Divergence": {
+      "total_votes": 14,
+      "correct_direction": 3,
+      "wrong_direction": 3,
+      "neutral_votes": 8,
+      "accuracy": 50.0
+    },
+    "TrendFollowing": {
+      "total_votes": 14,
+      "correct_direction": 3,
+      "wrong_direction": 5,
+      "neutral_votes": 6,
+      "accuracy": 37.5
+    }
+  },
+  "brain_stats": {
+    "total_analyses": 2183,
+    "signals_generated": 14,
+    "module_errors": 0,
+    "fallback_used": 1108,
+    "filtered_by_cooldown": 0,
+    "filtered_by_regime": 1037,
+    "filtered_by_consensus": 903,
+    "filtered_by_score": 47,
+    "filtered_by_trend": 2,
+    "filtered_by_volatility": 38,
+    "filtered_by_confidence": 142,
+    "signal_rate": 0.00641319285387082,
+    "error_rate": 0.0,
+    "fallback_rate": 0.5075584058634907
+  },
+  "trades": [
+    {
+      "id": 1,
+      "timestamp": "2024-01-09T21:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 45430.0,
+      "stop_loss": 44406.68178571429,
+      "take_profit": 47476.63642857143,
+      "score": 71,
+      "confidence": 0.568,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "LONG",
+        "TrendFollowing": "NEUTRAL"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 1.50%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 71",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'Divergence': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 33.61503357714098,
+        "ema_21": 46434.07623468929,
+        "ema_50": 45837.2959553683,
+        "ema_200": 44389.438200000004,
+        "atr": 682.2121428571425,
+        "atr_percent": 1.501677620200622,
+        "adx": 87.18654824649408
+      },
+      "exit_price": 44406.68178571429,
+      "exit_timestamp": "2024-01-10T21:00:00",
+      "pnl_percent": -2.25,
+      "result": "LOSS",
+      "hold_hours": 24,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 2,
+      "timestamp": "2024-01-27T09:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 41673.0,
+      "stop_loss": 41398.57821428571,
+      "take_profit": 42221.843571428566,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 0.44%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 30.183298568074434,
+        "ema_21": 41558.36309160332,
+        "ema_50": 41052.5544895278,
+        "ema_200": 40753.0928,
+        "atr": 182.9478571428564,
+        "atr_percent": 0.4390081279074134,
+        "adx": 50.79451392665104
+      },
+      "exit_price": 42221.843571428566,
+      "exit_timestamp": "2024-01-28T09:00:00",
+      "pnl_percent": 1.32,
+      "result": "WIN",
+      "hold_hours": 24,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "id": 3,
+      "timestamp": "2024-04-09T05:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 71055.04,
+      "stop_loss": 70401.84892857143,
+      "take_profit": 72361.42214285713,
+      "score": 50,
+      "confidence": 0.4,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "LONG",
+        "TrendFollowing": "NEUTRAL"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 0.61%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 50",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'Divergence': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 32.408542265190974,
+        "ema_21": 71303.29754815133,
+        "ema_50": 70567.03962307866,
+        "ema_200": 68247.07405,
+        "atr": 435.460714285712,
+        "atr_percent": 0.6128498615801385,
+        "adx": 34.828925702536104
+      },
+      "exit_price": 70401.84892857143,
+      "exit_timestamp": "2024-04-10T05:00:00",
+      "pnl_percent": -0.92,
+      "result": "LOSS",
+      "hold_hours": 24,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 4,
+      "timestamp": "2024-05-19T01:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 66920.13,
+      "stop_loss": 66576.55285714286,
+      "take_profit": 67607.2842857143,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 0.34%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 34.43449434839705,
+        "ema_21": 66882.49596525906,
+        "ema_50": 66530.8087249081,
+        "ema_200": 63579.18215,
+        "atr": 229.05142857142968,
+        "atr_percent": 0.3422758272756339,
+        "adx": 42.04853387259802
+      },
+      "exit_price": 66576.55285714286,
+      "exit_timestamp": "2024-05-20T01:00:00",
+      "pnl_percent": -0.51,
+      "result": "LOSS",
+      "hold_hours": 24,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 5,
+      "timestamp": "2024-07-20T09:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 66581.68,
+      "stop_loss": 66110.02535714285,
+      "take_profit": 67524.98928571427,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: uptrend",
+        "✅ ATR: 0.47%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 31.185137138620988,
+        "ema_21": 66222.89080963415,
+        "ema_50": 65500.299931410125,
+        "ema_200": 62461.58085,
+        "atr": 314.4364285714265,
+        "atr_percent": 0.4722566756672804,
+        "adx": 29.717668205904697
+      },
+      "exit_price": 67524.98928571427,
+      "exit_timestamp": "2024-07-21T09:00:00",
+      "pnl_percent": 1.42,
+      "result": "WIN",
+      "hold_hours": 24,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "id": 6,
+      "timestamp": "2024-07-20T13:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 66540.15,
+      "stop_loss": 66147.22821428571,
+      "take_profit": 67325.99357142855,
+      "score": 60,
+      "confidence": 0.48,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 0.39%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 60",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 44.877447856930004,
+        "ema_21": 66313.72888909346,
+        "ema_50": 65649.36363441225,
+        "ema_200": 62650.2941,
+        "atr": 261.94785714285536,
+        "atr_percent": 0.39366887081387014,
+        "adx": 39.0384105718168
+      },
+      "exit_price": 67325.99357142855,
+      "exit_timestamp": "2024-07-21T13:00:00",
+      "pnl_percent": 1.18,
+      "result": "WIN",
+      "hold_hours": 24,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "id": 7,
+      "timestamp": "2024-08-09T13:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 60457.32,
+      "stop_loss": 59613.075,
+      "take_profit": 62145.81,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 0.93%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 28.987741068956822,
+        "ema_21": 60339.282568343406,
+        "ema_50": 59092.573660452734,
+        "ema_200": 59112.9711,
+        "atr": 562.8300000000002,
+        "atr_percent": 0.9309542665801265,
+        "adx": 73.58629428629962
+      },
+      "exit_price": 59613.075,
+      "exit_timestamp": "2024-08-10T13:00:00",
+      "pnl_percent": -1.4,
+      "result": "LOSS",
+      "hold_hours": 24,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 8,
+      "timestamp": "2024-08-09T17:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 60197.5,
+      "stop_loss": 59188.08571428571,
+      "take_profit": 62216.328571428574,
+      "score": 50,
+      "confidence": 0.4,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "LONG",
+        "TrendFollowing": "NEUTRAL"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 1.12%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 50",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'Divergence': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 33.46753554976675,
+        "ema_21": 60294.07580504257,
+        "ema_50": 59255.739111411756,
+        "ema_200": 59029.2006,
+        "atr": 672.942857142857,
+        "atr_percent": 1.1178917017199335,
+        "adx": 33.62649309378829
+      },
+      "exit_price": 60769.38,
+      "exit_timestamp": "2024-08-10T17:00:00",
+      "pnl_percent": 0.95,
+      "result": "WIN",
+      "hold_hours": 24,
+      "exit_reason": "Timeout"
+    },
+    {
+      "id": 9,
+      "timestamp": "2024-09-14T17:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 59892.87,
+      "stop_loss": 59572.25892857143,
+      "take_profit": 60534.092142857146,
+      "score": 60,
+      "confidence": 0.48,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 0.36%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 60",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 37.48293060301134,
+        "ema_21": 59817.02394025352,
+        "ema_50": 59235.052583273115,
+        "ema_200": 56625.5962,
+        "atr": 213.7407142857155,
+        "atr_percent": 0.3568717182624835,
+        "adx": 38.37910835174975
+      },
+      "exit_price": 59572.25892857143,
+      "exit_timestamp": "2024-09-15T17:00:00",
+      "pnl_percent": -0.54,
+      "result": "LOSS",
+      "hold_hours": 24,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 10,
+      "timestamp": "2024-09-18T05:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 60236.39,
+      "stop_loss": 59559.74857142857,
+      "take_profit": 61589.67285714286,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 0.75%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 33.56074865025228,
+        "ema_21": 59991.87956673482,
+        "ema_50": 59527.5429916065,
+        "ema_200": 58595.409400000004,
+        "atr": 451.09428571428725,
+        "atr_percent": 0.7488733732454539,
+        "adx": 49.02465396865809
+      },
+      "exit_price": 59559.74857142857,
+      "exit_timestamp": "2024-09-19T05:00:00",
+      "pnl_percent": -1.12,
+      "result": "LOSS",
+      "hold_hours": 24,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 11,
+      "timestamp": "2024-09-18T09:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 59655.0,
+      "stop_loss": 59112.958928571425,
+      "take_profit": 60739.08214285714,
+      "score": 55,
+      "confidence": 0.44000000000000006,
+      "market_regime": "uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "LONG",
+        "TrendFollowing": "NEUTRAL"
+      },
+      "reasons": [
+        "✅ Режим: uptrend",
+        "✅ ATR: 0.61%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 55",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'Divergence': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 43.51226550050323,
+        "ema_21": 60044.260877964836,
+        "ema_50": 59623.25536281489,
+        "ema_200": 58658.45015,
+        "atr": 361.360714285715,
+        "atr_percent": 0.6057509249613864,
+        "adx": 24.892855693002165
+      },
+      "exit_price": 60739.08214285714,
+      "exit_timestamp": "2024-09-19T09:00:00",
+      "pnl_percent": 1.82,
+      "result": "WIN",
+      "hold_hours": 24,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "id": 12,
+      "timestamp": "2024-10-30T13:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 71961.54,
+      "stop_loss": 71381.33464285714,
+      "take_profit": 73121.95071428572,
+      "score": 55,
+      "confidence": 0.44000000000000006,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "LONG",
+        "TrendFollowing": "NEUTRAL"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 0.54%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 55",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'Divergence': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 34.04684596377285,
+        "ema_21": 72105.60565342815,
+        "ema_50": 71255.27697896487,
+        "ema_200": 68310.7718,
+        "atr": 386.80357142857247,
+        "atr_percent": 0.5375143047641455,
+        "adx": 46.389237963783444
+      },
+      "exit_price": 71381.33464285714,
+      "exit_timestamp": "2024-10-31T13:00:00",
+      "pnl_percent": -0.81,
+      "result": "LOSS",
+      "hold_hours": 24,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 13,
+      "timestamp": "2024-11-07T13:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 74666.8,
+      "stop_loss": 74044.26571428572,
+      "take_profit": 75911.86857142857,
+      "score": 50,
+      "confidence": 0.4,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "LONG",
+        "TrendFollowing": "NEUTRAL"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 0.56%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 50",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'Divergence': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 32.165914124064145,
+        "ema_21": 74735.45376661734,
+        "ema_50": 73461.74819788292,
+        "ema_200": 70654.28035,
+        "atr": 415.0228571428566,
+        "atr_percent": 0.5558331911141988,
+        "adx": 33.25594941983335
+      },
+      "exit_price": 75911.86857142857,
+      "exit_timestamp": "2024-11-08T13:00:00",
+      "pnl_percent": 1.67,
+      "result": "WIN",
+      "hold_hours": 24,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "id": 14,
+      "timestamp": "2024-11-14T05:00:00",
+      "symbol": "BTC",
+      "direction": "LONG",
+      "entry_price": 89966.2,
+      "stop_loss": 87999.51999999999,
+      "take_profit": 93899.56,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "strong_uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: strong_uptrend",
+        "✅ ATR: 1.46%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 34.53395231840173,
+        "ema_21": 89758.21696277018,
+        "ema_50": 88352.79635144296,
+        "ema_200": 80383.60059999999,
+        "atr": 1311.1200000000015,
+        "atr_percent": 1.457347314880479,
+        "adx": 44.47001497602876
+      },
+      "exit_price": 87999.51999999999,
+      "exit_timestamp": "2024-11-15T05:00:00",
+      "pnl_percent": -2.19,
+      "result": "LOSS",
+      "hold_hours": 24,
+      "exit_reason": "Stop Loss"
+    }
+  ]
+}

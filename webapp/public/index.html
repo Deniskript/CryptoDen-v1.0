@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoDen WebApp</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #1a1a2e);
+            color: var(--tg-theme-text-color, #ffffff);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        .card {
+            background: var(--tg-theme-secondary-bg-color, #16213e);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            opacity: 0.8;
+        }
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .stat:last-child {
+            border-bottom: none;
+        }
+        .stat-value {
+            font-weight: bold;
+        }
+        .positive { color: #00ff88; }
+        .negative { color: #ff4444; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 CryptoDen</h1>
+        
+        <div class="card">
+            <h2>📊 Статус системы</h2>
+            <div class="stat">
+                <span>Бот</span>
+                <span class="stat-value positive">🟢 Работает</span>
+            </div>
+            <div class="stat">
+                <span>Открытых сделок</span>
+                <span class="stat-value">0</span>
+            </div>
+            <div class="stat">
+                <span>PnL сегодня</span>
+                <span class="stat-value positive">+0.00%</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>📈 Последние сигналы</h2>
+            <p style="opacity: 0.6; text-align: center; padding: 20px 0;">
+                Нет активных сигналов
+            </p>
+        </div>
+        
+        <div class="card">
+            <h2>⚙️ Настройки</h2>
+            <div class="stat">
+                <span>Auto Trading</span>
+                <span class="stat-value negative">🔴 OFF</span>
+            </div>
+            <div class="stat">
+                <span>Режим</span>
+                <span class="stat-value">🧪 TESTNET</span>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Telegram WebApp init
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+        
+        // TODO: Fetch data from API
+        console.log('CryptoDen WebApp loaded');
+    </script>
+</body>
+</html>

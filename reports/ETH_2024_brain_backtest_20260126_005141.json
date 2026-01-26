@@ -1,0 +1,671 @@
+{
+  "symbol": "ETH",
+  "start_date": "2024-01-01T00:05:00",
+  "end_date": "2024-12-31T23:55:00",
+  "interval": "5m",
+  "parameters": {
+    "check_interval_hours": 1,
+    "max_hold_hours": 5,
+    "sl_percent": 0.75,
+    "tp_percent": 1.5,
+    "min_score": 30
+  },
+  "summary": {
+    "total_trades": 13,
+    "wins": 3,
+    "losses": 5,
+    "breakeven": 5,
+    "timeout": 0,
+    "win_rate": 23.1,
+    "profit_factor": 1.0,
+    "total_pnl_percent": 0.01,
+    "avg_pnl_percent": 0.0,
+    "best_trade_pnl": 1.5,
+    "worst_trade_pnl": -0.75,
+    "max_win_streak": 2,
+    "max_loss_streak": 3
+  },
+  "regime_stats": {
+    "uptrend": {
+      "total": 4,
+      "wins": 0,
+      "losses": 3,
+      "pnl": -2.7220129074818717,
+      "win_rate": 0.0
+    },
+    "ranging": {
+      "total": 9,
+      "wins": 3,
+      "losses": 2,
+      "pnl": 2.730067014521883,
+      "win_rate": 33.33333333333333
+    }
+  },
+  "strategy_stats": {
+    "Scalping": {
+      "total_votes": 13,
+      "correct_direction": 3,
+      "wrong_direction": 10,
+      "neutral_votes": 0,
+      "accuracy": 23.076923076923077
+    },
+    "Swing": {
+      "total_votes": 13,
+      "correct_direction": 3,
+      "wrong_direction": 10,
+      "neutral_votes": 0,
+      "accuracy": 23.076923076923077
+    },
+    "SmartMoney": {
+      "total_votes": 13,
+      "correct_direction": 3,
+      "wrong_direction": 8,
+      "neutral_votes": 2,
+      "accuracy": 27.27272727272727
+    },
+    "Divergence": {
+      "total_votes": 13,
+      "correct_direction": 1,
+      "wrong_direction": 2,
+      "neutral_votes": 10,
+      "accuracy": 33.33333333333333
+    },
+    "TrendFollowing": {
+      "total_votes": 13,
+      "correct_direction": 2,
+      "wrong_direction": 8,
+      "neutral_votes": 3,
+      "accuracy": 20.0
+    }
+  },
+  "brain_stats": {
+    "total_analyses": 8779,
+    "signals_generated": 13,
+    "module_errors": 0,
+    "fallback_used": 2089,
+    "filtered_by_cooldown": 0,
+    "filtered_by_regime": 6536,
+    "filtered_by_consensus": 1269,
+    "filtered_by_score": 76,
+    "filtered_by_trend": 3,
+    "filtered_by_volatility": 154,
+    "filtered_by_confidence": 728,
+    "signal_rate": 0.001480806469985192,
+    "error_rate": 0.0,
+    "fallback_rate": 0.23795420890762045
+  },
+  "trades": [
+    {
+      "id": 1,
+      "timestamp": "2024-01-16T23:05:00",
+      "symbol": "ETH",
+      "direction": "LONG",
+      "entry_price": 2599.25,
+      "stop_loss": 2579.7556250000002,
+      "take_profit": 2638.2387499999995,
+      "score": 60,
+      "confidence": 0.48,
+      "market_regime": "uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: uptrend",
+        "✅ ATR: 0.22%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 60",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 39.32827735644598,
+        "ema_21": 2598.2629758605917,
+        "ema_50": 2589.2461457332415,
+        "ema_200": 2553.78825,
+        "atr": 5.619285714285752,
+        "atr_percent": 0.21618873576169095,
+        "adx": 23.76766091051864
+      },
+      "exit_price": 2579.7556250000002,
+      "exit_timestamp": "2024-01-17T04:05:00",
+      "pnl_percent": -0.75,
+      "result": "LOSS",
+      "hold_hours": 5,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 2,
+      "timestamp": "2024-01-24T20:05:00",
+      "symbol": "ETH",
+      "direction": "SHORT",
+      "entry_price": 2224.66,
+      "stop_loss": 2241.34495,
+      "take_profit": 2191.2900999999997,
+      "score": -60,
+      "confidence": 0.48,
+      "market_regime": "ranging",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "SHORT",
+        "Swing": "SHORT",
+        "SmartMoney": "SHORT",
+        "Divergence": "SHORT",
+        "TrendFollowing": "NEUTRAL"
+      },
+      "reasons": [
+        "✅ Режим: ranging",
+        "✅ ATR: 0.25%",
+        "✅ Консенсус 4/5 стратегий для SHORT",
+        "✅ Score: -60",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'SHORT', 'Swing': 'SHORT', 'SmartMoney': 'SHORT', 'Divergence': 'SHORT'}"
+      ],
+      "indicators": {
+        "rsi": 60.97070649052274,
+        "ema_21": 2218.195046146853,
+        "ema_50": 2223.3915060648096,
+        "ema_200": 2231.4177,
+        "atr": 5.5285714285714675,
+        "atr_percent": 0.24851309542004027,
+        "adx": 12.410575427685027
+      },
+      "exit_price": 2229.94,
+      "exit_timestamp": "2024-01-25T01:05:00",
+      "pnl_percent": -0.24,
+      "result": "BREAKEVEN",
+      "hold_hours": 5,
+      "exit_reason": "Timeout"
+    },
+    {
+      "id": 3,
+      "timestamp": "2024-02-05T00:05:00",
+      "symbol": "ETH",
+      "direction": "SHORT",
+      "entry_price": 2288.55,
+      "stop_loss": 2305.7141250000004,
+      "take_profit": 2254.22175,
+      "score": -50,
+      "confidence": 0.4,
+      "market_regime": "ranging",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "SHORT",
+        "Swing": "SHORT",
+        "SmartMoney": "SHORT",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "SHORT"
+      },
+      "reasons": [
+        "✅ Режим: ranging",
+        "✅ ATR: 0.11%",
+        "✅ Консенсус 4/5 стратегий для SHORT",
+        "✅ Score: -50",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'SHORT', 'Swing': 'SHORT', 'SmartMoney': 'SHORT', 'TrendFollowing': 'SHORT'}"
+      ],
+      "indicators": {
+        "rsi": 51.71553337492252,
+        "ema_21": 2289.6953819127057,
+        "ema_50": 2291.635337367143,
+        "ema_200": 2297.55315,
+        "atr": 2.543571428571405,
+        "atr_percent": 0.11114336276556794,
+        "adx": 1.0777084515008302
+      },
+      "exit_price": 2291.5,
+      "exit_timestamp": "2024-02-05T05:05:00",
+      "pnl_percent": -0.13,
+      "result": "BREAKEVEN",
+      "hold_hours": 5,
+      "exit_reason": "Timeout"
+    },
+    {
+      "id": 4,
+      "timestamp": "2024-04-27T00:05:00",
+      "symbol": "ETH",
+      "direction": "SHORT",
+      "entry_price": 3133.38,
+      "stop_loss": 3156.8803500000004,
+      "take_profit": 3086.3793,
+      "score": -50,
+      "confidence": 0.4,
+      "market_regime": "ranging",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "SHORT",
+        "Swing": "SHORT",
+        "SmartMoney": "SHORT",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "SHORT"
+      },
+      "reasons": [
+        "✅ Режим: ranging",
+        "✅ ATR: 0.12%",
+        "✅ Консенсус 4/5 стратегий для SHORT",
+        "✅ Score: -50",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'SHORT', 'Swing': 'SHORT', 'SmartMoney': 'SHORT', 'TrendFollowing': 'SHORT'}"
+      ],
+      "indicators": {
+        "rsi": 52.74207369323075,
+        "ema_21": 3133.834626987608,
+        "ema_50": 3136.7752874665143,
+        "ema_200": 3136.7735,
+        "atr": 3.7007142857142816,
+        "atr_percent": 0.11810614370788992,
+        "adx": 6.504445484318872
+      },
+      "exit_price": 3086.3793,
+      "exit_timestamp": "2024-04-27T05:05:00",
+      "pnl_percent": 1.5,
+      "result": "WIN",
+      "hold_hours": 5,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "id": 5,
+      "timestamp": "2024-05-13T17:05:00",
+      "symbol": "ETH",
+      "direction": "LONG",
+      "entry_price": 2951.15,
+      "stop_loss": 2929.016375,
+      "take_profit": 2995.41725,
+      "score": 60,
+      "confidence": 0.48,
+      "market_regime": "uptrend",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "LONG",
+        "TrendFollowing": "NEUTRAL"
+      },
+      "reasons": [
+        "✅ Режим: uptrend",
+        "✅ ATR: 0.32%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 60",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'Divergence': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 42.51559251559249,
+        "ema_21": 2965.2952982923593,
+        "ema_50": 2964.336073690938,
+        "ema_200": 2938.18365,
+        "atr": 9.42928571428573,
+        "atr_percent": 0.3195122482518926,
+        "adx": 26.748377793799
+      },
+      "exit_price": 2929.016375,
+      "exit_timestamp": "2024-05-13T22:05:00",
+      "pnl_percent": -0.75,
+      "result": "LOSS",
+      "hold_hours": 5,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 6,
+      "timestamp": "2024-05-17T09:05:00",
+      "symbol": "ETH",
+      "direction": "LONG",
+      "entry_price": 3026.65,
+      "stop_loss": 3003.9501250000003,
+      "take_profit": 3072.0497499999997,
+      "score": 50,
+      "confidence": 0.4,
+      "market_regime": "ranging",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: ranging",
+        "✅ ATR: 0.31%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 50",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 51.44961604764139,
+        "ema_21": 3023.7679523792945,
+        "ema_50": 2999.7934803341286,
+        "ema_200": 2955.40755,
+        "atr": 9.243571428571451,
+        "atr_percent": 0.30540602410491635,
+        "adx": 3.6188178528341663
+      },
+      "exit_price": 3072.0497499999997,
+      "exit_timestamp": "2024-05-17T14:05:00",
+      "pnl_percent": 1.5,
+      "result": "WIN",
+      "hold_hours": 5,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "id": 7,
+      "timestamp": "2024-05-17T10:05:00",
+      "symbol": "ETH",
+      "direction": "LONG",
+      "entry_price": 3022.74,
+      "stop_loss": 3000.06945,
+      "take_profit": 3068.0810999999994,
+      "score": 55,
+      "confidence": 0.44000000000000006,
+      "market_regime": "ranging",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "LONG",
+        "TrendFollowing": "NEUTRAL"
+      },
+      "reasons": [
+        "✅ Режим: ranging",
+        "✅ ATR: 0.17%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 55",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'Divergence': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 43.722520762090404,
+        "ema_21": 3027.4574619780224,
+        "ema_50": 3011.1282348763566,
+        "ema_200": 2960.36415,
+        "atr": 5.167857142857266,
+        "atr_percent": 0.17096598261369705,
+        "adx": 10.083752093804323
+      },
+      "exit_price": 3068.0810999999994,
+      "exit_timestamp": "2024-05-17T15:05:00",
+      "pnl_percent": 1.5,
+      "result": "WIN",
+      "hold_hours": 5,
+      "exit_reason": "Take Profit"
+    },
+    {
+      "id": 8,
+      "timestamp": "2024-06-18T03:05:00",
+      "symbol": "ETH",
+      "direction": "SHORT",
+      "entry_price": 3424.71,
+      "stop_loss": 3450.3953250000004,
+      "take_profit": 3373.33935,
+      "score": -60,
+      "confidence": 0.48,
+      "market_regime": "ranging",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "SHORT",
+        "Swing": "SHORT",
+        "SmartMoney": "SHORT",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "SHORT"
+      },
+      "reasons": [
+        "✅ Режим: ranging",
+        "✅ ATR: 0.38%",
+        "✅ Консенсус 4/5 стратегий для SHORT",
+        "✅ Score: -60",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'SHORT', 'Swing': 'SHORT', 'SmartMoney': 'SHORT', 'TrendFollowing': 'SHORT'}"
+      ],
+      "indicators": {
+        "rsi": 58.03605677023418,
+        "ema_21": 3430.155189374094,
+        "ema_50": 3454.828351747948,
+        "ema_200": 3511.38795,
+        "atr": 13.13071428571428,
+        "atr_percent": 0.383410983286593,
+        "adx": 6.573426573426942
+      },
+      "exit_price": 3450.3953250000004,
+      "exit_timestamp": "2024-06-18T08:05:00",
+      "pnl_percent": -0.75,
+      "result": "LOSS",
+      "hold_hours": 5,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 9,
+      "timestamp": "2024-06-26T21:05:00",
+      "symbol": "ETH",
+      "direction": "LONG",
+      "entry_price": 3388.26,
+      "stop_loss": 3362.8480500000005,
+      "take_profit": 3439.0839,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: uptrend",
+        "✅ ATR: 0.22%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 33.2894520322528,
+        "ema_21": 3385.199262745331,
+        "ema_50": 3377.6882729974745,
+        "ema_200": 3377.4948999999997,
+        "atr": 7.567142857142926,
+        "atr_percent": 0.22333418501363314,
+        "adx": 26.236029551053136
+      },
+      "exit_price": 3362.8480500000005,
+      "exit_timestamp": "2024-06-27T02:05:00",
+      "pnl_percent": -0.75,
+      "result": "LOSS",
+      "hold_hours": 5,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 10,
+      "timestamp": "2024-09-05T21:05:00",
+      "symbol": "ETH",
+      "direction": "SHORT",
+      "entry_price": 2370.05,
+      "stop_loss": 2387.8253750000003,
+      "take_profit": 2334.4992500000003,
+      "score": -60,
+      "confidence": 0.48,
+      "market_regime": "ranging",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "SHORT",
+        "Swing": "SHORT",
+        "SmartMoney": "SHORT",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "SHORT"
+      },
+      "reasons": [
+        "✅ Режим: ranging",
+        "✅ ATR: 0.19%",
+        "✅ Консенсус 4/5 стратегий для SHORT",
+        "✅ Score: -60",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'SHORT', 'Swing': 'SHORT', 'SmartMoney': 'SHORT', 'TrendFollowing': 'SHORT'}"
+      ],
+      "indicators": {
+        "rsi": 58.81702598120516,
+        "ema_21": 2372.1457247859744,
+        "ema_50": 2375.913640924813,
+        "ema_200": 2390.9284,
+        "atr": 4.5457142857142765,
+        "atr_percent": 0.1917982441600083,
+        "adx": 18.193018480494416
+      },
+      "exit_price": 2387.8253750000003,
+      "exit_timestamp": "2024-09-06T02:05:00",
+      "pnl_percent": -0.75,
+      "result": "LOSS",
+      "hold_hours": 5,
+      "exit_reason": "Stop Loss"
+    },
+    {
+      "id": 11,
+      "timestamp": "2024-09-12T03:05:00",
+      "symbol": "ETH",
+      "direction": "LONG",
+      "entry_price": 2366.34,
+      "stop_loss": 2348.59245,
+      "take_profit": 2401.8351,
+      "score": 60,
+      "confidence": 0.48,
+      "market_regime": "ranging",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "LONG",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: ranging",
+        "✅ ATR: 0.34%",
+        "✅ Консенсус 4/5 стратегий для LONG",
+        "✅ Score: 60",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'SmartMoney': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 44.650793650793815,
+        "ema_21": 2365.2449089922516,
+        "ema_50": 2358.767340922193,
+        "ema_200": 2338.36825,
+        "atr": 8.062142857142849,
+        "atr_percent": 0.34070094986953897,
+        "adx": 15.283500098096777
+      },
+      "exit_price": 2362.87,
+      "exit_timestamp": "2024-09-12T08:05:00",
+      "pnl_percent": -0.15,
+      "result": "BREAKEVEN",
+      "hold_hours": 5,
+      "exit_reason": "Timeout"
+    },
+    {
+      "id": 12,
+      "timestamp": "2024-12-08T07:05:00",
+      "symbol": "ETH",
+      "direction": "SHORT",
+      "entry_price": 3976.14,
+      "stop_loss": 4005.9610500000003,
+      "take_profit": 3916.4979,
+      "score": -60,
+      "confidence": 0.48,
+      "market_regime": "ranging",
+      "consensus_type": "strong_4_of_5",
+      "strategy_votes": {
+        "Scalping": "SHORT",
+        "Swing": "SHORT",
+        "SmartMoney": "SHORT",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "SHORT"
+      },
+      "reasons": [
+        "✅ Режим: ranging",
+        "✅ ATR: 0.14%",
+        "✅ Консенсус 4/5 стратегий для SHORT",
+        "✅ Score: -60",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'SHORT', 'Swing': 'SHORT', 'SmartMoney': 'SHORT', 'TrendFollowing': 'SHORT'}"
+      ],
+      "indicators": {
+        "rsi": 57.608402908699354,
+        "ema_21": 3976.4989967558104,
+        "ema_50": 3981.5279823772767,
+        "ema_200": 3997.4808000000003,
+        "atr": 5.686428571428515,
+        "atr_percent": 0.1430137915523225,
+        "adx": 4.973003694231372
+      },
+      "exit_price": 3966.48,
+      "exit_timestamp": "2024-12-08T12:05:00",
+      "pnl_percent": 0.24,
+      "result": "BREAKEVEN",
+      "hold_hours": 5,
+      "exit_reason": "Timeout"
+    },
+    {
+      "id": 13,
+      "timestamp": "2024-12-12T05:05:00",
+      "symbol": "ETH",
+      "direction": "LONG",
+      "entry_price": 3910.91,
+      "stop_loss": 3881.578175,
+      "take_profit": 3969.5736499999994,
+      "score": 70,
+      "confidence": 0.42,
+      "market_regime": "uptrend",
+      "consensus_type": "strong_3_of_5",
+      "strategy_votes": {
+        "Scalping": "LONG",
+        "Swing": "LONG",
+        "SmartMoney": "NEUTRAL",
+        "Divergence": "NEUTRAL",
+        "TrendFollowing": "LONG"
+      },
+      "reasons": [
+        "✅ Режим: uptrend",
+        "✅ ATR: 0.26%",
+        "✅ Консенсус 3/5 стратегий для LONG",
+        "✅ Score: 70",
+        "✅ Тренд подтверждён (EMA200)",
+        "SL/TP: 0.75% / 1.5% (скальпинг)",
+        "Голоса: {'Scalping': 'LONG', 'Swing': 'LONG', 'TrendFollowing': 'LONG'}"
+      ],
+      "indicators": {
+        "rsi": 28.912376406409393,
+        "ema_21": 3905.7489955813467,
+        "ema_50": 3880.8560074961188,
+        "ema_200": 3812.6823,
+        "atr": 10.179999999999902,
+        "atr_percent": 0.2602974755235969,
+        "adx": 26.604938271605416
+      },
+      "exit_price": 3892.45,
+      "exit_timestamp": "2024-12-12T10:05:00",
+      "pnl_percent": -0.47,
+      "result": "BREAKEVEN",
+      "hold_hours": 5,
+      "exit_reason": "Timeout"
+    }
+  ]
+}

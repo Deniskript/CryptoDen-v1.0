@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-01-26T08:45:35.221087",
+  "parameters": {
+    "tp_percent": 0.3,
+    "sl_percent": 0.5,
+    "timeframe": "5m",
+    "min_trades": 30
+  },
+  "summary": {
+    "total_symbols": 1,
+    "strategies_tested": 132
+  },
+  "best_per_symbol": {
+    "BTC": {
+      "strategy": "RSI(14) < 30 + Price > EMA(21)",
+      "strategy_id": "rsi_14_below_30_price_above_ema_21",
+      "direction": "LONG",
+      "symbol": "BTC",
+      "total_trades": 35,
+      "wins": 23,
+      "losses": 12,
+      "win_rate": 65.71,
+      "total_pnl": 1.34,
+      "avg_pnl": 0.0383,
+      "profit_factor": 1.24,
+      "max_drawdown": 1.1,
+      "trades_per_day": 0.1
+    }
+  }
+}
