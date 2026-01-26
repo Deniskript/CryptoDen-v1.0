@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     
     # === AI ===
     openrouter_api_key: Optional[str] = Field(default=None, env="OPENROUTER_API_KEY")
-    ai_model: str = Field(default="anthropic/claude-3.5-sonnet", env="AI_MODEL")
+    ai_model: str = Field(default="anthropic/claude-sonnet-4", env="AI_MODEL")  # Claude 4.5 Sonnet
     parsing_ai_model: str = Field(
         default="liquid/lfm-2.5-1.2b-instruct:free",  # БЕСПЛАТНАЯ модель для парсинга
         env="PARSING_AI_MODEL"
