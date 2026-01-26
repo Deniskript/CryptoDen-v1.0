@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     # === AI ===
     openrouter_api_key: Optional[str] = Field(default=None, env="OPENROUTER_API_KEY")
     ai_model: str = Field(default="anthropic/claude-3.5-sonnet", env="AI_MODEL")
+    parsing_ai_model: str = Field(
+        default="liquid/lfm-2.5-1.2b-instruct:free",  # БЕСПЛАТНАЯ модель для парсинга
+        env="PARSING_AI_MODEL"
+    )
+    
+    # === News & Calendar ===
+    cryptocompare_api_key: Optional[str] = Field(default=None, env="CRYPTOCOMPARE_API_KEY")
+    coingecko_api_key: Optional[str] = Field(default=None, env="COINGECKO_API_KEY")
+    news_check_interval: int = Field(default=300, env="NEWS_CHECK_INTERVAL")  # 5 минут
     
     # === Redis ===
     redis_host: str = Field(default="localhost", env="REDIS_HOST")
@@ -37,9 +46,6 @@ class Settings(BaseSettings):
     db_name: str = Field(default="crypto_bot", env="DB_NAME")
     db_user: str = Field(default="postgres", env="DB_USER")
     db_password: str = Field(default="", env="DB_PASSWORD")
-    
-    # === News APIs ===
-    cryptocompare_api_key: Optional[str] = Field(default=None, env="CRYPTOCOMPARE_API_KEY")
     
     # === Trading ===
     auto_trading_enabled: bool = Field(default=False, env="AUTO_TRADING_ENABLED")
