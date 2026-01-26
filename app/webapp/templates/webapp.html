@@ -7,7 +7,6 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
     <style>
-        /* ==================== RESET & BASE ==================== */
         * {
             margin: 0;
             padding: 0;
@@ -34,7 +33,6 @@
             pointer-events: none;
         }
         
-        /* Animated Chart Lines */
         .chart-lines {
             position: absolute;
             width: 100%;
@@ -60,7 +58,6 @@
             50% { transform: translateX(20%) scaleY(2); opacity: 0.6; }
         }
         
-        /* Floating Crypto Coins */
         .floating-coins {
             position: absolute;
             width: 100%;
@@ -73,35 +70,19 @@
             animation: float 20s ease-in-out infinite;
         }
         
-        .coin svg {
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
-        }
-        
         .coin:nth-child(1) { top: 10%; left: 5%; animation-delay: 0s; }
         .coin:nth-child(2) { top: 25%; right: 10%; animation-delay: 2s; }
         .coin:nth-child(3) { top: 45%; left: 8%; animation-delay: 4s; }
         .coin:nth-child(4) { top: 60%; right: 5%; animation-delay: 6s; }
         .coin:nth-child(5) { top: 75%; left: 15%; animation-delay: 8s; }
-        .coin:nth-child(6) { top: 15%; right: 25%; animation-delay: 1s; }
-        .coin:nth-child(7) { top: 85%; right: 20%; animation-delay: 3s; }
-        .coin:nth-child(8) { top: 35%; left: 25%; animation-delay: 5s; }
         
         @keyframes float {
-            0%, 100% { 
-                transform: translateY(0) rotate(0deg) scale(1); 
-            }
-            25% { 
-                transform: translateY(-20px) rotate(5deg) scale(1.05); 
-            }
-            50% { 
-                transform: translateY(-10px) rotate(-3deg) scale(1.02); 
-            }
-            75% { 
-                transform: translateY(-25px) rotate(3deg) scale(1.08); 
-            }
+            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+            25% { transform: translateY(-20px) rotate(5deg) scale(1.05); }
+            50% { transform: translateY(-10px) rotate(-3deg) scale(1.02); }
+            75% { transform: translateY(-25px) rotate(3deg) scale(1.08); }
         }
         
-        /* Glowing Particles */
         .particles {
             position: absolute;
             width: 100%;
@@ -122,9 +103,6 @@
         .particle:nth-child(3) { top: 50%; left: 10%; animation-delay: 1s; }
         .particle:nth-child(4) { top: 70%; right: 25%; animation-delay: 1.5s; }
         .particle:nth-child(5) { top: 85%; left: 30%; animation-delay: 2s; }
-        .particle:nth-child(6) { top: 20%; right: 35%; animation-delay: 2.5s; }
-        .particle:nth-child(7) { top: 40%; left: 40%; animation-delay: 3s; }
-        .particle:nth-child(8) { top: 65%; right: 10%; animation-delay: 3.5s; }
         
         @keyframes sparkle {
             0%, 100% { opacity: 0.2; transform: scale(1); }
@@ -136,15 +114,14 @@
             position: relative;
             z-index: 1;
             padding: 20px;
-            padding-bottom: 120px;
+            padding-bottom: 40px;
             max-width: 500px;
             margin: 0 auto;
         }
         
-        /* Header */
         .header {
             text-align: center;
-            padding: 30px 0;
+            padding: 20px 0;
             animation: fadeInDown 0.6s ease;
         }
         
@@ -175,51 +152,172 @@
             font-weight: 500;
         }
         
-        /* Glass Card */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* ==================== CONTROL CARD ==================== */
+        .control-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            padding: 24px;
+            margin-bottom: 20px;
+            animation: fadeInUp 0.5s ease;
+        }
+        
+        .bot-status-display {
+            margin-bottom: 20px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .status-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #94a3b8;
+            transition: all 0.3s ease;
+        }
+        
+        .status-dot.stopped {
+            background: #ef4444;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+            animation: pulse-red 2s infinite;
+        }
+        
+        .status-dot.running {
+            background: #22c55e;
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+            animation: pulse-green 2s infinite;
+        }
+        
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.2); }
+        }
+        
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.15); }
+        }
+        
+        .status-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .status-info {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            font-size: 13px;
+            color: #64748b;
+            flex-wrap: wrap;
+        }
+        
+        .status-info-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .main-control-btn {
+            width: 100%;
+            padding: 18px 32px;
+            border: none;
+            border-radius: 14px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .main-control-btn:disabled {
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+        
+        .main-control-btn.start {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+        }
+        
+        .main-control-btn.start:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(34, 197, 94, 0.5);
+        }
+        
+        .main-control-btn.stop {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+        
+        .main-control-btn.stop:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(239, 68, 68, 0.5);
+        }
+        
+        .main-control-btn .btn-icon {
+            font-size: 22px;
+        }
+        
+        .main-control-btn.loading {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            pointer-events: none;
+        }
+        
+        .main-control-btn.loading .btn-icon {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* ==================== CARDS ==================== */
         .card {
             background: rgba(255, 255, 255, 0.7);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 
-                0 8px 32px rgba(0, 0, 0, 0.08),
-                0 2px 8px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
             margin-bottom: 16px;
             overflow: hidden;
             animation: fadeInUp 0.6s ease;
             animation-fill-mode: both;
         }
         
-        .card:nth-child(1) { animation-delay: 0.1s; }
-        .card:nth-child(2) { animation-delay: 0.2s; }
-        .card:nth-child(3) { animation-delay: 0.3s; }
-        .card:nth-child(4) { animation-delay: 0.4s; }
-        .card:nth-child(5) { animation-delay: 0.5s; }
+        .card:nth-child(2) { animation-delay: 0.1s; }
+        .card:nth-child(3) { animation-delay: 0.2s; }
+        .card:nth-child(4) { animation-delay: 0.3s; }
+        .card:nth-child(5) { animation-delay: 0.4s; }
         
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        /* Card Header */
         .card-header {
             display: flex;
             justify-content: space-between;
@@ -232,10 +330,6 @@
         
         .card-header:hover {
             background: rgba(59, 130, 246, 0.05);
-        }
-        
-        .card-header:active {
-            background: rgba(59, 130, 246, 0.1);
         }
         
         .card-title {
@@ -288,7 +382,6 @@
             color: white;
         }
         
-        /* Card Content */
         .card-content {
             max-height: 0;
             overflow: hidden;
@@ -301,7 +394,6 @@
             padding: 0 20px 20px;
         }
         
-        /* Status Badge */
         .status-badge {
             padding: 4px 10px;
             border-radius: 20px;
@@ -320,12 +412,7 @@
             color: #d97706;
         }
         
-        .status-badge.error {
-            background: rgba(239, 68, 68, 0.15);
-            color: #dc2626;
-        }
-        
-        /* Input Group */
+        /* ==================== INPUTS ==================== */
         .input-group {
             margin-bottom: 16px;
         }
@@ -360,10 +447,6 @@
             box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
         }
         
-        .input-wrapper input::placeholder {
-            color: #94a3b8;
-        }
-        
         .input-toggle {
             position: absolute;
             right: 12px;
@@ -381,7 +464,6 @@
             opacity: 1;
         }
         
-        /* Toggle Buttons */
         .toggle-group {
             display: flex;
             gap: 10px;
@@ -422,7 +504,7 @@
             color: #ef4444;
         }
         
-        /* Coins Grid */
+        /* ==================== COINS GRID ==================== */
         .coins-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -479,7 +561,6 @@
             color: #22c55e;
         }
         
-        /* Coin Colors */
         .coin-btc { background: linear-gradient(135deg, #f7931a, #ffab40); }
         .coin-eth { background: linear-gradient(135deg, #627eea, #8c9eff); }
         .coin-bnb { background: linear-gradient(135deg, #f3ba2f, #ffd54f); }
@@ -490,7 +571,7 @@
         .coin-link { background: linear-gradient(135deg, #2a5ada, #5c6bc0); }
         .coin-avax { background: linear-gradient(135deg, #e84142, #ff5252); }
         
-        /* Slider */
+        /* ==================== SLIDERS ==================== */
         .slider-group {
             margin-bottom: 20px;
         }
@@ -560,11 +641,6 @@
             pointer-events: none;
         }
         
-        .slider-wrapper:hover .slider-thumb {
-            transform: translate(-50%, -50%) scale(1.1);
-        }
-        
-        /* Warning Box */
         .warning-box {
             background: rgba(239, 68, 68, 0.1);
             border: 1px solid rgba(239, 68, 68, 0.3);
@@ -576,89 +652,23 @@
             display: flex;
             align-items: flex-start;
             gap: 10px;
-            animation: shake 0.5s ease;
-        }
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
         }
         
         .warning-box.hidden {
             display: none;
         }
         
-        /* Start Button */
-        .start-btn-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 20px;
-            background: linear-gradient(to top, rgba(245, 247, 250, 1), rgba(245, 247, 250, 0));
-            z-index: 100;
-        }
-        
-        .start-btn {
-            width: 100%;
-            max-width: 460px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            padding: 18px 32px;
-            background: linear-gradient(135deg, #22c55e, #16a34a);
-            border: none;
-            border-radius: 16px;
-            font-size: 18px;
-            font-weight: 700;
-            color: white;
-            cursor: pointer;
-            box-shadow: 
-                0 8px 24px rgba(34, 197, 94, 0.4),
-                0 2px 8px rgba(34, 197, 94, 0.2);
-            transition: all 0.3s ease;
-            animation: fadeInUp 0.6s ease 0.6s both;
-        }
-        
-        .start-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 
-                0 12px 32px rgba(34, 197, 94, 0.5),
-                0 4px 12px rgba(34, 197, 94, 0.3);
-        }
-        
-        .start-btn:active {
-            transform: translateY(0);
-        }
-        
-        .start-btn .btn-icon {
-            font-size: 24px;
-            animation: rocketBounce 2s ease-in-out infinite;
-        }
-        
-        @keyframes rocketBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        
-        /* Info Text */
         .info-text {
             font-size: 12px;
             color: #94a3b8;
             text-align: center;
             margin-top: 12px;
-            padding: 0 20px;
         }
         
-        /* Responsive */
         @media (max-width: 380px) {
             .coins-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
-            
             .header h1 {
                 font-size: 24px;
             }
@@ -668,7 +678,6 @@
 <body>
     <!-- Animated Background -->
     <div class="bg-container">
-        <!-- Chart Lines -->
         <div class="chart-lines">
             <div class="chart-line"></div>
             <div class="chart-line"></div>
@@ -677,87 +686,25 @@
             <div class="chart-line"></div>
         </div>
         
-        <!-- Floating Coins -->
         <div class="floating-coins">
-            <!-- Bitcoin -->
             <div class="coin" style="width: 60px;">
-                <svg viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="16" fill="#f7931a"/>
-                    <path d="M22.5 14.2c.3-2-1.2-3-3.3-3.8l.7-2.7-1.6-.4-.7 2.7c-.4-.1-.8-.2-1.3-.3l.7-2.7-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.2l-2.3-.6-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8 1l-.8 3.2c0 .1.1.1.1.2h-.1l-1.1 4.5c-.1.2-.3.5-.8.4 0 0-1.2-.3-1.2-.3l-.8 1.9 2.1.5c.4.1.8.2 1.2.3l-.7 2.8 1.6.4.7-2.8c.4.1.9.2 1.3.3l-.7 2.7 1.6.4.7-2.8c2.9.6 5.1.3 6-2.3.7-2.1 0-3.3-1.5-4 1.1-.3 1.9-1 2.1-2.5zm-3.8 5.3c-.5 2.1-4 1-5.1.7l.9-3.7c1.1.3 4.8.8 4.2 3zm.5-5.4c-.5 1.9-3.4.9-4.3.7l.8-3.3c.9.2 4 .6 3.5 2.6z" fill="white"/>
-                </svg>
+                <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#f7931a"/><path d="M22.5 14.2c.3-2-1.2-3-3.3-3.8l.7-2.7-1.6-.4-.7 2.7c-.4-.1-.8-.2-1.3-.3l.7-2.7-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.2l-2.3-.6-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8 1l-.8 3.2c0 .1.1.1.1.2h-.1l-1.1 4.5c-.1.2-.3.5-.8.4 0 0-1.2-.3-1.2-.3l-.8 1.9 2.1.5c.4.1.8.2 1.2.3l-.7 2.8 1.6.4.7-2.8c.4.1.9.2 1.3.3l-.7 2.7 1.6.4.7-2.8c2.9.6 5.1.3 6-2.3.7-2.1 0-3.3-1.5-4 1.1-.3 1.9-1 2.1-2.5z" fill="white"/></svg>
             </div>
-            
-            <!-- Ethereum -->
             <div class="coin" style="width: 50px;">
-                <svg viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="16" fill="#627eea"/>
-                    <path d="M16 4v8.9l7.5 3.3L16 4z" fill="white" fill-opacity="0.6"/>
-                    <path d="M16 4l-7.5 12.2 7.5-3.3V4z" fill="white"/>
-                    <path d="M16 21.9v6.1l7.5-10.4-7.5 4.3z" fill="white" fill-opacity="0.6"/>
-                    <path d="M16 28v-6.1l-7.5-4.3L16 28z" fill="white"/>
-                    <path d="M16 20.5l7.5-4.3-7.5-3.3v7.6z" fill="white" fill-opacity="0.2"/>
-                    <path d="M8.5 16.2l7.5 4.3v-7.6l-7.5 3.3z" fill="white" fill-opacity="0.6"/>
-                </svg>
+                <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#627eea"/><path d="M16 4v8.9l7.5 3.3L16 4z" fill="white" fill-opacity="0.6"/><path d="M16 4l-7.5 12.2 7.5-3.3V4z" fill="white"/></svg>
             </div>
-            
-            <!-- Solana -->
             <div class="coin" style="width: 45px;">
-                <svg viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="16" fill="url(#sol-gradient)"/>
-                    <defs>
-                        <linearGradient id="sol-gradient" x1="0" y1="0" x2="32" y2="32">
-                            <stop stop-color="#9945ff"/>
-                            <stop offset="1" stop-color="#14f195"/>
-                        </linearGradient>
-                    </defs>
-                    <path d="M9 20.5l2.5-2.5h11l-2.5 2.5H9zm0-4.5l2.5-2.5h11L20 16H9zm13.5-4.5l-2.5 2.5h-11l2.5-2.5h11z" fill="white"/>
-                </svg>
+                <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="url(#sol)"/><defs><linearGradient id="sol" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#9945ff"/><stop offset="1" stop-color="#14f195"/></linearGradient></defs></svg>
             </div>
-            
-            <!-- BNB -->
             <div class="coin" style="width: 55px;">
-                <svg viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="16" fill="#f3ba2f"/>
-                    <path d="M16 6l3 3-5 5-3-3 5-5zm-6 6l3 3-3 3-3-3 3-3zm12 0l3 3-3 3-3-3 3-3zm-6 6l3 3-5 5-3-3 5-5z" fill="white"/>
-                </svg>
+                <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#f3ba2f"/><path d="M16 6l3 3-5 5-3-3 5-5zm-6 6l3 3-3 3-3-3 3-3zm12 0l3 3-3 3-3-3 3-3zm-6 6l3 3-5 5-3-3 5-5z" fill="white"/></svg>
             </div>
-            
-            <!-- XRP -->
             <div class="coin" style="width: 40px;">
-                <svg viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="16" fill="#23292f"/>
-                    <path d="M10 10h2.5l3.5 4.5L19.5 10H22l-5 6.5v.5l5 6.5h-2.5L16 19l-3.5 4.5H10l5-6.5v-.5L10 10z" fill="white"/>
-                </svg>
-            </div>
-            
-            <!-- Extra coins for depth -->
-            <div class="coin" style="width: 35px;">
-                <svg viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="16" fill="#0033ad"/>
-                    <circle cx="16" cy="16" r="8" fill="white" fill-opacity="0.3"/>
-                </svg>
-            </div>
-            
-            <div class="coin" style="width: 42px;">
-                <svg viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="16" fill="#c2a633"/>
-                    <text x="16" y="20" text-anchor="middle" fill="white" font-size="10" font-weight="bold">Ð</text>
-                </svg>
-            </div>
-            
-            <div class="coin" style="width: 38px;">
-                <svg viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="16" fill="#e84142"/>
-                    <path d="M16 8l6 10H10l6-10zm0 16l-6-10h12l-6 10z" fill="white"/>
-                </svg>
+                <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#23292f"/><path d="M10 10h2.5l3.5 4.5L19.5 10H22l-5 6.5v.5l5 6.5h-2.5L16 19l-3.5 4.5H10l5-6.5v-.5L10 10z" fill="white"/></svg>
             </div>
         </div>
         
-        <!-- Particles -->
         <div class="particles">
-            <div class="particle"></div>
-            <div class="particle"></div>
-            <div class="particle"></div>
             <div class="particle"></div>
             <div class="particle"></div>
             <div class="particle"></div>
@@ -775,182 +722,181 @@
             <p>Professional AI Trading Bot</p>
         </div>
         
-        <!-- API Keys Card -->
-        <div class="card" id="card-api">
-            <div class="card-header" onclick="toggleCard('api')">
-                <div class="card-title">
-                    <div class="card-icon">🔐</div>
-                    <div>
-                        <h3>API Ключи <span class="status-badge warning" id="api-status">Не настроено</span></h3>
-                        <div class="subtitle">Подключение к Bybit</div>
-                    </div>
+        <!-- Control Card with Dynamic Button -->
+        <div class="control-card" id="control-card">
+            <div class="bot-status-display">
+                <div class="status-indicator">
+                    <span class="status-dot" id="status-dot"></span>
+                    <span class="status-text" id="status-text">Проверка...</span>
                 </div>
-                <div class="card-arrow">▼</div>
-            </div>
-            <div class="card-content">
-                <div class="input-group">
-                    <label>API Key</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="api-key" placeholder="Введите ваш API ключ">
-                        <button class="input-toggle" onclick="togglePassword('api-key')">👁️</button>
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label>API Secret</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="api-secret" placeholder="Введите ваш Secret">
-                        <button class="input-toggle" onclick="togglePassword('api-secret')">👁️</button>
-                    </div>
-                </div>
-                <div class="toggle-group">
-                    <button class="toggle-btn active" id="btn-testnet" onclick="setNetwork('testnet')">
-                        🧪 Testnet
-                    </button>
-                    <button class="toggle-btn" id="btn-mainnet" onclick="setNetwork('mainnet')">
-                        💰 Mainnet
-                    </button>
+                <div class="status-info" id="status-info">
+                    <!-- Filled by JS -->
                 </div>
             </div>
+            
+            <button class="main-control-btn" id="main-control-btn" onclick="handleMainAction()" disabled>
+                <span class="btn-icon" id="btn-icon">⏳</span>
+                <span class="btn-text" id="btn-text">Загрузка...</span>
+            </button>
         </div>
         
-        <!-- Coins Card -->
-        <div class="card" id="card-coins">
-            <div class="card-header" onclick="toggleCard('coins')">
-                <div class="card-title">
-                    <div class="card-icon">🪙</div>
-                    <div>
-                        <h3>Монеты</h3>
-                        <div class="subtitle" id="coins-count">Выбрано: 7 из 9</div>
+        <!-- Settings Cards (shown only when bot is stopped) -->
+        <div id="settings-section">
+            <!-- API Keys -->
+            <div class="card" id="card-api">
+                <div class="card-header" onclick="toggleCard('api')">
+                    <div class="card-title">
+                        <div class="card-icon">🔐</div>
+                        <div>
+                            <h3>API Ключи <span class="status-badge warning" id="api-status">Не настроено</span></h3>
+                            <div class="subtitle">Подключение к Bybit</div>
+                        </div>
+                    </div>
+                    <div class="card-arrow">▼</div>
+                </div>
+                <div class="card-content">
+                    <div class="input-group">
+                        <label>API Key</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="api-key" placeholder="Введите ваш API ключ">
+                            <button class="input-toggle" onclick="togglePassword('api-key')">👁️</button>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>API Secret</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="api-secret" placeholder="Введите ваш Secret">
+                            <button class="input-toggle" onclick="togglePassword('api-secret')">👁️</button>
+                        </div>
+                    </div>
+                    <div class="toggle-group">
+                        <button class="toggle-btn active" id="btn-testnet" onclick="setNetwork('testnet')">🧪 Testnet</button>
+                        <button class="toggle-btn" id="btn-mainnet" onclick="setNetwork('mainnet')">💰 Mainnet</button>
                     </div>
                 </div>
-                <div class="card-arrow">▼</div>
             </div>
-            <div class="card-content">
-                <div class="coins-grid" id="coins-grid"></div>
-                <p class="info-text">Стратегии оптимизированы на основе бэктеста 2022-2025</p>
+            
+            <!-- Coins -->
+            <div class="card" id="card-coins">
+                <div class="card-header" onclick="toggleCard('coins')">
+                    <div class="card-title">
+                        <div class="card-icon">🪙</div>
+                        <div>
+                            <h3>Монеты</h3>
+                            <div class="subtitle" id="coins-count">Выбрано: 7 из 9</div>
+                        </div>
+                    </div>
+                    <div class="card-arrow">▼</div>
+                </div>
+                <div class="card-content">
+                    <div class="coins-grid" id="coins-grid"></div>
+                    <p class="info-text">Стратегии оптимизированы на основе бэктеста 2022-2025</p>
+                </div>
+            </div>
+            
+            <!-- Risk -->
+            <div class="card" id="card-risk">
+                <div class="card-header" onclick="toggleCard('risk')">
+                    <div class="card-title">
+                        <div class="card-icon">💰</div>
+                        <div>
+                            <h3>Управление рисками</h3>
+                            <div class="subtitle">Размер позиций и лимиты</div>
+                        </div>
+                    </div>
+                    <div class="card-arrow">▼</div>
+                </div>
+                <div class="card-content">
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <span class="slider-label">Размер сделки</span>
+                            <span class="slider-value" id="risk-value">15%</span>
+                        </div>
+                        <div class="slider-wrapper">
+                            <div class="slider-fill" id="risk-fill" style="width: 50%"></div>
+                            <div class="slider-thumb" id="risk-thumb" style="left: 50%"></div>
+                            <input type="range" id="risk-slider" min="5" max="25" value="15" oninput="updateSlider('risk')">
+                        </div>
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <span class="slider-label">Макс. сделок</span>
+                            <span class="slider-value" id="trades-value">6</span>
+                        </div>
+                        <div class="slider-wrapper">
+                            <div class="slider-fill" id="trades-fill" style="width: 55%"></div>
+                            <div class="slider-thumb" id="trades-thumb" style="left: 55%"></div>
+                            <input type="range" id="trades-slider" min="1" max="10" value="6" oninput="updateSlider('trades')">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI -->
+            <div class="card" id="card-ai">
+                <div class="card-header" onclick="toggleCard('ai')">
+                    <div class="card-title">
+                        <div class="card-icon">🧠</div>
+                        <div>
+                            <h3>AI Настройки</h3>
+                            <div class="subtitle">Claude Sonnet</div>
+                        </div>
+                    </div>
+                    <div class="card-arrow">▼</div>
+                </div>
+                <div class="card-content">
+                    <div class="toggle-group">
+                        <button class="toggle-btn active" id="btn-ai-on" onclick="setAI(true)">✅ AI Включён</button>
+                        <button class="toggle-btn" id="btn-ai-off" onclick="setAI(false)">❌ Без AI</button>
+                    </div>
+                    <div class="slider-group" style="margin-top: 20px;">
+                        <div class="slider-header">
+                            <span class="slider-label">Мин. уверенность</span>
+                            <span class="slider-value" id="confidence-value">60%</span>
+                        </div>
+                        <div class="slider-wrapper">
+                            <div class="slider-fill" id="confidence-fill" style="width: 50%"></div>
+                            <div class="slider-thumb" id="confidence-thumb" style="left: 50%"></div>
+                            <input type="range" id="confidence-slider" min="30" max="90" value="60" oninput="updateSlider('confidence')">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mode -->
+            <div class="card" id="card-mode">
+                <div class="card-header" onclick="toggleCard('mode')">
+                    <div class="card-title">
+                        <div class="card-icon">📊</div>
+                        <div>
+                            <h3>Режим торговли</h3>
+                            <div class="subtitle" id="mode-subtitle">Paper Trading</div>
+                        </div>
+                    </div>
+                    <div class="card-arrow">▼</div>
+                </div>
+                <div class="card-content">
+                    <div class="toggle-group">
+                        <button class="toggle-btn active" id="btn-paper" onclick="setMode('paper')">📝 Paper</button>
+                        <button class="toggle-btn" id="btn-live" onclick="setMode('live')">💰 Live</button>
+                    </div>
+                    <div class="warning-box hidden" id="live-warning">
+                        <span>⚠️</span>
+                        <span>LIVE режим торгует реальными деньгами!</span>
+                    </div>
+                </div>
             </div>
         </div>
-        
-        <!-- Risk Management Card -->
-        <div class="card" id="card-risk">
-            <div class="card-header" onclick="toggleCard('risk')">
-                <div class="card-title">
-                    <div class="card-icon">💰</div>
-                    <div>
-                        <h3>Управление рисками</h3>
-                        <div class="subtitle">Размер позиций и лимиты</div>
-                    </div>
-                </div>
-                <div class="card-arrow">▼</div>
-            </div>
-            <div class="card-content">
-                <div class="slider-group">
-                    <div class="slider-header">
-                        <span class="slider-label">Размер сделки от баланса</span>
-                        <span class="slider-value" id="risk-value">15%</span>
-                    </div>
-                    <div class="slider-wrapper">
-                        <div class="slider-fill" id="risk-fill" style="width: 50%"></div>
-                        <div class="slider-thumb" id="risk-thumb" style="left: 50%"></div>
-                        <input type="range" id="risk-slider" min="5" max="25" value="15" oninput="updateSlider('risk')">
-                    </div>
-                </div>
-                <div class="slider-group">
-                    <div class="slider-header">
-                        <span class="slider-label">Максимум открытых сделок</span>
-                        <span class="slider-value" id="trades-value">6</span>
-                    </div>
-                    <div class="slider-wrapper">
-                        <div class="slider-fill" id="trades-fill" style="width: 55%"></div>
-                        <div class="slider-thumb" id="trades-thumb" style="left: 55%"></div>
-                        <input type="range" id="trades-slider" min="1" max="10" value="6" oninput="updateSlider('trades')">
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- AI Settings Card -->
-        <div class="card" id="card-ai">
-            <div class="card-header" onclick="toggleCard('ai')">
-                <div class="card-title">
-                    <div class="card-icon">🧠</div>
-                    <div>
-                        <h3>AI Настройки</h3>
-                        <div class="subtitle">Claude Sonnet 4.5</div>
-                    </div>
-                </div>
-                <div class="card-arrow">▼</div>
-            </div>
-            <div class="card-content">
-                <div class="toggle-group">
-                    <button class="toggle-btn active" id="btn-ai-on" onclick="setAI(true)">
-                        ✅ AI Включён
-                    </button>
-                    <button class="toggle-btn" id="btn-ai-off" onclick="setAI(false)">
-                        ❌ Только стратегии
-                    </button>
-                </div>
-                <div class="slider-group" style="margin-top: 20px;">
-                    <div class="slider-header">
-                        <span class="slider-label">Минимальная уверенность AI</span>
-                        <span class="slider-value" id="confidence-value">60%</span>
-                    </div>
-                    <div class="slider-wrapper">
-                        <div class="slider-fill" id="confidence-fill" style="width: 50%"></div>
-                        <div class="slider-thumb" id="confidence-thumb" style="left: 50%"></div>
-                        <input type="range" id="confidence-slider" min="30" max="90" value="60" oninput="updateSlider('confidence')">
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Trading Mode Card -->
-        <div class="card" id="card-mode">
-            <div class="card-header" onclick="toggleCard('mode')">
-                <div class="card-title">
-                    <div class="card-icon">📊</div>
-                    <div>
-                        <h3>Режим торговли</h3>
-                        <div class="subtitle" id="mode-subtitle">Paper Trading</div>
-                    </div>
-                </div>
-                <div class="card-arrow">▼</div>
-            </div>
-            <div class="card-content">
-                <div class="toggle-group">
-                    <button class="toggle-btn active" id="btn-paper" onclick="setMode('paper')">
-                        📝 Paper Trading
-                    </button>
-                    <button class="toggle-btn" id="btn-live" onclick="setMode('live')">
-                        💰 Live Trading
-                    </button>
-                </div>
-                <div class="warning-box hidden" id="live-warning">
-                    <span>⚠️</span>
-                    <span>В режиме LIVE бот будет торговать реальными деньгами! Убедитесь, что вы понимаете риски.</span>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Start Button -->
-    <div class="start-btn-container">
-        <button class="start-btn" id="start-btn" onclick="startBot()">
-            <span class="btn-icon">🚀</span>
-            <span>ЗАПУСТИТЬ БОТА</span>
-        </button>
     </div>
 
     <script>
-        // Telegram WebApp Init
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.enableClosingConfirmation();
         
-        // Apply Telegram theme
-        document.body.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#f5f7fa');
+        let botRunning = false;
+        let botData = {};
         
-        // Settings State
         let settings = {
             bybit_api_key: "",
             bybit_api_secret: "",
@@ -967,7 +913,6 @@
             paper_trading: true
         };
         
-        // Coins data
         const coinsData = [
             { id: 'BTC', name: 'Bitcoin', color: 'coin-btc' },
             { id: 'ETH', name: 'Ethereum', color: 'coin-eth' },
@@ -980,14 +925,119 @@
             { id: 'AVAX', name: 'Avalanche', color: 'coin-avax' }
         ];
         
-        // Initialize
-        function init() {
-            loadSettings();
-            renderCoins();
-            updateAllSliders();
+        // === BOT STATUS ===
+        async function checkBotStatus() {
+            try {
+                const resp = await fetch('/api/bot-status');
+                const data = await resp.json();
+                
+                botRunning = data.running;
+                botData = data;
+                
+                updateControlCard();
+            } catch (e) {
+                console.error('Status check failed:', e);
+                botRunning = false;
+                updateControlCard();
+            }
         }
         
-        // Load settings from server
+        function updateControlCard() {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            const info = document.getElementById('status-info');
+            const btn = document.getElementById('main-control-btn');
+            const btnIcon = document.getElementById('btn-icon');
+            const btnText = document.getElementById('btn-text');
+            const settingsSection = document.getElementById('settings-section');
+            
+            if (botRunning) {
+                dot.className = 'status-dot running';
+                text.textContent = 'Бот работает';
+                
+                info.innerHTML = `
+                    <span class="status-info-item">💰 $${(botData.balance || 0).toLocaleString()}</span>
+                    <span class="status-info-item">📊 ${botData.active_trades || 0} сделок</span>
+                    <span class="status-info-item">${botData.paper_trading ? '📝 Paper' : '💰 Live'}</span>
+                `;
+                
+                btn.className = 'main-control-btn stop';
+                btn.disabled = false;
+                btnIcon.textContent = '🛑';
+                btnText.textContent = 'ОСТАНОВИТЬ БОТА';
+                
+                // Hide settings when running
+                settingsSection.style.display = 'none';
+                
+            } else {
+                dot.className = 'status-dot stopped';
+                text.textContent = 'Бот остановлен';
+                
+                info.innerHTML = `<span class="status-info-item">Настройте и запустите</span>`;
+                
+                btn.className = 'main-control-btn start';
+                btn.disabled = false;
+                btnIcon.textContent = '🚀';
+                btnText.textContent = 'ЗАПУСТИТЬ БОТА';
+                
+                // Show settings
+                settingsSection.style.display = 'block';
+            }
+        }
+        
+        async function handleMainAction() {
+            const btn = document.getElementById('main-control-btn');
+            const btnIcon = document.getElementById('btn-icon');
+            const btnText = document.getElementById('btn-text');
+            
+            btn.className = 'main-control-btn loading';
+            btn.disabled = true;
+            btnIcon.textContent = '⏳';
+            btnText.textContent = botRunning ? 'Останавливаю...' : 'Запускаю...';
+            
+            if (botRunning) {
+                // STOP
+                try {
+                    await fetch('/api/stop', { method: 'POST' });
+                    
+                    btnIcon.textContent = '✅';
+                    btnText.textContent = 'Готово!';
+                    
+                    setTimeout(() => tg.close(), 800);
+                } catch (e) {
+                    console.error('Stop error:', e);
+                    alert('Ошибка остановки');
+                    checkBotStatus();
+                }
+            } else {
+                // START
+                collectSettings();
+                
+                try {
+                    await fetch('/api/start', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(settings)
+                    });
+                    
+                    btnIcon.textContent = '✅';
+                    btnText.textContent = 'Запущено!';
+                    
+                    setTimeout(() => tg.close(), 800);
+                } catch (e) {
+                    console.error('Start error:', e);
+                    alert('Ошибка запуска');
+                    checkBotStatus();
+                }
+            }
+        }
+        
+        function collectSettings() {
+            settings.bybit_api_key = document.getElementById('api-key').value;
+            settings.bybit_api_secret = document.getElementById('api-secret').value;
+        }
+        
+        // === SETTINGS ===
         async function loadSettings() {
             try {
                 const resp = await fetch('/api/settings');
@@ -997,68 +1047,51 @@
                     applySettings();
                 }
             } catch (e) {
-                console.log('Using default settings');
+                console.log('Using defaults');
             }
         }
         
-        // Apply settings to UI
         function applySettings() {
-            // API
             document.getElementById('api-key').value = settings.bybit_api_key || '';
             document.getElementById('api-secret').value = settings.bybit_api_secret || '';
             updateApiStatus();
             
-            // Network
             setNetwork(settings.bybit_testnet ? 'testnet' : 'mainnet', false);
-            
-            // Coins
             renderCoins();
             
-            // Sliders
             document.getElementById('risk-slider').value = settings.risk_percent;
             document.getElementById('trades-slider').value = settings.max_trades;
             document.getElementById('confidence-slider').value = settings.ai_confidence;
             updateAllSliders();
             
-            // AI
             setAI(settings.ai_enabled, false);
-            
-            // Mode
             setMode(settings.paper_trading ? 'paper' : 'live', false);
         }
         
-        // Toggle card open/close
         function toggleCard(id) {
-            const card = document.getElementById('card-' + id);
-            card.classList.toggle('open');
+            document.getElementById('card-' + id).classList.toggle('open');
         }
         
-        // Toggle password visibility
         function togglePassword(inputId) {
             const input = document.getElementById(inputId);
             input.type = input.type === 'password' ? 'text' : 'password';
         }
         
-        // Update API status badge
         function updateApiStatus() {
             const key = document.getElementById('api-key').value;
             const secret = document.getElementById('api-secret').value;
             const status = document.getElementById('api-status');
             
             if (key && secret && key.length > 10 && secret.length > 10) {
-                status.textContent = '✓ Настроено';
+                status.textContent = '✓ OK';
                 status.className = 'status-badge success';
-            } else if (key || secret) {
-                status.textContent = 'Неполные данные';
-                status.className = 'status-badge warning';
             } else {
                 status.textContent = 'Не настроено';
                 status.className = 'status-badge warning';
             }
         }
         
-        // Set network
-        function setNetwork(network, save = true) {
+        function setNetwork(network) {
             const testnet = document.getElementById('btn-testnet');
             const mainnet = document.getElementById('btn-mainnet');
             
@@ -1073,41 +1106,36 @@
             }
         }
         
-        // Render coins grid
         function renderCoins() {
             const grid = document.getElementById('coins-grid');
-            let enabledCount = 0;
+            let count = 0;
             
             grid.innerHTML = coinsData.map(coin => {
                 const active = settings.coins[coin.id];
-                if (active) enabledCount++;
-                
+                if (active) count++;
                 return `
                     <button class="coin-btn ${active ? 'active' : ''}" onclick="toggleCoin('${coin.id}')">
                         <div class="coin-icon ${coin.color}">${coin.id.charAt(0)}</div>
                         <div class="coin-name">${coin.id}</div>
-                        <div class="coin-status">${active ? '✓ Активна' : 'Выключена'}</div>
+                        <div class="coin-status">${active ? '✓' : '—'}</div>
                     </button>
                 `;
             }).join('');
             
-            document.getElementById('coins-count').textContent = `Выбрано: ${enabledCount} из ${coinsData.length}`;
+            document.getElementById('coins-count').textContent = `Выбрано: ${count} из ${coinsData.length}`;
         }
         
-        // Toggle coin
-        function toggleCoin(coinId) {
-            settings.coins[coinId] = !settings.coins[coinId];
+        function toggleCoin(id) {
+            settings.coins[id] = !settings.coins[id];
             renderCoins();
         }
         
-        // Update all sliders
         function updateAllSliders() {
             updateSlider('risk');
             updateSlider('trades');
             updateSlider('confidence');
         }
         
-        // Update slider
         function updateSlider(type) {
             const slider = document.getElementById(type + '-slider');
             const value = parseInt(slider.value);
@@ -1130,8 +1158,7 @@
             }
         }
         
-        // Set AI
-        function setAI(enabled, save = true) {
+        function setAI(enabled) {
             const on = document.getElementById('btn-ai-on');
             const off = document.getElementById('btn-ai-off');
             
@@ -1145,8 +1172,7 @@
             settings.ai_enabled = enabled;
         }
         
-        // Set trading mode
-        function setMode(mode, save = true) {
+        function setMode(mode) {
             const paper = document.getElementById('btn-paper');
             const live = document.getElementById('btn-live');
             const warning = document.getElementById('live-warning');
@@ -1154,7 +1180,6 @@
             
             if (mode === 'paper') {
                 paper.classList.add('active');
-                paper.classList.remove('danger');
                 live.classList.remove('active');
                 live.classList.remove('danger');
                 warning.classList.add('hidden');
@@ -1170,50 +1195,17 @@
             }
         }
         
-        // Start bot
-        async function startBot() {
-            // Collect settings
-            settings.bybit_api_key = document.getElementById('api-key').value;
-            settings.bybit_api_secret = document.getElementById('api-secret').value;
-            
-            const btn = document.getElementById('start-btn');
-            btn.innerHTML = '<span class="btn-icon">⏳</span><span>Сохраняю...</span>';
-            btn.disabled = true;
-            
-            try {
-                // Save to server and request start
-                const resp = await fetch('/api/start', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(settings)
-                });
-                
-                if (resp.ok) {
-                    btn.innerHTML = '<span class="btn-icon">✅</span><span>Готово! Закрываю...</span>';
-                    btn.style.background = 'linear-gradient(135deg, #3b82f6, #06b6d4)';
-                    
-                    // Закрываем WebApp через 1 секунду
-                    setTimeout(() => {
-                        tg.close();
-                    }, 1000);
-                } else {
-                    throw new Error('Server error');
-                }
-                
-            } catch (e) {
-                btn.innerHTML = '<span class="btn-icon">🚀</span><span>ЗАПУСТИТЬ БОТА</span>';
-                btn.disabled = false;
-                btn.style.background = '';
-                alert('Ошибка сохранения настроек');
-            }
-        }
-        
-        // Input listeners
         document.getElementById('api-key').addEventListener('input', updateApiStatus);
         document.getElementById('api-secret').addEventListener('input', updateApiStatus);
         
-        // Init on load
-        init();
+        // Init
+        checkBotStatus();
+        loadSettings();
+        renderCoins();
+        updateAllSliders();
+        
+        // Refresh status every 5 sec
+        setInterval(checkBotStatus, 5000);
     </script>
 </body>
 </html>

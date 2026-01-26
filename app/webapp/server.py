@@ -103,6 +103,45 @@ def start_bot():
     })
 
 
+@app.route('/api/bot-status')
+def get_bot_status():
+    """Получить статус бота для WebApp"""
+    try:
+        from app.core.monitor import market_monitor
+        from app.trading import trade_manager
+        
+        return jsonify({
+            "running": market_monitor.running,
+            "balance": market_monitor.current_balance,
+            "active_trades": len(trade_manager.get_active_trades()),
+            "paper_trading": market_monitor.paper_trading,
+            "ai_enabled": market_monitor.ai_enabled
+        })
+    except Exception as e:
+        return jsonify({
+            "running": False,
+            "balance": 1000,
+            "active_trades": 0,
+            "paper_trading": True,
+            "ai_enabled": True,
+            "error": str(e)
+        })
+
+
+@app.route('/api/stop', methods=['POST'])
+def stop_bot():
+    """Остановить бота"""
+    STOP_REQUESTED_FILE = "/root/crypto-bot/data/stop_requested.json"
+    os.makedirs(os.path.dirname(STOP_REQUESTED_FILE), exist_ok=True)
+    with open(STOP_REQUESTED_FILE, 'w') as f:
+        json.dump({"requested": True}, f)
+    
+    return jsonify({
+        "status": "ok",
+        "action": "stop_bot"
+    })
+
+
 @app.route('/health')
 def health():
     """Health check"""

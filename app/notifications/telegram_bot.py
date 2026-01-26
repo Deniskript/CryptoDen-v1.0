@@ -19,6 +19,7 @@ from app.bot.keyboards import get_main_keyboard
 # Файлы данных
 SETTINGS_FILE = "/root/crypto-bot/data/webapp_settings.json"
 START_REQUESTED_FILE = "/root/crypto-bot/data/start_requested.json"
+STOP_REQUESTED_FILE = "/root/crypto-bot/data/stop_requested.json"
 
 
 class TelegramBot:
@@ -368,23 +369,32 @@ Confidence: {decision.confidence}%
         await self.dp.start_polling(self.bot)
     
     async def _check_start_request(self):
-        """Проверяет запрос на запуск из WebApp каждые 2 секунды"""
+        """Проверяет запросы на запуск/остановку из WebApp каждые 2 секунды"""
         while True:
             try:
+                # Проверяем запрос на ЗАПУСК
                 if os.path.exists(START_REQUESTED_FILE):
                     with open(START_REQUESTED_FILE, 'r') as f:
                         data = json.load(f)
                     
                     if data.get('requested') and not self.monitor.running:
-                        # Удаляем файл сразу
                         os.remove(START_REQUESTED_FILE)
-                        
-                        # Применяем настройки
                         settings_data = data.get('settings', {})
                         await self._apply_settings_and_start(settings_data)
+                
+                # Проверяем запрос на ОСТАНОВКУ
+                if os.path.exists(STOP_REQUESTED_FILE):
+                    os.remove(STOP_REQUESTED_FILE)
+                    
+                    if self.monitor.running:
+                        await self.monitor.stop()
+                        await self.send_message("🛑 *Бот остановлен через WebApp*")
+                        
+                        text = self._get_status_text()
+                        await self.bot.send_message(self.admin_id, text, parse_mode=ParseMode.MARKDOWN)
                         
             except Exception as e:
-                logger.error(f"Check start request error: {e}")
+                logger.error(f"Check request error: {e}")
             
             await asyncio.sleep(2)
     
