@@ -1,41 +1,62 @@
 """
-CryptoDen — Главная точка входа
+CryptoDen — Точка входа
+
+Бот НЕ запускается автоматически!
+Ожидает команду /run в Telegram для начала торговли.
+
+Экономия токенов: AI работает только когда бот запущен.
 """
 import asyncio
-import signal
-import sys
+import signal as sig
 
-from app.core.config import settings
 from app.core.logger import logger
-from app.core.monitor import market_monitor
+from app.notifications import telegram_bot
 
 
 async def main():
-    """Главная функция"""
+    """Главная функция — только Telegram polling"""
     
-    logger.info("=" * 50)
-    logger.info("🚀 CRYPTODEN TRADING BOT")
-    logger.info("=" * 50)
+    logger.info("=" * 60)
+    logger.info("🤖 CRYPTODEN BOT READY")
+    logger.info("=" * 60)
+    logger.info("")
+    logger.info("📱 Waiting for Telegram commands...")
+    logger.info("")
+    logger.info("💡 Available commands:")
+    logger.info("   /run    — 🚀 Start trading bot")
+    logger.info("   /stop   — 🛑 Stop trading bot")
+    logger.info("   /pause  — ⏸️ Toggle AI on/off")
+    logger.info("   /status — 📊 Bot status")
+    logger.info("   /live   — 💰 Switch Paper/Live mode")
+    logger.info("")
+    logger.info("💰 Tokens are saved: AI works only when bot is running!")
+    logger.info("=" * 60)
     
-    # Обработка Ctrl+C
-    loop = asyncio.get_event_loop()
+    # Уведомляем о готовности
+    await telegram_bot.notify_startup()
     
-    def shutdown():
-        logger.info("Shutting down...")
-        asyncio.create_task(market_monitor.stop())
+    # Только слушаем Telegram команды
+    # Бот НЕ торгует пока не получит /run
+    await telegram_bot.start_polling()
+
+
+async def shutdown():
+    """Graceful shutdown"""
+    from app.core.monitor import market_monitor
     
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, shutdown)
+    if market_monitor.running:
+        await market_monitor.stop()
     
-    # Запуск мониторинга
-    await market_monitor.start()
+    await telegram_bot.stop()
+    logger.info("👋 Goodbye!")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
+        logger.info("\n⏹️ Stopped by user (Ctrl+C)")
+        asyncio.run(shutdown())
     except Exception as e:
-        logger.error(f"Fatal error: {e}")
-        sys.exit(1)
+        logger.error(f"❌ Fatal error: {e}")
+        raise
