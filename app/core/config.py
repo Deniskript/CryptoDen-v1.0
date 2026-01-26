@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     auto_trading_enabled: bool = Field(default=False, env="AUTO_TRADING_ENABLED")
     default_position_size_usdt: float = Field(default=100.0, env="DEFAULT_POSITION_SIZE_USDT")
     
+    # === WebApp ===
+    webapp_url: str = Field(default="", env="WEBAPP_URL")
+    
     # === App ===
     debug: bool = Field(default=False, env="DEBUG")
     

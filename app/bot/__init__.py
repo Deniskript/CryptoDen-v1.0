@@ -4,16 +4,14 @@ Bot Module — Telegram бот интерфейс
 
 from app.bot.keyboards import (
     get_main_keyboard,
-    get_confirm_keyboard,
-    get_back_keyboard,
-    get_coins_keyboard,
-    get_settings_keyboard,
+    get_start_button,
+    get_stop_button,
+    get_confirm_stop,
 )
 
 __all__ = [
     'get_main_keyboard',
-    'get_confirm_keyboard', 
-    'get_back_keyboard',
-    'get_coins_keyboard',
-    'get_settings_keyboard',
+    'get_start_button', 
+    'get_stop_button',
+    'get_confirm_stop',
 ]

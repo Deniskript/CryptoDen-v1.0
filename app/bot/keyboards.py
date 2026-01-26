@@ -1,107 +1,68 @@
 """
-Telegram Keyboards — Reply клавиатуры внизу экрана
+Telegram Keyboards — минимум кнопок + WebApp
 """
 from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
-    ReplyKeyboardRemove
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    WebAppInfo
 )
+from app.core.config import settings
 
 
 def get_main_keyboard() -> ReplyKeyboardMarkup:
-    """Главная клавиатура — ВСЕГДА внизу"""
-    
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(text="🚀 Запустить"),
-                KeyboardButton(text="🛑 Остановить")
-            ],
-            [
-                KeyboardButton(text="📊 Статус"),
-                KeyboardButton(text="📈 Сделки")
-            ],
-            [
-                KeyboardButton(text="📰 Новости"),
-                KeyboardButton(text="🪙 Монеты")
-            ],
-            [
-                KeyboardButton(text="⚙️ Настройки"),
-                KeyboardButton(text="📋 История")
-            ]
-        ],
-        resize_keyboard=True,
-        is_persistent=True
-    )
-    
-    return keyboard
-
-
-def get_coins_keyboard(coins_status: dict) -> ReplyKeyboardMarkup:
-    """Клавиатура выбора монет"""
-    
-    buttons = []
-    row = []
-    
-    for coin, enabled in coins_status.items():
-        emoji = "✅" if enabled else "❌"
-        row.append(KeyboardButton(text=f"{emoji} {coin}"))
-        
-        if len(row) == 3:
-            buttons.append(row)
-            row = []
-    
-    if row:
-        buttons.append(row)
-    
-    # Кнопка назад
-    buttons.append([KeyboardButton(text="◀️ Назад")])
-    
-    return ReplyKeyboardMarkup(
-        keyboard=buttons,
-        resize_keyboard=True,
-        is_persistent=True
-    )
-
-
-def get_settings_keyboard() -> ReplyKeyboardMarkup:
-    """Клавиатура настроек"""
+    """Главная клавиатура внизу"""
     
     return ReplyKeyboardMarkup(
         keyboard=[
-            [
-                KeyboardButton(text="🔑 API Ключи"),
-                KeyboardButton(text="💰 Риски")
-            ],
-            [
-                KeyboardButton(text="🧠 AI Настройки"),
-                KeyboardButton(text="📝 Paper/Live")
-            ],
-            [KeyboardButton(text="◀️ Назад")]
+            [KeyboardButton(text="📊 Статус"), KeyboardButton(text="📈 Сделки")],
+            [KeyboardButton(text="📰 Новости"), KeyboardButton(text="📋 История")]
         ],
         resize_keyboard=True,
         is_persistent=True
     )
 
 
-def get_confirm_keyboard() -> ReplyKeyboardMarkup:
-    """Клавиатура подтверждения"""
+def get_start_button() -> InlineKeyboardMarkup:
+    """Кнопка запуска (открывает WebApp)"""
     
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(text="✅ Да, подтверждаю"),
-                KeyboardButton(text="❌ Отмена")
-            ]
-        ],
-        resize_keyboard=True
-    )
+    webapp_url = settings.webapp_url
+    
+    if webapp_url:
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="🚀 Запустить бота",
+                web_app=WebAppInfo(url=webapp_url)
+            )]
+        ])
+    else:
+        # Если WebApp не настроен — обычная кнопка
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="🚀 Запустить бота",
+                callback_data="start_bot"
+            )]
+        ])
 
 
-def get_back_keyboard() -> ReplyKeyboardMarkup:
-    """Только кнопка назад"""
+def get_stop_button() -> InlineKeyboardMarkup:
+    """Кнопка остановки"""
     
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="◀️ Назад")]],
-        resize_keyboard=True
-    )
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="🛑 Остановить бота",
+            callback_data="stop_bot"
+        )]
+    ])
+
+
+def get_confirm_stop() -> InlineKeyboardMarkup:
+    """Подтверждение остановки"""
+    
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Да", callback_data="confirm_stop"),
+            InlineKeyboardButton(text="❌ Нет", callback_data="cancel_stop")
+        ]
+    ])

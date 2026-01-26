@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>CryptoDen Settings</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #1a1a2e);
+            color: var(--tg-theme-text-color, #ffffff);
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 100px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+        }
+        
+        .section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .section-header:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .section-header h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+        }
+        
+        .section-header .arrow {
+            transition: transform 0.3s;
+        }
+        
+        .section.open .arrow {
+            transform: rotate(180deg);
+        }
+        
+        .section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            padding: 0 16px;
+        }
+        
+        .section.open .section-content {
+            max-height: 500px;
+            padding: 0 16px 16px;
+        }
+        
+        .input-group {
+            margin-bottom: 12px;
+        }
+        
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 6px;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.2);
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
+        .toggle-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        
+        .toggle-btn {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: transparent;
+            color: rgba(255,255,255,0.6);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .toggle-btn.active {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: #fff;
+        }
+        
+        .coins-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .coin-btn {
+            padding: 12px 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: transparent;
+            color: rgba(255,255,255,0.6);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+        
+        .coin-btn.active {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: #22c55e;
+            color: #22c55e;
+        }
+        
+        .slider-group {
+            margin-bottom: 16px;
+        }
+        
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .slider-value {
+            color: #3b82f6;
+            font-weight: bold;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+        }
+        
+        .start-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 16px;
+            right: 16px;
+            padding: 16px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .start-btn:disabled {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.4);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .status-badge.ok {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+        
+        .status-badge.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        .warning-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 13px;
+            color: #fca5a5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 CryptoDen</h1>
+        <p>Настройки перед запуском</p>
+    </div>
+
+    <!-- API Keys -->
+    <div class="section" id="section-api">
+        <div class="section-header" onclick="toggleSection('api')">
+            <h3>
+                🔐 API Ключи
+                <span class="status-badge" id="api-status">Не настроено</span>
+            </h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="section-content">
+            <div class="input-group">
+                <label>Bybit API Key</label>
+                <input type="password" id="api-key" placeholder="Введите API ключ">
+            </div>
+            <div class="input-group">
+                <label>Bybit API Secret</label>
+                <input type="password" id="api-secret" placeholder="Введите Secret">
+            </div>
+            <div class="toggle-group">
+                <button class="toggle-btn active" id="btn-testnet" onclick="setNetwork('testnet')">
+                    🧪 Testnet
+                </button>
+                <button class="toggle-btn" id="btn-mainnet" onclick="setNetwork('mainnet')">
+                    💰 Mainnet
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coins -->
+    <div class="section" id="section-coins">
+        <div class="section-header" onclick="toggleSection('coins')">
+            <h3>🪙 Монеты для торговли</h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="section-content">
+            <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 12px;">
+                Стратегии зафиксированы из бэктеста
+            </p>
+            <div class="coins-grid" id="coins-grid">
+                <!-- Заполняется JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Management -->
+    <div class="section" id="section-risk">
+        <div class="section-header" onclick="toggleSection('risk')">
+            <h3>💰 Управление рисками</h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="section-content">
+            <div class="slider-group">
+                <div class="slider-header">
+                    <span>Размер сделки</span>
+                    <span class="slider-value" id="risk-value">15%</span>
+                </div>
+                <input type="range" id="risk-slider" min="5" max="25" value="15" 
+                       oninput="updateSlider('risk')">
+            </div>
+            <div class="slider-group">
+                <div class="slider-header">
+                    <span>Макс. сделок</span>
+                    <span class="slider-value" id="trades-value">6</span>
+                </div>
+                <input type="range" id="trades-slider" min="1" max="10" value="6"
+                       oninput="updateSlider('trades')">
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Settings -->
+    <div class="section" id="section-ai">
+        <div class="section-header" onclick="toggleSection('ai')">
+            <h3>🧠 AI Настройки</h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="section-content">
+            <div class="toggle-group">
+                <button class="toggle-btn active" id="btn-ai-on" onclick="setAI(true)">
+                    ✅ AI Включён
+                </button>
+                <button class="toggle-btn" id="btn-ai-off" onclick="setAI(false)">
+                    ❌ AI Выключен
+                </button>
+            </div>
+            <div class="slider-group" style="margin-top: 16px;">
+                <div class="slider-header">
+                    <span>Min Confidence</span>
+                    <span class="slider-value" id="confidence-value">60%</span>
+                </div>
+                <input type="range" id="confidence-slider" min="30" max="90" value="60"
+                       oninput="updateSlider('confidence')">
+            </div>
+        </div>
+    </div>
+
+    <!-- Trading Mode -->
+    <div class="section" id="section-mode">
+        <div class="section-header" onclick="toggleSection('mode')">
+            <h3>📝 Режим торговли</h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="section-content">
+            <div class="toggle-group">
+                <button class="toggle-btn active" id="btn-paper" onclick="setMode('paper')">
+                    📝 Paper Trading
+                </button>
+                <button class="toggle-btn" id="btn-live" onclick="setMode('live')">
+                    💰 LIVE Trading
+                </button>
+            </div>
+            <div class="warning-box" id="live-warning" style="display: none;">
+                ⚠️ ВНИМАНИЕ! В режиме LIVE бот будет торговать реальными деньгами!
+            </div>
+        </div>
+    </div>
+
+    <button class="start-btn" id="start-btn" onclick="startBot()">
+        🚀 ЗАПУСТИТЬ БОТА
+    </button>
+
+    <script>
+        // Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.enableClosingConfirmation();
+
+        // Settings state
+        let settings = {
+            bybit_api_key: "",
+            bybit_api_secret: "",
+            bybit_testnet: true,
+            coins: {
+                "BTC": true, "ETH": true, "BNB": true,
+                "SOL": true, "XRP": true, "ADA": true,
+                "DOGE": true, "LINK": false, "AVAX": false
+            },
+            risk_percent: 15,
+            max_trades: 6,
+            ai_enabled: true,
+            ai_confidence: 60,
+            paper_trading: true
+        };
+
+        // Load saved settings
+        async function loadSettings() {
+            try {
+                const resp = await fetch('/api/settings');
+                const data = await resp.json();
+                settings = {...settings, ...data};
+                applySettings();
+            } catch (e) {
+                console.log('Using default settings');
+                applySettings();
+            }
+        }
+
+        function applySettings() {
+            // API
+            document.getElementById('api-key').value = settings.bybit_api_key || '';
+            document.getElementById('api-secret').value = settings.bybit_api_secret || '';
+            updateApiStatus();
+            
+            // Network
+            setNetwork(settings.bybit_testnet ? 'testnet' : 'mainnet', false);
+            
+            // Coins
+            renderCoins();
+            
+            // Sliders
+            document.getElementById('risk-slider').value = settings.risk_percent;
+            document.getElementById('trades-slider').value = settings.max_trades;
+            document.getElementById('confidence-slider').value = settings.ai_confidence;
+            updateSlider('risk');
+            updateSlider('trades');
+            updateSlider('confidence');
+            
+            // AI
+            setAI(settings.ai_enabled, false);
+            
+            // Mode
+            setMode(settings.paper_trading ? 'paper' : 'live', false);
+        }
+
+        function toggleSection(id) {
+            const section = document.getElementById('section-' + id);
+            section.classList.toggle('open');
+        }
+
+        function updateApiStatus() {
+            const key = document.getElementById('api-key').value;
+            const secret = document.getElementById('api-secret').value;
+            const status = document.getElementById('api-status');
+            
+            if (key && secret) {
+                status.textContent = '✅ Настроено';
+                status.className = 'status-badge ok';
+            } else {
+                status.textContent = 'Не настроено';
+                status.className = 'status-badge error';
+            }
+        }
+
+        function setNetwork(network, save = true) {
+            const testnet = document.getElementById('btn-testnet');
+            const mainnet = document.getElementById('btn-mainnet');
+            
+            if (network === 'testnet') {
+                testnet.classList.add('active');
+                mainnet.classList.remove('active');
+                settings.bybit_testnet = true;
+            } else {
+                mainnet.classList.add('active');
+                testnet.classList.remove('active');
+                settings.bybit_testnet = false;
+            }
+        }
+
+        function renderCoins() {
+            const grid = document.getElementById('coins-grid');
+            const coins = ["BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "DOGE", "LINK", "AVAX"];
+            
+            grid.innerHTML = coins.map(coin => {
+                const active = settings.coins[coin] ? 'active' : '';
+                const emoji = settings.coins[coin] ? '✅' : '❌';
+                return `<button class="coin-btn ${active}" onclick="toggleCoin('${coin}')">${emoji} ${coin}</button>`;
+            }).join('');
+        }
+
+        function toggleCoin(coin) {
+            settings.coins[coin] = !settings.coins[coin];
+            renderCoins();
+        }
+
+        function updateSlider(type) {
+            if (type === 'risk') {
+                const value = document.getElementById('risk-slider').value;
+                document.getElementById('risk-value').textContent = value + '%';
+                settings.risk_percent = parseInt(value);
+            } else if (type === 'trades') {
+                const value = document.getElementById('trades-slider').value;
+                document.getElementById('trades-value').textContent = value;
+                settings.max_trades = parseInt(value);
+            } else if (type === 'confidence') {
+                const value = document.getElementById('confidence-slider').value;
+                document.getElementById('confidence-value').textContent = value + '%';
+                settings.ai_confidence = parseInt(value);
+            }
+        }
+
+        function setAI(enabled, save = true) {
+            const on = document.getElementById('btn-ai-on');
+            const off = document.getElementById('btn-ai-off');
+            
+            if (enabled) {
+                on.classList.add('active');
+                off.classList.remove('active');
+            } else {
+                off.classList.add('active');
+                on.classList.remove('active');
+            }
+            settings.ai_enabled = enabled;
+        }
+
+        function setMode(mode, save = true) {
+            const paper = document.getElementById('btn-paper');
+            const live = document.getElementById('btn-live');
+            const warning = document.getElementById('live-warning');
+            
+            if (mode === 'paper') {
+                paper.classList.add('active');
+                live.classList.remove('active');
+                warning.style.display = 'none';
+                settings.paper_trading = true;
+            } else {
+                live.classList.add('active');
+                paper.classList.remove('active');
+                warning.style.display = 'block';
+                settings.paper_trading = false;
+            }
+        }
+
+        async function startBot() {
+            // Collect all settings
+            settings.bybit_api_key = document.getElementById('api-key').value;
+            settings.bybit_api_secret = document.getElementById('api-secret').value;
+            
+            // Save and start
+            try {
+                await fetch('/api/start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(settings)
+                });
+                
+                // Send data to Telegram and close
+                tg.sendData(JSON.stringify({
+                    action: 'start_bot',
+                    settings: settings
+                }));
+                
+                tg.close();
+            } catch (e) {
+                alert('Ошибка сохранения настроек');
+            }
+        }
+
+        // Input listeners
+        document.getElementById('api-key').addEventListener('input', updateApiStatus);
+        document.getElementById('api-secret').addEventListener('input', updateApiStatus);
+
+        // Init
+        loadSettings();
+    </script>
+</body>
+</html>
