@@ -1,5 +1,10 @@
 """
 Market Monitor — Главный цикл с AI
+
+Правила:
+- Размер сделки = 15% от баланса
+- Максимум 6 открытых сделок
+- Баланс кончился → ждём закрытия → снова торгуем
 """
 import asyncio
 from datetime import datetime, timezone, timedelta
@@ -43,7 +48,13 @@ class MarketMonitor:
         
         # Режим
         self.paper_trading: bool = True
-        self.trade_value_usdt: float = 50.0
+        
+        # Баланс
+        self.current_balance: float = 1000.0  # Начальный для Paper
+        self.initial_balance: float = 1000.0
+        self.balance_percent_per_trade: float = 0.15  # 15%
+        self.max_open_trades: int = 6
+        self.min_trade_size: float = 10.0  # Минимум $10
         
         # AI контроль
         self.ai_enabled: bool = True
@@ -55,29 +66,78 @@ class MarketMonitor:
         
         logger.info("MarketMonitor initialized with AI")
     
+    def get_trade_size(self) -> float:
+        """Размер сделки = 15% от баланса"""
+        size = self.current_balance * self.balance_percent_per_trade
+        return max(0, round(size, 2))
+    
+    def can_open_new_trade(self) -> tuple[bool, str]:
+        """Можно ли открыть новую сделку"""
+        active = len(trade_manager.get_active_trades())
+        
+        if active >= self.max_open_trades:
+            return False, f"Лимит сделок ({active}/{self.max_open_trades})"
+        
+        trade_size = self.get_trade_size()
+        if trade_size < self.min_trade_size:
+            return False, f"Недостаточно баланса (${self.current_balance:.2f})"
+        
+        return True, "OK"
+    
+    async def update_balance_after_close(self, pnl: float):
+        """Обновить баланс после закрытия сделки"""
+        old_balance = self.current_balance
+        self.current_balance += pnl
+        
+        pnl_emoji = "📈" if pnl >= 0 else "📉"
+        logger.info(f"💰 Balance: ${old_balance:.2f} → ${self.current_balance:.2f} ({pnl_emoji} ${pnl:+.2f})")
+    
+    async def sync_balance_from_exchange(self):
+        """Синхронизировать баланс с биржи (для LIVE)"""
+        if not self.paper_trading:
+            try:
+                balance = await self.bybit.get_balance("USDT")
+                if balance is not None:
+                    self.current_balance = balance
+                    logger.info(f"💰 Synced balance from Bybit: ${balance:.2f}")
+            except Exception as e:
+                logger.error(f"Balance sync error: {e}")
+    
     async def start(self):
         """Запустить мониторинг"""
         
         self.running = True
-        self.symbols = list(get_enabled_strategies().keys())
+        
+        # Если symbols пустой, берём из стратегий
+        if not self.symbols:
+            self.symbols = list(get_enabled_strategies().keys())
         
         logger.info("=" * 60)
         logger.info("🚀 MARKET MONITOR STARTED (AI ENABLED)")
         logger.info(f"📊 Symbols: {', '.join(self.symbols)}")
         logger.info(f"🧠 AI: {'ON' if self.ai_enabled else 'OFF'}")
         logger.info(f"📝 Mode: {'PAPER' if self.paper_trading else 'LIVE'}")
+        logger.info(f"💰 Balance: ${self.current_balance:.2f}")
+        logger.info(f"📦 Trade size: ${self.get_trade_size():.2f} (15%)")
+        logger.info(f"📊 Max trades: {self.max_open_trades}")
         logger.info(f"⏱️ Check interval: {self.check_interval}s")
         logger.info("=" * 60)
+        
+        # Синхронизируем баланс для LIVE
+        if not self.paper_trading:
+            await self.sync_balance_from_exchange()
         
         # Первоначальная загрузка новостей
         await self._update_news_context()
         
         # Отправляем в Telegram
         await telegram_bot.send_message(
-            "🚀 *CryptoDen Bot Started*\n\n"
+            f"🚀 *CryptoDen Bot Started*\n\n"
             f"📊 Symbols: {len(self.symbols)}\n"
             f"🧠 AI: {'Enabled' if self.ai_enabled else 'Disabled'}\n"
-            f"📝 Mode: {'Paper' if self.paper_trading else 'Live'}"
+            f"📝 Mode: {'Paper' if self.paper_trading else 'LIVE'}\n"
+            f"💰 Balance: ${self.current_balance:,.2f}\n"
+            f"📦 Trade size: ${self.get_trade_size():,.2f}"
         )
         
         # Основной цикл
@@ -95,7 +155,17 @@ class MarketMonitor:
     async def stop(self):
         """Остановить"""
         self.running = False
-        await telegram_bot.send_message("🛑 *Bot Stopped*")
+        
+        stats = trade_manager.get_statistics()
+        active = len(trade_manager.get_active_trades())
+        
+        await telegram_bot.send_message(
+            f"🛑 *Bot Stopped*\n\n"
+            f"📊 Циклов: {self.check_count}\n"
+            f"📈 Активных: {active}\n"
+            f"💰 P&L: ${stats.get('total_pnl', 0):+.2f}\n"
+            f"💵 Баланс: ${self.current_balance:,.2f}"
+        )
         logger.info("🛑 Monitor stopped")
     
     async def _main_cycle(self):
@@ -121,7 +191,13 @@ class MarketMonitor:
         await self._update_news_context_if_needed()
         
         # 3. Обновляем активные позиции
-        await trade_manager.update_prices(prices)
+        closed_trades = await trade_manager.update_prices(prices)
+        
+        # Обрабатываем закрытые сделки
+        if closed_trades:
+            for trade in closed_trades:
+                await self.update_balance_after_close(trade.unrealized_pnl)
+                await telegram_bot.notify_trade_closed(trade)
         
         # 4. Проверяем активные позиции через AI (двигаем SL/TP)
         if self.ai_enabled:
@@ -134,7 +210,7 @@ class MarketMonitor:
         active = trade_manager.get_active_trades()
         mode = self.market_context.get('market_mode', 'NORMAL')
         
-        logger.info(f"📊 Mode: {mode} | Active trades: {len(active)}")
+        logger.info(f"📊 Mode: {mode} | Active: {len(active)}/{self.max_open_trades} | Balance: ${self.current_balance:.2f}")
         
         if active:
             for t in active:
@@ -219,7 +295,10 @@ class MarketMonitor:
                 
                 elif decision.action == AIAction.CLOSE:
                     logger.info(f"🧠 AI closing {trade.symbol}: {decision.reason}")
-                    await trade_manager.close_trade(trade.id, CloseReason.MANUAL)
+                    closed = await trade_manager.close_trade(trade.id, CloseReason.MANUAL)
+                    if closed:
+                        await self.update_balance_after_close(closed.unrealized_pnl)
+                        await telegram_bot.notify_trade_closed(closed)
                     
             except Exception as e:
                 logger.error(f"AI position check error for {trade.symbol}: {e}")
@@ -227,7 +306,18 @@ class MarketMonitor:
     async def _check_for_signals(self, prices: Dict[str, float]):
         """Проверить стратегии и открыть сделки"""
         
+        # Проверяем можно ли открыть сделку
+        can_open, reason = self.can_open_new_trade()
+        if not can_open:
+            logger.debug(f"⏭️ Skip signals: {reason}")
+            return
+        
         for symbol, price in prices.items():
+            # Проверяем ещё раз (лимит мог измениться)
+            can_open, reason = self.can_open_new_trade()
+            if not can_open:
+                break
+            
             try:
                 # Загружаем данные из кэша
                 df = self.data_loader.load_from_cache(symbol, '5m')
@@ -282,18 +372,17 @@ class MarketMonitor:
                         if decision.take_profit:
                             signal.take_profit = decision.take_profit
                         
-                        # Размер сделки
-                        trade_value = self.trade_value_usdt * decision.size_multiplier
+                        # Размер сделки = 15% от баланса * множитель AI
+                        trade_size = self.get_trade_size() * decision.size_multiplier
                         
-                        await self._execute_signal(signal, trade_value)
+                        await self._execute_signal(signal, trade_size)
                         
                         await telegram_bot.send_message(
                             f"🧠 *AI Approved Trade*\n\n"
                             f"📍 {symbol} {decision.direction}\n"
                             f"📊 Confidence: {decision.confidence}%\n"
-                            f"📦 Size: {decision.size_multiplier}x (${trade_value:.0f})\n"
-                            f"📝 {decision.reason}\n"
-                            f"📰 News: {decision.news_influence}"
+                            f"📦 Size: ${trade_size:.0f} ({decision.size_multiplier}x)\n"
+                            f"📝 {decision.reason}"
                         )
                     else:
                         logger.info(f"🧠 AI rejected {symbol}: confidence {decision.confidence}% < {self.min_confidence}%")
@@ -307,11 +396,19 @@ class MarketMonitor:
     async def _execute_signal(self, signal: Signal, value: float = None):
         """Выполнить сигнал — открыть сделку"""
         
-        value = value or self.trade_value_usdt
+        # Размер = 15% от баланса если не указан
+        value = value or self.get_trade_size()
         
-        can_open, reason = trade_manager.can_open_trade(signal.symbol)
+        # Финальная проверка
+        can_open, reason = self.can_open_new_trade()
         if not can_open:
             logger.info(f"⏭️ Skip {signal.symbol}: {reason}")
+            return
+        
+        # Проверяем есть ли уже позиция по этому символу
+        existing = [t for t in trade_manager.get_active_trades() if t.symbol == signal.symbol]
+        if existing:
+            logger.info(f"⏭️ Skip {signal.symbol}: уже есть позиция")
             return
         
         if self.paper_trading:
@@ -342,9 +439,12 @@ class MarketMonitor:
             'ai_enabled': self.ai_enabled,
             'market_mode': self.market_context.get('market_mode', 'UNKNOWN'),
             'active_trades': len(trade_manager.get_active_trades()),
+            'max_trades': self.max_open_trades,
             'last_check': self.last_check.isoformat() if self.last_check else None,
             'paper_trading': self.paper_trading,
             'symbols': self.symbols,
+            'balance': self.current_balance,
+            'trade_size': self.get_trade_size(),
         }
 
 
