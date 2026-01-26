@@ -5,6 +5,8 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 import os
 import json
+import asyncio
+import threading
 
 app = Flask(__name__, 
     template_folder='templates',
@@ -14,6 +16,9 @@ CORS(app)
 
 # Путь к файлу настроек
 SETTINGS_FILE = "/root/crypto-bot/data/webapp_settings.json"
+
+# Флаг для запуска бота
+START_REQUESTED_FILE = "/root/crypto-bot/data/start_requested.json"
 
 
 def load_settings() -> dict:
@@ -52,6 +57,16 @@ def save_settings(settings: dict):
         json.dump(settings, f, indent=2)
 
 
+def request_start(settings: dict):
+    """Создать запрос на запуск бота"""
+    os.makedirs(os.path.dirname(START_REQUESTED_FILE), exist_ok=True)
+    with open(START_REQUESTED_FILE, 'w') as f:
+        json.dump({
+            "requested": True,
+            "settings": settings
+        }, f, indent=2)
+
+
 @app.route('/')
 def index():
     """Главная страница WebApp"""
@@ -79,10 +94,12 @@ def start_bot():
     data = request.json
     if data:
         save_settings(data)
+        request_start(data)
     
     return jsonify({
         "status": "ok",
-        "action": "start_bot"
+        "action": "start_bot",
+        "message": "Settings saved. Bot will start."
     })
 
 

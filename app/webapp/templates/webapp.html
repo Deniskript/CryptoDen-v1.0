@@ -1177,29 +1177,33 @@
             settings.bybit_api_secret = document.getElementById('api-secret').value;
             
             const btn = document.getElementById('start-btn');
-            btn.innerHTML = '<span class="btn-icon">⏳</span><span>Запускаю...</span>';
+            btn.innerHTML = '<span class="btn-icon">⏳</span><span>Сохраняю...</span>';
             btn.disabled = true;
             
             try {
-                // Save to server
-                await fetch('/api/start', {
+                // Save to server and request start
+                const resp = await fetch('/api/start', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(settings)
                 });
                 
-                // Send to Telegram
-                tg.sendData(JSON.stringify({
-                    action: 'start_bot',
-                    settings: settings
-                }));
-                
-                // Close WebApp
-                setTimeout(() => tg.close(), 500);
+                if (resp.ok) {
+                    btn.innerHTML = '<span class="btn-icon">✅</span><span>Готово! Закрываю...</span>';
+                    btn.style.background = 'linear-gradient(135deg, #3b82f6, #06b6d4)';
+                    
+                    // Закрываем WebApp через 1 секунду
+                    setTimeout(() => {
+                        tg.close();
+                    }, 1000);
+                } else {
+                    throw new Error('Server error');
+                }
                 
             } catch (e) {
                 btn.innerHTML = '<span class="btn-icon">🚀</span><span>ЗАПУСТИТЬ БОТА</span>';
                 btn.disabled = false;
+                btn.style.background = '';
                 alert('Ошибка сохранения настроек');
             }
         }

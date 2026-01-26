@@ -3,6 +3,7 @@ Telegram Bot — Чистый интерфейс с WebApp
 """
 import asyncio
 import json
+import os
 from datetime import datetime, timezone
 from typing import Optional, Dict
 
@@ -19,6 +20,10 @@ from app.bot.keyboards import (
     get_stop_button,
     get_confirm_stop
 )
+
+# Файлы данных
+SETTINGS_FILE = "/root/crypto-bot/data/webapp_settings.json"
+START_REQUESTED_FILE = "/root/crypto-bot/data/start_requested.json"
 
 
 class TelegramBot:
@@ -455,7 +460,69 @@ Confidence: {decision.confidence}%
             return
         await self._set_commands()
         logger.info("📱 Telegram bot polling started")
+        
+        # Запускаем фоновую проверку запроса запуска из WebApp
+        asyncio.create_task(self._check_start_request())
+        
         await self.dp.start_polling(self.bot)
+    
+    async def _check_start_request(self):
+        """Проверяет запрос на запуск из WebApp каждые 2 секунды"""
+        while True:
+            try:
+                if os.path.exists(START_REQUESTED_FILE):
+                    with open(START_REQUESTED_FILE, 'r') as f:
+                        data = json.load(f)
+                    
+                    if data.get('requested') and not self.monitor.running:
+                        # Удаляем файл сразу
+                        os.remove(START_REQUESTED_FILE)
+                        
+                        # Применяем настройки
+                        settings_data = data.get('settings', {})
+                        await self._apply_settings_and_start(settings_data)
+                        
+            except Exception as e:
+                logger.error(f"Check start request error: {e}")
+            
+            await asyncio.sleep(2)
+    
+    async def _apply_settings_and_start(self, settings_data: dict):
+        """Применить настройки из WebApp и запустить бота"""
+        try:
+            # Применяем настройки
+            self.monitor.ai_enabled = settings_data.get('ai_enabled', True)
+            self.monitor.paper_trading = settings_data.get('paper_trading', True)
+            self.monitor.balance_percent_per_trade = settings_data.get('risk_percent', 15) / 100
+            self.monitor.max_open_trades = settings_data.get('max_trades', 6)
+            self.monitor.min_confidence = settings_data.get('ai_confidence', 60)
+            
+            # Монеты
+            coins = settings_data.get('coins', {})
+            self.monitor.symbols = [c for c, enabled in coins.items() if enabled]
+            self.enabled_coins = coins
+            
+            logger.info(f"📱 WebApp settings applied: {len(self.monitor.symbols)} coins")
+            
+            # Уведомляем
+            await self.send_message("🚀 Запускаю бота из WebApp...")
+            
+            # Запускаем
+            asyncio.create_task(self.monitor.start())
+            
+            await asyncio.sleep(3)
+            
+            # Отправляем статус
+            text = self._get_status_message()
+            await self.bot.send_message(
+                self.admin_id, 
+                text, 
+                reply_markup=get_stop_button()
+            )
+            
+        except Exception as e:
+            logger.error(f"Apply settings error: {e}")
+            await self.send_message(f"❌ Ошибка: {e}")
     
     async def stop(self):
         if self.bot:
