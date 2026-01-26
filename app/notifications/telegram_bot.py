@@ -409,8 +409,118 @@ _{mode_desc}_
 • 15% от баланса на сделку
 • Максимум 6 сделок
 • AI анализирует каждый сигнал
+
+*Команды:*
+/debug — диагностика
 """
             await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("debug"))
+        async def cmd_debug(message: types.Message):
+            """Диагностика бота"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            loading = await message.answer("🔍 *Диагностика...*", parse_mode=ParseMode.MARKDOWN)
+            
+            text = "🔍 *ДИАГНОСТИКА*\n\n"
+            
+            # 1. Монитор
+            text += "*1. Монитор:*\n"
+            if self.monitor:
+                text += f"• Running: {'✅' if self.monitor.running else '❌'}\n"
+                text += f"• Symbols: {len(self.monitor.symbols)}\n"
+                text += f"• AI: {'✅' if self.monitor.ai_enabled else '❌'}\n"
+                text += f"• Paper: {'✅' if self.monitor.paper_trading else '❌ LIVE'}\n"
+                text += f"• Balance: ${self.monitor.current_balance:,.2f}\n"
+                text += f"• Cycles: {self.monitor.check_count}\n\n"
+            else:
+                text += "• ❌ Не инициализирован\n\n"
+            
+            # 2. Bybit
+            text += "*2. Bybit API:*\n"
+            try:
+                from app.trading.bybit.client import BybitClient
+                async with BybitClient(testnet=False) as client:
+                    price = await client.get_price('BTC')
+                    if price:
+                        text += f"• Статус: ✅\n"
+                        text += f"• BTC: ${price:,.2f}\n\n"
+                    else:
+                        text += "• Статус: ⚠️ Нет данных\n\n"
+            except Exception as e:
+                text += f"• Статус: ❌ {str(e)[:30]}\n\n"
+            
+            # 3. Стратегии
+            text += "*3. Стратегии:*\n"
+            try:
+                from app.strategies import get_enabled_strategies, strategy_checker
+                strategies = get_enabled_strategies()
+                text += f"• Загружено: {len(strategies)}\n"
+                status = strategy_checker.get_status()
+                text += f"• Сигналов сегодня: {status.get('total_today', 0)}\n\n"
+            except Exception as e:
+                text += f"• Ошибка: {str(e)[:30]}\n\n"
+            
+            # 4. Кэш данных
+            text += "*4. Кэш данных:*\n"
+            try:
+                from app.backtesting.data_loader import BybitDataLoader
+                loader = BybitDataLoader()
+                df = loader.load_from_cache('BTC', '5m')
+                if df is not None and len(df) > 0:
+                    text += f"• BTC: ✅ {len(df)} свечей\n"
+                    text += f"• Цена: ${df['close'].iloc[-1]:,.2f}\n\n"
+                else:
+                    text += "• ⚠️ Нет данных в кэше\n\n"
+            except Exception as e:
+                text += f"• Ошибка: {str(e)[:30]}\n\n"
+            
+            # 5. Индикаторы BTC
+            text += "*5. Индикаторы BTC:*\n"
+            try:
+                from app.strategies.indicators import TechnicalIndicators
+                from app.backtesting.data_loader import BybitDataLoader
+                loader = BybitDataLoader()
+                df = loader.load_from_cache('BTC', '5m')
+                if df is not None and len(df) >= 50:
+                    df = df.tail(100).copy()
+                    ind = TechnicalIndicators()
+                    rsi = ind.rsi(df['close'], 14)
+                    ema21 = ind.ema(df['close'], 21)
+                    price = df['close'].iloc[-1]
+                    
+                    text += f"• RSI(14): {rsi:.1f}\n"
+                    text += f"• EMA(21): ${ema21:,.0f}\n"
+                    
+                    # Анализ
+                    rsi_ok = '✅' if rsi < 30 else '❌'
+                    ema_ok = '✅' if price > ema21 else '❌'
+                    text += f"• RSI<30: {rsi_ok}\n"
+                    text += f"• Price>EMA: {ema_ok}\n\n"
+                else:
+                    text += "• ⚠️ Нет данных\n\n"
+            except Exception as e:
+                text += f"• Ошибка: {str(e)[:30]}\n\n"
+            
+            # 6. Новости
+            text += "*6. Новости:*\n"
+            try:
+                from app.intelligence.news_parser import news_parser
+                context = await news_parser.get_market_context()
+                news_count = len(context.get('news', []))
+                mode = context.get('market_mode', 'UNKNOWN')
+                text += f"• Режим: {mode}\n"
+                text += f"• Новостей: {news_count}\n\n"
+            except Exception as e:
+                text += f"• Ошибка: {str(e)[:30]}\n\n"
+            
+            # Вывод
+            text += "━━━━━━━━━━━━━━━━━━━━━━\n"
+            text += "💡 _Если RSI > 30 — сигналов не будет_\n"
+            text += "_Это нормально! Бот ждёт подходящий момент._"
+            
+            await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
     
     # === УВЕДОМЛЕНИЯ ===
     
