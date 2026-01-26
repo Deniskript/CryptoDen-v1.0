@@ -7,11 +7,16 @@ Market Monitor — Главный цикл с AI
 - Баланс кончился → ждём закрытия → снова торгуем
 """
 import asyncio
+import json
+import os
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional
 
 from app.core.config import settings
 from app.core.logger import logger
+
+# Файл статуса для WebApp
+BOT_STATUS_FILE = "/root/crypto-bot/data/bot_status.json"
 from app.strategies import strategy_checker, get_enabled_strategies, Signal
 from app.trading import trade_manager, CloseReason
 from app.trading.bybit.client import BybitClient
@@ -65,6 +70,30 @@ class MarketMonitor:
         self.data_loader = BybitDataLoader()
         
         logger.info("MarketMonitor initialized with AI")
+        
+        # Обновляем статус при инициализации
+        self._update_status_file()
+    
+    def _update_status_file(self):
+        """Обновить файл статуса для WebApp"""
+        try:
+            os.makedirs(os.path.dirname(BOT_STATUS_FILE), exist_ok=True)
+            
+            status = {
+                "running": self.running,
+                "balance": self.current_balance,
+                "active_trades": len(trade_manager.get_active_trades()) if self.running else 0,
+                "paper_trading": self.paper_trading,
+                "ai_enabled": self.ai_enabled,
+                "symbols": self.symbols,
+                "last_update": datetime.utcnow().isoformat()
+            }
+            
+            with open(BOT_STATUS_FILE, 'w') as f:
+                json.dump(status, f, indent=2)
+                
+        except Exception as e:
+            logger.error(f"Status file update error: {e}")
     
     def get_trade_size(self) -> float:
         """Размер сделки = 15% от баланса"""
@@ -107,6 +136,7 @@ class MarketMonitor:
         """Запустить мониторинг"""
         
         self.running = True
+        self._update_status_file()
         
         # Если symbols пустой, берём из стратегий
         if not self.symbols:
@@ -155,6 +185,7 @@ class MarketMonitor:
     async def stop(self):
         """Остановить"""
         self.running = False
+        self._update_status_file()
         
         stats = trade_manager.get_statistics()
         active = len(trade_manager.get_active_trades())
@@ -211,6 +242,9 @@ class MarketMonitor:
         mode = self.market_context.get('market_mode', 'NORMAL')
         
         logger.info(f"📊 Mode: {mode} | Active: {len(active)}/{self.max_open_trades} | Balance: ${self.current_balance:.2f}")
+        
+        # Обновляем файл статуса для WebApp
+        self._update_status_file()
         
         if active:
             for t in active:

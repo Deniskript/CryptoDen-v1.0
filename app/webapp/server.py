@@ -103,29 +103,28 @@ def start_bot():
     })
 
 
+BOT_STATUS_FILE = "/root/crypto-bot/data/bot_status.json"
+
 @app.route('/api/bot-status')
 def get_bot_status():
-    """Получить статус бота для WebApp"""
+    """Получить статус бота из файла (бот обновляет его)"""
+    default = {
+        "running": False,
+        "balance": 1000,
+        "active_trades": 0,
+        "paper_trading": True,
+        "ai_enabled": True
+    }
+    
     try:
-        from app.core.monitor import market_monitor
-        from app.trading import trade_manager
-        
-        return jsonify({
-            "running": market_monitor.running,
-            "balance": market_monitor.current_balance,
-            "active_trades": len(trade_manager.get_active_trades()),
-            "paper_trading": market_monitor.paper_trading,
-            "ai_enabled": market_monitor.ai_enabled
-        })
+        if os.path.exists(BOT_STATUS_FILE):
+            with open(BOT_STATUS_FILE, 'r') as f:
+                status = json.load(f)
+                return jsonify(status)
     except Exception as e:
-        return jsonify({
-            "running": False,
-            "balance": 1000,
-            "active_trades": 0,
-            "paper_trading": True,
-            "ai_enabled": True,
-            "error": str(e)
-        })
+        print(f"Status read error: {e}")
+    
+    return jsonify(default)
 
 
 @app.route('/api/stop', methods=['POST'])

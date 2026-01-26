@@ -20,6 +20,22 @@ from app.bot.keyboards import get_main_keyboard
 SETTINGS_FILE = "/root/crypto-bot/data/webapp_settings.json"
 START_REQUESTED_FILE = "/root/crypto-bot/data/start_requested.json"
 STOP_REQUESTED_FILE = "/root/crypto-bot/data/stop_requested.json"
+BOT_STATUS_FILE = "/root/crypto-bot/data/bot_status.json"
+
+
+def update_bot_status_file(running: bool, balance: float = 1000, active_trades: int = 0, 
+                           paper_trading: bool = True, ai_enabled: bool = True):
+    """Обновить файл статуса для WebApp"""
+    import json
+    os.makedirs(os.path.dirname(BOT_STATUS_FILE), exist_ok=True)
+    with open(BOT_STATUS_FILE, 'w') as f:
+        json.dump({
+            "running": running,
+            "balance": balance,
+            "active_trades": active_trades,
+            "paper_trading": paper_trading,
+            "ai_enabled": ai_enabled
+        }, f)
 
 
 class TelegramBot:
@@ -362,6 +378,9 @@ Confidence: {decision.confidence}%
             return
         await self._set_commands()
         
+        # Инициализируем файл статуса (бот остановлен)
+        update_bot_status_file(running=False)
+        
         # Запускаем фоновую проверку запроса запуска из WebApp
         asyncio.create_task(self._check_start_request())
         
@@ -388,6 +407,10 @@ Confidence: {decision.confidence}%
                     
                     if self.monitor.running:
                         await self.monitor.stop()
+                        
+                        # Обновляем статус для WebApp
+                        update_bot_status_file(running=False)
+                        
                         await self.send_message("🛑 *Бот остановлен через WebApp*")
                         
                         text = self._get_status_text()
@@ -412,6 +435,15 @@ Confidence: {decision.confidence}%
             asyncio.create_task(self.monitor.start())
             
             await asyncio.sleep(3)
+            
+            # Обновляем статус для WebApp
+            update_bot_status_file(
+                running=True,
+                balance=self.monitor.current_balance,
+                active_trades=len(self.trade_manager.get_active_trades()),
+                paper_trading=self.monitor.paper_trading,
+                ai_enabled=self.monitor.ai_enabled
+            )
             
             # Отправляем статус
             text = self._get_status_text()
