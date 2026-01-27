@@ -17,6 +17,9 @@ from app.ai.director_ai import (
     TradingMode,
     MarketSituation,
     get_director_decision,
+    DirectorTrader,
+    DirectorTrade,
+    director_trader,
 )
 from app.ai.trading_coordinator import (
     TradingCoordinator,
@@ -42,6 +45,10 @@ __all__ = [
     'TradingMode',
     'MarketSituation',
     'get_director_decision',
+    # Director Trader (TAKE_CONTROL)
+    'DirectorTrader',
+    'DirectorTrade',
+    'director_trader',
     # Trading Coordinator
     'TradingCoordinator',
     'trading_coordinator',

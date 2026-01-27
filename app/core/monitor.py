@@ -25,6 +25,7 @@ from app.brain import trading_ai, AIAction
 from app.notifications import telegram_bot
 from app.backtesting.data_loader import BybitDataLoader
 from app.ai.trading_coordinator import trading_coordinator, get_director_guidance
+from app.ai.director_ai import director_trader
 
 
 class MarketMonitor:
@@ -322,9 +323,86 @@ class MarketMonitor:
                 logger.error(f"AI position check error for {trade.symbol}: {e}")
     
     async def _check_for_signals(self, prices: Dict[str, float]):
-        """Проверить стратегии и открыть сделки через координатор"""
+        """
+        🔍 Поиск торговых сигналов
         
-        # === ШАГ 1: ДИРЕКТОР ПРИНИМАЕТ РЕШЕНИЕ ===
+        ОБНОВЛЕНО: Теперь Director может брать TAKE_CONTROL!
+        """
+        
+        from app.ai.whale_ai import whale_ai
+        
+        # =========================================
+        # 🐋 ШАГ 0: Собираем данные для Director
+        # =========================================
+        whale_metrics = {}
+        try:
+            if whale_ai.last_metrics:
+                m = whale_ai.last_metrics
+                whale_metrics = {
+                    "fear_greed": m.fear_greed_index,
+                    "long_ratio": m.long_ratio,
+                    "short_ratio": m.short_ratio,
+                    "funding_rate": m.funding_rate,
+                    "oi_change_1h": m.oi_change_1h,
+                    "oi_change_24h": m.oi_change_24h,
+                    "liq_long": m.liq_long,
+                    "liq_short": m.liq_short,
+                }
+        except Exception as e:
+            logger.debug(f"Whale metrics not available: {e}")
+        
+        news_context = {}
+        try:
+            news = self.market_context.get("news", [])
+            if news:
+                bearish = sum(1 for n in news if n.get("sentiment", 0) < -0.2)
+                bullish = sum(1 for n in news if n.get("sentiment", 0) > 0.2)
+                critical = sum(1 for n in news if n.get("importance") == "HIGH")
+                
+                news_context = {
+                    "sentiment": "bearish" if bearish > bullish else "bullish" if bullish > bearish else "neutral",
+                    "critical_count": critical,
+                }
+        except Exception:
+            pass
+        
+        # =========================================
+        # 🎩 ШАГ 1: Проверить нужен ли TAKE_CONTROL
+        # =========================================
+        if not director_trader.is_controlling:
+            should_take, direction, reason = await director_trader.should_take_control(
+                whale_metrics=whale_metrics,
+                news_context=news_context,
+                market_data={"prices": prices}
+            )
+            
+            if should_take:
+                logger.warning(f"🎩 DIRECTOR TAKE_CONTROL: {reason}")
+                
+                # Director берёт управление!
+                best_symbol = "BTC"  # По умолчанию
+                
+                # Открываем позицию Director
+                trade = await director_trader.execute_trade(
+                    symbol=best_symbol,
+                    direction=direction,
+                    reason=reason
+                )
+                
+                if trade:
+                    logger.info(f"🎩 Director открыл {best_symbol} {direction}")
+                    return  # Director управляет, Работник отдыхает
+        
+        # =========================================
+        # 🎩 ШАГ 2: Если Director управляет - выходим
+        # =========================================
+        if director_trader.is_controlling:
+            logger.debug("🎩 Director управляет, Работник ждёт...")
+            return
+        
+        # =========================================
+        # 🎩 ШАГ 3: ДИРЕКТОР ПРИНИМАЕТ РЕШЕНИЕ
+        # =========================================
         guidance = await get_director_guidance()
         
         decision = guidance.get("decision", "continue")
@@ -346,7 +424,7 @@ class MarketMonitor:
                     f"🔴 SHORT: {'✅' if guidance.get('allow_shorts') else '🚫'}"
                 )
         
-        # === ШАГ 2: ВЫПОЛНЯЕМ ЗАКРЫТИЯ ПО КОМАНДЕ ДИРЕКТОРА ===
+        # === ШАГ 4: ВЫПОЛНЯЕМ ЗАКРЫТИЯ ПО КОМАНДЕ ДИРЕКТОРА ===
         if decision in ["close_all", "close_longs", "close_shorts"]:
             close_actions = await trading_coordinator.check_for_close_orders(guidance)
             
@@ -363,7 +441,7 @@ class MarketMonitor:
             if decision == "close_all":
                 return
         
-        # === ШАГ 3: ПРОВЕРЯЕМ МОЖНО ЛИ ОТКРЫВАТЬ ===
+        # === ШАГ 5: ПРОВЕРЯЕМ МОЖНО ЛИ ОТКРЫВАТЬ ===
         if decision in ["pause_new", "take_control"]:
             logger.info(f"⏸️ Директор: {decision} — новые сделки запрещены")
             return
@@ -374,7 +452,7 @@ class MarketMonitor:
             logger.debug(f"⏭️ Skip signals: {reason}")
             return
         
-        # === ШАГ 4: TECH AI (РАБОТНИК) ПРОВЕРЯЕТ СТРАТЕГИИ ===
+        # === ШАГ 6: TECH AI (РАБОТНИК) ПРОВЕРЯЕТ СТРАТЕГИИ ===
         for symbol, price in prices.items():
             # Проверяем ещё раз (лимит мог измениться)
             can_open, reason = self.can_open_new_trade()

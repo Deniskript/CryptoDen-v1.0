@@ -88,7 +88,9 @@ class TelegramBot:
             BotCommand(command="start", description="🔄 Главное меню"),
             BotCommand(command="ai", description="🧠 Статус AI системы"),
             BotCommand(command="director", description="🎩 Решения Директора"),
+            BotCommand(command="director_trades", description="🎩 Сделки Директора"),
             BotCommand(command="whale", description="🐋 Анализ китов"),
+            BotCommand(command="market", description="📊 Полная картина рынка"),
             BotCommand(command="debug", description="🔍 Диагностика"),
             BotCommand(command="help", description="❓ Помощь")
         ]
@@ -584,6 +586,23 @@ _{mode_desc}_
             except Exception as e:
                 logger.error(f"Director AI error: {e}")
                 await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("director_trades"))
+        async def cmd_director_trades(message: types.Message):
+            """🎩 Сделки Director Trader"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            try:
+                from app.ai.director_ai import director_trader
+                
+                text = director_trader.get_status_text()
+                
+                await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Director trades error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(Command("market"))
         async def cmd_market(message: types.Message):
