@@ -86,6 +86,8 @@ class TelegramBot:
     async def _set_commands(self):
         commands = [
             BotCommand(command="start", description="🔄 Главное меню"),
+            BotCommand(command="whale", description="🐋 Анализ китов"),
+            BotCommand(command="debug", description="🔍 Диагностика"),
             BotCommand(command="help", description="❓ Помощь")
         ]
         await self.bot.set_my_commands(commands)
@@ -411,6 +413,7 @@ _{mode_desc}_
 • AI анализирует каждый сигнал
 
 *Команды:*
+/whale — анализ китов и метрик
 /debug — диагностика
 """
             await message.answer(text, parse_mode=ParseMode.MARKDOWN)
@@ -521,6 +524,39 @@ _{mode_desc}_
             text += "_Это нормально! Бот ждёт подходящий момент._"
             
             await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("whale"))
+        async def cmd_whale(message: types.Message):
+            """🐋 Whale AI — анализ рыночных метрик"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            loading = await message.answer("🐋 *Анализирую рынок...*", parse_mode=ParseMode.MARKDOWN)
+            
+            try:
+                from app.ai.whale_ai import whale_ai, check_whale_activity
+                
+                # Анализируем BTC
+                alert = await check_whale_activity("BTC")
+                
+                # Получаем отчёт
+                text = whale_ai.get_status_text()
+                text += f"\n\n*Рекомендация:*\n{alert.recommendation}"
+                
+                # Если есть алерты — добавляем
+                if alert.level.value != "calm":
+                    text += f"\n\n*⚠️ Сигналы:*\n{alert.message}"
+                
+                # Добавляем bias
+                bias = whale_ai.get_trading_bias()
+                bias_emoji = {"BULLISH": "🟢", "BEARISH": "🔴", "NEUTRAL": "⚪"}.get(bias, "⚪")
+                text += f"\n\n{bias_emoji} *Bias:* {bias}"
+                
+                await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Whale AI error: {e}")
+                await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
     
     # === УВЕДОМЛЕНИЯ ===
     
