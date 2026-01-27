@@ -681,6 +681,9 @@ class DirectorTrader:
         self.control_reason: str = ""
         self._management_tasks: Dict[str, asyncio.Task] = {}
         
+        # История режимов
+        self.mode_history: list = []
+        
         # Настройки агрессивности
         self.config = {
             "check_interval_seconds": 10,  # Проверка каждые 10 сек
@@ -702,6 +705,92 @@ class DirectorTrader:
         }
         
         logger.info("🎩 DirectorTrader инициализирован")
+    
+    async def _notify_take_control(self, direction: str, reason: str):
+        """🔔 Уведомление: CryptoDen берёт управление"""
+        from app.notifications.telegram_bot import telegram_bot
+        
+        # Причина на русском
+        reason_ru = self._translate_reason(reason)
+        direction_emoji = "📈" if direction == "LONG" else "📉"
+        direction_text = "ПОКУПКА" if direction == "LONG" else "ПРОДАЖА"
+        
+        text = (
+            f"⚡ *CryptoDen взял управление!*\n\n"
+            f"{direction_emoji} Направление: *{direction_text}*\n"
+            f"📊 Причина: _{reason_ru}_\n\n"
+            f"🤖 Автоматическое управление позицией\n"
+            f"🔄 Проверка каждые 10 сек"
+        )
+        
+        await telegram_bot.send_message(text)
+        
+        # Сохраняем в историю
+        self.mode_history.append({
+            "time": datetime.now().isoformat(),
+            "event": "TAKE_CONTROL",
+            "direction": direction,
+            "reason": reason_ru,
+        })
+        
+        # Ограничиваем историю
+        if len(self.mode_history) > 50:
+            self.mode_history = self.mode_history[-50:]
+    
+    async def _notify_release_control(self, pnl_percent: float, close_reason: str):
+        """🔔 Уведомление: CryptoDen отдаёт управление"""
+        from app.notifications.telegram_bot import telegram_bot
+        
+        pnl_emoji = "✅" if pnl_percent > 0 else "❌"
+        reason_ru = self._translate_close_reason(close_reason)
+        
+        text = (
+            f"🔓 *Управление передано Работнику*\n\n"
+            f"{pnl_emoji} Результат: *{pnl_percent:+.2f}%*\n"
+            f"📝 Причина выхода: _{reason_ru}_\n\n"
+            f"👷 Работник продолжает по стратегиям"
+        )
+        
+        await telegram_bot.send_message(text)
+        
+        # Сохраняем в историю
+        self.mode_history.append({
+            "time": datetime.now().isoformat(),
+            "event": "RELEASE_CONTROL",
+            "pnl_percent": pnl_percent,
+            "reason": reason_ru,
+        })
+    
+    def _translate_reason(self, reason: str) -> str:
+        """Перевод причины TAKE_CONTROL на русский"""
+        translations = {
+            "Extreme fear + bullish news = STRONG BUY": "Экстремальный страх + позитивные новости",
+            "Extreme greed + bearish news = STRONG SELL": "Экстремальная жадность + негативные новости",
+            "Mass long liquidations = potential reversal": "Массовые ликвидации лонгов → разворот",
+            "Mass short liquidations = potential reversal": "Массовые ликвидации шортов → разворот",
+            "Extreme funding rate = longs overextended": "Экстремальный funding — лонги перегреты",
+            "Negative funding = shorts overextended": "Отрицательный funding — шорты перегреты",
+            "Extreme fear + low long ratio = BUY opportunity": "Сильный страх + мало покупателей",
+            "Extreme greed + high long ratio = SELL opportunity": "Сильная жадность + много покупателей",
+        }
+        return translations.get(reason, reason[:50])
+    
+    def _translate_close_reason(self, reason: str) -> str:
+        """Перевод причины закрытия на русский"""
+        if "TAKE_PROFIT" in reason:
+            return "Достигнут Take Profit 🎯"
+        elif "STOP_LOSS" in reason:
+            return "Сработал Stop Loss 🛑"
+        elif "TRAILING" in reason:
+            return "Trailing Stop защитил прибыль 📈"
+        elif "NEWS" in reason:
+            return "Изменились новости 📰"
+        elif "WHALE" in reason:
+            return "Изменились метрики китов 🐋"
+        elif "MAX_TIME" in reason:
+            return "Достигнут лимит времени ⏰"
+        else:
+            return reason[:30]
     
     async def should_take_control(
         self, 
@@ -854,17 +943,17 @@ class DirectorTrader:
             task = asyncio.create_task(self._manage_trade(trade))
             self._management_tasks[symbol] = task
             
-            # Уведомление
+            # 🔔 Уведомление о взятии управления
+            await self._notify_take_control(direction, reason)
+            
+            # Уведомление о сделке
             from app.notifications.telegram_bot import telegram_bot
+            direction_emoji = "📈" if direction == "LONG" else "📉"
             await telegram_bot.send_message(
-                f"🎩 *DIRECTOR TRADE OPENED!*\n\n"
-                f"🪙 {symbol} {direction}\n"
-                f"💰 Размер: ${size_usd:.2f}\n"
-                f"📍 Вход: ${current_price:,.2f}\n"
-                f"🛑 SL: ${stop_loss:,.2f} (-2%)\n"
-                f"🎯 TP: ${take_profit:,.2f} (+4%)\n\n"
-                f"📝 Причина: {reason}\n\n"
-                f"⚡ Director управляет позицией!"
+                f"{direction_emoji} *Открыта позиция*\n\n"
+                f"🪙 *{symbol}* | {direction}\n"
+                f"💰 ${size_usd:.0f} | Вход: ${current_price:,.2f}\n"
+                f"🛑 SL: ${stop_loss:,.2f} | 🎯 TP: ${take_profit:,.2f}"
             )
             
             logger.info(f"🎩 DIRECTOR OPENED: {symbol} {direction} @ ${current_price:,.2f}")
@@ -1140,25 +1229,26 @@ class DirectorTrader:
                 del self._management_tasks[trade.symbol]
             
             # Проверить нужно ли отпустить контроль
+            was_controlling = self.is_controlling
             if not self.active_trades:
                 self.is_controlling = False
                 self.control_reason = ""
             
-            # Уведомление
+            # Уведомление о закрытии сделки
             from app.notifications.telegram_bot import telegram_bot
-            emoji = "✅" if trade.pnl_percent > 0 else "❌"
+            pnl_emoji = "🟢" if trade.pnl_percent > 0 else "🔴"
             
             await telegram_bot.send_message(
-                f"🎩 *DIRECTOR TRADE CLOSED!*\n\n"
-                f"{emoji} {trade.symbol} {trade.direction}\n"
-                f"📍 Вход: ${trade.entry_price:,.2f}\n"
-                f"📍 Выход: ${trade.current_price:,.2f}\n"
-                f"💰 PnL: {trade.pnl_percent:+.2f}% (${trade.pnl_usd:+.2f})\n"
-                f"⏱ Время: {hold_minutes:.0f} мин\n"
-                f"📝 Причина: {reason}\n"
-                f"🔄 Adjustments: {trade.adjustments_count}\n\n"
-                f"📊 Баланс: ${market_monitor.current_balance:.2f}"
+                f"📊 *Позиция закрыта*\n\n"
+                f"🪙 *{trade.symbol}* | {trade.direction}\n"
+                f"📍 ${trade.entry_price:,.2f} → ${trade.current_price:,.2f}\n"
+                f"{pnl_emoji} *{trade.pnl_percent:+.2f}%* (${trade.pnl_usd:+.2f})\n"
+                f"⏱ {hold_minutes:.0f} мин | 🔄 {trade.adjustments_count} корр."
             )
+            
+            # 🔔 Уведомление о передаче управления
+            if was_controlling and not self.is_controlling:
+                await self._notify_release_control(trade.pnl_percent, reason)
             
             logger.info(
                 f"🎩 DIRECTOR CLOSED: {trade.symbol} {trade.direction} "
@@ -1198,6 +1288,7 @@ class DirectorTrader:
             "active_trades": active,
             "active_count": len(active),
             "stats": self.stats,
+            "mode_history": self.mode_history[-10:],  # Последние 10 событий
         }
     
     def get_status_text(self) -> str:
@@ -1236,6 +1327,19 @@ class DirectorTrader:
         if status['stats']['total_trades'] > 0:
             text += f"   Лучшая: {status['stats']['best_trade']:+.2f}%\n"
             text += f"   Худшая: {status['stats']['worst_trade']:+.2f}%\n"
+        
+        # История режимов
+        if status.get('mode_history'):
+            text += f"\n━━━━━━━━━━━━━━━━━━━━━━\n"
+            text += f"📜 *Последние события:*\n"
+            for event in status['mode_history'][-5:]:
+                time_str = event['time'][11:16]  # HH:MM
+                if event['event'] == 'TAKE_CONTROL':
+                    text += f"   ⚡ {time_str} Взял управление\n"
+                else:
+                    pnl = event.get('pnl_percent', 0)
+                    emoji = "✅" if pnl > 0 else "❌"
+                    text += f"   {emoji} {time_str} Передал ({pnl:+.1f}%)\n"
         
         return text
 
