@@ -86,6 +86,7 @@ class TelegramBot:
     async def _set_commands(self):
         commands = [
             BotCommand(command="start", description="🔄 Главное меню"),
+            BotCommand(command="ai", description="🧠 Статус AI системы"),
             BotCommand(command="director", description="🎩 Решения Директора"),
             BotCommand(command="whale", description="🐋 Анализ китов"),
             BotCommand(command="debug", description="🔍 Диагностика"),
@@ -413,9 +414,10 @@ _{mode_desc}_
 • Максимум 6 сделок
 • AI анализирует каждый сигнал
 
-*Команды:*
-/director — решения Директора AI
-/whale — анализ китов и метрик
+*Команды AI:*
+/ai — полный статус AI системы
+/director — решения Директора
+/whale — анализ китов
 /debug — диагностика
 """
             await message.answer(text, parse_mode=ParseMode.MARKDOWN)
@@ -581,6 +583,66 @@ _{mode_desc}_
                 
             except Exception as e:
                 logger.error(f"Director AI error: {e}")
+                await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("ai"))
+        async def cmd_ai_status(message: types.Message):
+            """📊 Полный статус AI системы"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            loading = await message.answer("🔄 *Собираю данные...*", parse_mode=ParseMode.MARKDOWN)
+            
+            try:
+                from app.ai.whale_ai import whale_ai
+                from app.ai.director_ai import director_ai
+                from app.ai.trading_coordinator import trading_coordinator
+                
+                # Whale AI (не делаем запрос, используем кэш)
+                whale_text = "🐋 *Whale AI*\n"
+                if whale_ai.last_metrics:
+                    m = whale_ai.last_metrics
+                    whale_text += f"• Funding: {m.funding_rate:+.4f}%\n"
+                    whale_text += f"• L/S: {m.long_ratio:.0f}% / {m.short_ratio:.0f}%\n"
+                    whale_text += f"• F&G: {m.fear_greed}\n"
+                else:
+                    whale_text += "• _Нет данных_\n"
+                
+                # Director AI
+                director_text = "\n🎩 *Director AI*\n"
+                director_text += f"• Mode: {director_ai.current_mode.value}\n"
+                if director_ai.situation:
+                    s = director_ai.situation
+                    risk_emoji = {"normal": "🟢", "elevated": "🟡", "high": "🟠", "extreme": "🔴"}
+                    director_text += f"• Risk: {risk_emoji.get(s.risk_level, '⚪')} {s.risk_level} ({s.risk_score}/100)\n"
+                director_text += f"• LONG: {'✅' if director_ai.allow_new_longs else '🚫'}\n"
+                director_text += f"• SHORT: {'✅' if director_ai.allow_new_shorts else '🚫'}\n"
+                director_text += f"• Size: x{director_ai.size_multiplier:.1f}\n"
+                
+                # Coordinator
+                coord_text = "\n🎯 *Coordinator*\n"
+                coord_text += f"• Сигналов: {trading_coordinator.signals_generated}\n"
+                coord_text += f"• Выполнено: {trading_coordinator.actions_executed}\n"
+                coord_text += f"• Вмешательств: {trading_coordinator.director_interventions}\n"
+                
+                # Monitor
+                monitor_text = "\n📊 *Monitor*\n"
+                monitor_text += f"• Running: {'✅' if self.monitor.running else '❌'}\n"
+                monitor_text += f"• Cycles: {self.monitor.check_count}\n"
+                monitor_text += f"• Balance: ${self.monitor.current_balance:,.2f}\n"
+                
+                text = f"""🧠 *AI SYSTEM STATUS*
+
+{whale_text}
+{director_text}
+{coord_text}
+{monitor_text}
+"""
+                
+                await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"AI status error: {e}")
                 await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
     
     # === УВЕДОМЛЕНИЯ ===

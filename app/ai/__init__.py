@@ -2,9 +2,10 @@
 🧠 AI Module — Иерархия AI для торгового бота
 
 Архитектура:
-- 👷 Tech AI (Работник) — выполняет стратегии
-- 🎩 Director AI (Директор) — принимает решения
-- 🐋 Whale AI (Друг) — разведка рынка, метрики китов
+  🎯 Trading Coordinator — связывает всех
+  🎩 Director AI (Директор) — принимает решения
+  🐋 Whale AI (Друг) — разведка рынка
+  👷 Tech AI (Работник) — выполняет стратегии
 """
 
 from app.ai.whale_ai import WhaleAI, whale_ai, WhaleAlert, MarketMetrics, AlertLevel
@@ -16,6 +17,14 @@ from app.ai.director_ai import (
     TradingMode,
     MarketSituation,
     get_director_decision,
+)
+from app.ai.trading_coordinator import (
+    TradingCoordinator,
+    trading_coordinator,
+    TradingAction,
+    get_director_guidance,
+    filter_signal_through_director,
+    process_signal_with_coordinator,
 )
 
 __all__ = [
@@ -33,4 +42,11 @@ __all__ = [
     'TradingMode',
     'MarketSituation',
     'get_director_decision',
+    # Trading Coordinator
+    'TradingCoordinator',
+    'trading_coordinator',
+    'TradingAction',
+    'get_director_guidance',
+    'filter_signal_through_director',
+    'process_signal_with_coordinator',
 ]

@@ -24,6 +24,7 @@ from app.intelligence.news_parser import news_parser
 from app.brain import trading_ai, AIAction
 from app.notifications import telegram_bot
 from app.backtesting.data_loader import BybitDataLoader
+from app.ai.trading_coordinator import trading_coordinator, get_director_guidance
 
 
 class MarketMonitor:
@@ -321,14 +322,59 @@ class MarketMonitor:
                 logger.error(f"AI position check error for {trade.symbol}: {e}")
     
     async def _check_for_signals(self, prices: Dict[str, float]):
-        """Проверить стратегии и открыть сделки"""
+        """Проверить стратегии и открыть сделки через координатор"""
         
-        # Проверяем можно ли открыть сделку
+        # === ШАГ 1: ДИРЕКТОР ПРИНИМАЕТ РЕШЕНИЕ ===
+        guidance = await get_director_guidance()
+        
+        decision = guidance.get("decision", "continue")
+        risk_level = guidance.get("risk_level", "normal")
+        director_size_mult = guidance.get("size_multiplier", 1.0)
+        
+        # Логируем решение Директора (только если не кэшированное)
+        if not guidance.get("cached", True):
+            logger.info(f"🎩 Director: {decision} | Risk: {risk_level} | Size: x{director_size_mult}")
+            
+            # Уведомляем о важных решениях
+            if decision not in ["continue"] or risk_level in ["high", "extreme"]:
+                await telegram_bot.send_message(
+                    f"🎩 *Director Decision*\n\n"
+                    f"📊 Risk: {risk_level.upper()}\n"
+                    f"🎯 Decision: {decision}\n"
+                    f"📦 Size: x{director_size_mult}\n"
+                    f"🟢 LONG: {'✅' if guidance.get('allow_longs') else '🚫'}\n"
+                    f"🔴 SHORT: {'✅' if guidance.get('allow_shorts') else '🚫'}"
+                )
+        
+        # === ШАГ 2: ВЫПОЛНЯЕМ ЗАКРЫТИЯ ПО КОМАНДЕ ДИРЕКТОРА ===
+        if decision in ["close_all", "close_longs", "close_shorts"]:
+            close_actions = await trading_coordinator.check_for_close_orders(guidance)
+            
+            for action in close_actions:
+                success = await trading_coordinator.execute_close_action(action)
+                if success:
+                    await telegram_bot.send_message(
+                        f"🎩 *Director Closed Position*\n\n"
+                        f"📍 {action.symbol} {action.direction}\n"
+                        f"📝 {action.reason}"
+                    )
+            
+            # Если close_all — не открываем новые
+            if decision == "close_all":
+                return
+        
+        # === ШАГ 3: ПРОВЕРЯЕМ МОЖНО ЛИ ОТКРЫВАТЬ ===
+        if decision in ["pause_new", "take_control"]:
+            logger.info(f"⏸️ Директор: {decision} — новые сделки запрещены")
+            return
+        
+        # Базовая проверка
         can_open, reason = self.can_open_new_trade()
         if not can_open:
             logger.debug(f"⏭️ Skip signals: {reason}")
             return
         
+        # === ШАГ 4: TECH AI (РАБОТНИК) ПРОВЕРЯЕТ СТРАТЕГИИ ===
         for symbol, price in prices.items():
             # Проверяем ещё раз (лимит мог измениться)
             can_open, reason = self.can_open_new_trade()
@@ -352,16 +398,26 @@ class MarketMonitor:
                     continue
                 
                 logger.info(f"🎯 Signal: {symbol} {signal.direction}")
+                trading_coordinator.signals_generated += 1
+                
+                # === ФИЛЬТРАЦИЯ ЧЕРЕЗ ДИРЕКТОРА ===
+                allowed, filter_reason = await trading_coordinator.filter_signal(signal, guidance)
+                
+                if not allowed:
+                    logger.info(f"⛔ Signal blocked: {filter_reason}")
+                    continue
                 
                 # Если AI выключен — торгуем по стратегии напрямую
                 if not self.ai_enabled:
                     await telegram_bot.notify_signal(signal)
-                    await self._execute_signal(signal)
+                    # Применяем множитель от Директора
+                    trade_size = self.get_trade_size() * director_size_mult
+                    await self._execute_signal(signal, trade_size)
                     continue
                 
-                # AI анализирует
+                # === BRAIN AI АНАЛИЗИРУЕТ ===
                 async with trading_ai:
-                    decision = await trading_ai.analyze(
+                    ai_decision = await trading_ai.analyze(
                         symbol=symbol,
                         market_context=self.market_context,
                         strategy_signal={
@@ -381,31 +437,33 @@ class MarketMonitor:
                 await telegram_bot.notify_signal(signal)
                 
                 # Выполняем решение AI
-                if decision.action in [AIAction.OPEN_LONG, AIAction.OPEN_SHORT]:
-                    if decision.confidence >= self.min_confidence:
+                if ai_decision.action in [AIAction.OPEN_LONG, AIAction.OPEN_SHORT]:
+                    if ai_decision.confidence >= self.min_confidence:
                         # Корректируем SL/TP от AI
-                        if decision.stop_loss:
-                            signal.stop_loss = decision.stop_loss
-                        if decision.take_profit:
-                            signal.take_profit = decision.take_profit
+                        if ai_decision.stop_loss:
+                            signal.stop_loss = ai_decision.stop_loss
+                        if ai_decision.take_profit:
+                            signal.take_profit = ai_decision.take_profit
                         
-                        # Размер сделки = 15% от баланса * множитель AI
-                        trade_size = self.get_trade_size() * decision.size_multiplier
+                        # Размер = 15% * AI множитель * Director множитель
+                        trade_size = self.get_trade_size() * ai_decision.size_multiplier * director_size_mult
                         
                         await self._execute_signal(signal, trade_size)
+                        trading_coordinator.actions_executed += 1
                         
                         await telegram_bot.send_message(
-                            f"🧠 *AI Approved Trade*\n\n"
-                            f"📍 {symbol} {decision.direction}\n"
-                            f"📊 Confidence: {decision.confidence}%\n"
-                            f"📦 Size: ${trade_size:.0f} ({decision.size_multiplier}x)\n"
-                            f"📝 {decision.reason}"
+                            f"🧠 *Trade Approved*\n\n"
+                            f"📍 {symbol} {ai_decision.direction}\n"
+                            f"📊 Confidence: {ai_decision.confidence}%\n"
+                            f"📦 Size: ${trade_size:.0f}\n"
+                            f"🎩 Director: {risk_level}\n"
+                            f"📝 {ai_decision.reason}"
                         )
                     else:
-                        logger.info(f"🧠 AI rejected {symbol}: confidence {decision.confidence}% < {self.min_confidence}%")
+                        logger.info(f"🧠 AI rejected {symbol}: confidence {ai_decision.confidence}% < {self.min_confidence}%")
                 
-                elif decision.action == AIAction.WAIT:
-                    logger.info(f"🧠 AI says WAIT for {symbol}: {decision.reason}")
+                elif ai_decision.action == AIAction.WAIT:
+                    logger.info(f"🧠 AI says WAIT for {symbol}: {ai_decision.reason}")
                     
             except Exception as e:
                 logger.error(f"Signal check error for {symbol}: {e}")
