@@ -1,11 +1,12 @@
 # 🚀 CryptoDen Trading Bot — ПОЛНАЯ ДОКУМЕНТАЦИЯ
 
-> **Версия:** 2.0  
+> **Версия:** 2.1  
 > **Дата:** 2026-01-28  
 > **Путь:** `/root/crypto-bot/`  
 > **Python:** 3.11+  
 > **Биржа:** Bybit Spot  
-> **AI:** Claude Sonnet 4 via OpenRouter
+> **AI:** Claude 3.5 Sonnet via OpenRouter  
+> **GitHub:** https://github.com/Deniskript/CryptoDen-v1.0
 
 ---
 
@@ -590,6 +591,7 @@ class MarketMonitor:
     - _notify_grid_trade(signal)
     - _notify_funding_trade(signal)
     - _notify_arbitrage_trade(signal)
+    - _notify_listing(signal)
     """
 
 # Синглтон:
@@ -935,7 +937,7 @@ app = Flask(__name__)
 │           TRADING AI (Brain)            │
 │           🧠 Финальное решение          │
 │                                         │
-│   Модель: Claude Sonnet 4               │
+│   Модель: Claude 3.5 Sonnet             │
 │   Действия:                             │
 │   - OPEN_LONG                           │
 │   - OPEN_SHORT                          │
@@ -1106,7 +1108,7 @@ class Settings(BaseSettings):
     cryptocompare_api_key: str
     coingecko_api_key: str = ""
     webapp_url: str
-    ai_model: str = "anthropic/claude-sonnet-4"
+    ai_model: str = "anthropic/claude-3.5-sonnet"
     
     class Config:
         env_file = ".env"
@@ -1269,13 +1271,14 @@ supervisorctl status
 cat /root/crypto-bot/data/bot_status.json
 
 # Логи
-tail -50 /var/log/supervisor/crypto-bot-stderr.log
+tail -50 /var/log/crypto-bot.out.log
+tail -50 /var/log/crypto-bot.err.log
 
 # Стратегии
 python -c "from app.strategies.config import get_all_strategies; print(len(get_all_strategies()))"
 
 # Модули
-python -c "from app.modules import grid_bot, funding_scalper, arbitrage_scanner; print('All modules OK')"
+python -c "from app.modules import grid_bot, funding_scalper, arbitrage_scanner, listing_hunter; print('All modules OK')"
 
 # Индикаторы
 python -m app.debug.diagnose
@@ -1335,4 +1338,4 @@ async def cmd_new_module(message):
 
 ---
 
-**Последнее обновление:** 2026-01-28 21:00 UTC
+**Последнее обновление:** 2026-01-28 21:50 UTC
