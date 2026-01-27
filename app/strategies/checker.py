@@ -11,8 +11,10 @@ import numpy as np
 
 from app.strategies.config import (
     StrategyConfig, 
-    get_strategy, 
+    get_strategy,
+    get_short_strategy,
     get_enabled_strategies,
+    get_strategies_summary,
     GLOBAL_SETTINGS
 )
 from app.strategies.indicators import TechnicalIndicators
@@ -158,6 +160,34 @@ class StrategyChecker:
                 actual_value = self.indicators.is_volume_spike(df, multiplier)
                 description = f"Volume Spike={actual_value}"
             
+            # === SHORT INDICATORS ===
+            
+            # Stochastic Overbought (> 80)
+            elif indicator == 'stoch_overbought':
+                actual_value = self.indicators.stochastic_k(df, 14)
+                description = f"Stoch K={actual_value:.1f}"
+                # Для этого индикатора проверяем > 80
+                return actual_value > 80, description
+            
+            # Stochastic Falling (текущий < предыдущий)
+            elif indicator == 'stoch_falling':
+                stoch_k = self.indicators.stochastic_k(df, 14)
+                # Берём предыдущее значение
+                if len(df) > 15:
+                    df_prev = df.iloc[:-1]
+                    stoch_k_prev = self.indicators.stochastic_k(df_prev, 14)
+                    actual_value = stoch_k < stoch_k_prev
+                    description = f"Stoch Falling={actual_value} ({stoch_k:.1f} < {stoch_k_prev:.1f})"
+                    return actual_value, description
+                return False, "Insufficient data"
+            
+            # MACD Bearish (MACD < Signal)
+            elif indicator == 'macd_bearish':
+                macd_line, signal_line, _ = self.indicators.macd(df['close'])
+                actual_value = macd_line < signal_line
+                description = f"MACD Bearish={actual_value} ({macd_line:.4f} < {signal_line:.4f})"
+                return actual_value, description
+            
             else:
                 logger.warning(f"Unknown indicator: {indicator}")
                 return False, f"Unknown: {indicator}"
@@ -187,16 +217,39 @@ class StrategyChecker:
         df: pd.DataFrame,
         current_price: float
     ) -> Optional[Signal]:
-        """Проверить стратегию для символа"""
+        """Проверить ВСЕ стратегии для символа (LONG + SHORT)"""
         
-        strategy = get_strategy(symbol)
+        # Сначала проверяем LONG
+        signal = await self._check_single_strategy(symbol, df, current_price, get_strategy(symbol))
+        if signal:
+            return signal
+        
+        # Затем проверяем SHORT
+        signal = await self._check_single_strategy(symbol, df, current_price, get_short_strategy(symbol))
+        if signal:
+            return signal
+        
+        return None
+    
+    async def _check_single_strategy(
+        self,
+        symbol: str,
+        df: pd.DataFrame,
+        current_price: float,
+        strategy: Optional[StrategyConfig]
+    ) -> Optional[Signal]:
+        """Проверить одну стратегию"""
+        
         if not strategy or not strategy.enabled:
             return None
         
+        # Уникальный ключ для лимитов (включает направление)
+        signal_key = f"{symbol}_{strategy.direction}"
+        
         # Проверка лимитов
-        can_signal, reason = self._can_generate_signal(symbol, strategy)
+        can_signal, reason = self._can_generate_signal(signal_key, strategy)
         if not can_signal:
-            logger.debug(f"{symbol}: {reason}")
+            logger.debug(f"{symbol} {strategy.direction}: {reason}")
             return None
         
         # Проверка всех условий
@@ -216,7 +269,8 @@ class StrategyChecker:
             return None
         
         # ВСЕ УСЛОВИЯ ВЫПОЛНЕНЫ — генерируем сигнал!
-        logger.info(f"🎯 {symbol}: Signal generated!")
+        emoji = "📈" if strategy.direction == "LONG" else "📉"
+        logger.info(f"{emoji} {symbol}: {strategy.direction} Signal generated!")
         
         # Расчёт SL/TP
         if strategy.direction == "LONG":
@@ -235,8 +289,8 @@ class StrategyChecker:
         }
         
         # Обновляем счётчики
-        self.last_signals[symbol] = datetime.utcnow()
-        self.signals_today[symbol] = self.signals_today.get(symbol, 0) + 1
+        self.last_signals[signal_key] = datetime.utcnow()
+        self.signals_today[signal_key] = self.signals_today.get(signal_key, 0) + 1
         
         # Создаём сигнал
         signal = Signal(
@@ -288,6 +342,8 @@ class StrategyChecker:
         """Статус чекера"""
         self._reset_daily_counters()
         
+        summary = get_strategies_summary()
+        
         return {
             'signals_today': dict(self.signals_today),
             'total_today': sum(self.signals_today.values()),
@@ -295,7 +351,9 @@ class StrategyChecker:
                 k: v.isoformat() 
                 for k, v in self.last_signals.items()
             },
-            'enabled_strategies': len(get_enabled_strategies()),
+            'enabled_strategies': summary['total'],
+            'long_strategies': summary['long'],
+            'short_strategies': summary['short'],
         }
 
 

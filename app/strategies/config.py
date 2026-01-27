@@ -224,6 +224,152 @@ BEST_STRATEGIES: Dict[str, StrategyConfig] = {
 }
 
 
+# ============================================
+# SHORT СТРАТЕГИИ (из бэктеста 2025)
+# ============================================
+
+SHORT_STRATEGIES: Dict[str, StrategyConfig] = {
+    
+    # 🥇 Лучшая: Stoch Reversal — WR 64.6%, PnL +89.67%
+    "BTC_SHORT": StrategyConfig(
+        id="btc_stoch_reversal",
+        name="Stoch Reversal Short",
+        symbol="BTC",
+        direction="SHORT",
+        conditions=[
+            {"indicator": "stoch_overbought", "operator": ">", "value": 80},
+            {"indicator": "stoch_falling", "operator": "==", "value": True},
+            {"indicator": "price_vs_ema", "period": 50, "operator": "<", "value": 0},
+        ],
+        tp_percent=0.3,
+        sl_percent=0.5,
+        win_rate_2024=63.2,
+        win_rate_2025=64.6,
+        avg_win_rate=63.9,
+        total_trades_per_day=1.1,
+        max_signals_per_day=2,
+    ),
+    
+    "ETH_SHORT": StrategyConfig(
+        id="eth_stoch_reversal",
+        name="Stoch Reversal Short",
+        symbol="ETH",
+        direction="SHORT",
+        conditions=[
+            {"indicator": "stoch_overbought", "operator": ">", "value": 80},
+            {"indicator": "stoch_falling", "operator": "==", "value": True},
+            {"indicator": "price_vs_ema", "period": 50, "operator": "<", "value": 0},
+        ],
+        tp_percent=0.3,
+        sl_percent=0.5,
+        win_rate_2024=62.5,
+        win_rate_2025=62.9,
+        avg_win_rate=62.7,
+        total_trades_per_day=1.4,
+        max_signals_per_day=2,
+    ),
+    
+    # SOL — лучший результат: WR 67.8%
+    "SOL_SHORT": StrategyConfig(
+        id="sol_stoch_reversal",
+        name="Stoch Reversal Short",
+        symbol="SOL",
+        direction="SHORT",
+        conditions=[
+            {"indicator": "stoch_overbought", "operator": ">", "value": 80},
+            {"indicator": "stoch_falling", "operator": "==", "value": True},
+            {"indicator": "price_vs_ema", "period": 50, "operator": "<", "value": 0},
+        ],
+        tp_percent=0.3,
+        sl_percent=0.5,
+        win_rate_2024=66.5,
+        win_rate_2025=67.8,
+        avg_win_rate=67.2,
+        total_trades_per_day=1.3,
+        max_signals_per_day=2,
+    ),
+    
+    # ADA — лучший результат: WR 70.2%
+    "ADA_SHORT": StrategyConfig(
+        id="ada_stoch_reversal",
+        name="Stoch Reversal Short",
+        symbol="ADA",
+        direction="SHORT",
+        conditions=[
+            {"indicator": "stoch_overbought", "operator": ">", "value": 80},
+            {"indicator": "stoch_falling", "operator": "==", "value": True},
+            {"indicator": "price_vs_ema", "period": 50, "operator": "<", "value": 0},
+        ],
+        tp_percent=0.3,
+        sl_percent=0.5,
+        win_rate_2024=68.5,
+        win_rate_2025=70.2,
+        avg_win_rate=69.4,
+        total_trades_per_day=1.2,
+        max_signals_per_day=2,
+    ),
+    
+    # LINK — Stoch + MACD: WR 66.3%
+    "LINK_SHORT": StrategyConfig(
+        id="link_stoch_macd",
+        name="Stoch + MACD Short",
+        symbol="LINK",
+        direction="SHORT",
+        conditions=[
+            {"indicator": "stoch_overbought", "operator": ">", "value": 80},
+            {"indicator": "macd_bearish", "operator": "==", "value": True},
+        ],
+        tp_percent=0.3,
+        sl_percent=0.5,
+        win_rate_2024=65.0,
+        win_rate_2025=66.3,
+        avg_win_rate=65.7,
+        total_trades_per_day=2.0,
+        max_signals_per_day=3,
+    ),
+    
+    # AVAX — Stoch Reversal: WR 66.5%
+    "AVAX_SHORT": StrategyConfig(
+        id="avax_stoch_reversal",
+        name="Stoch Reversal Short",
+        symbol="AVAX",
+        direction="SHORT",
+        conditions=[
+            {"indicator": "stoch_overbought", "operator": ">", "value": 80},
+            {"indicator": "stoch_falling", "operator": "==", "value": True},
+            {"indicator": "price_vs_ema", "period": 50, "operator": "<", "value": 0},
+        ],
+        tp_percent=0.3,
+        sl_percent=0.5,
+        win_rate_2024=65.2,
+        win_rate_2025=66.5,
+        avg_win_rate=65.9,
+        total_trades_per_day=1.3,
+        max_signals_per_day=2,
+    ),
+    
+    # BNB — RSI + MACD: WR 66.9%
+    "BNB_SHORT": StrategyConfig(
+        id="bnb_rsi_macd",
+        name="RSI>70 + MACD Short",
+        symbol="BNB",
+        direction="SHORT",
+        conditions=[
+            {"indicator": "rsi", "period": 14, "operator": ">", "value": 70},
+            {"indicator": "macd_bearish", "operator": "==", "value": True},
+        ],
+        tp_percent=0.3,
+        sl_percent=0.5,
+        win_rate_2024=65.5,
+        win_rate_2025=66.9,
+        avg_win_rate=66.2,
+        total_trades_per_day=0.6,
+        max_signals_per_day=2,
+        enabled=False,  # Мало сделок
+    ),
+}
+
+
 # Глобальные параметры
 GLOBAL_SETTINGS = {
     "default_timeframe": "5m",
@@ -237,13 +383,22 @@ GLOBAL_SETTINGS = {
 
 
 def get_strategy(symbol: str) -> Optional[StrategyConfig]:
-    """Получить стратегию для символа"""
+    """Получить LONG стратегию для символа"""
     return BEST_STRATEGIES.get(symbol.upper())
 
 
+def get_short_strategy(symbol: str) -> Optional[StrategyConfig]:
+    """Получить SHORT стратегию для символа"""
+    key = f"{symbol.upper()}_SHORT"
+    return SHORT_STRATEGIES.get(key)
+
+
 def get_all_strategies() -> Dict[str, StrategyConfig]:
-    """Получить все стратегии"""
-    return BEST_STRATEGIES
+    """Получить все стратегии (LONG + SHORT)"""
+    all_strats = {}
+    all_strats.update(BEST_STRATEGIES)
+    all_strats.update(SHORT_STRATEGIES)
+    return all_strats
 
 
 def get_enabled_strategies(
@@ -252,18 +407,20 @@ def get_enabled_strategies(
     min_win_rate: float = None
 ) -> Dict[str, StrategyConfig]:
     """
-    Получить только включённые стратегии с фильтрацией
+    Получить только включённые стратегии с фильтрацией (LONG + SHORT)
     
     Args:
         min_trades: Минимум trades/day (default из GLOBAL_SETTINGS)
         max_trades: Максимум trades/day (default из GLOBAL_SETTINGS)
         min_win_rate: Минимальный win rate (default из GLOBAL_SETTINGS)
     """
-    min_t = min_trades or GLOBAL_SETTINGS.get('min_trades_per_day', 1.0)
+    min_t = min_trades or GLOBAL_SETTINGS.get('min_trades_per_day', 0.5)
     max_t = max_trades or GLOBAL_SETTINGS.get('max_trades_per_day', 5.0)
     min_wr = min_win_rate or GLOBAL_SETTINGS.get('min_win_rate_threshold', 60.0)
     
     result = {}
+    
+    # LONG стратегии
     for k, v in BEST_STRATEGIES.items():
         if not v.enabled:
             continue
@@ -275,7 +432,33 @@ def get_enabled_strategies(
             continue
         result[k] = v
     
+    # SHORT стратегии
+    for k, v in SHORT_STRATEGIES.items():
+        if not v.enabled:
+            continue
+        if v.total_trades_per_day < min_t:
+            continue
+        if v.total_trades_per_day > max_t:
+            continue
+        if v.avg_win_rate < min_wr:
+            continue
+        result[k] = v
+    
     return result
+
+
+def get_strategies_summary() -> dict:
+    """Сводка по стратегиям"""
+    long_enabled = sum(1 for s in BEST_STRATEGIES.values() if s.enabled)
+    short_enabled = sum(1 for s in SHORT_STRATEGIES.values() if s.enabled)
+    
+    return {
+        "total": long_enabled + short_enabled,
+        "long": long_enabled,
+        "short": short_enabled,
+        "long_list": [s.symbol for s in BEST_STRATEGIES.values() if s.enabled],
+        "short_list": [s.symbol for s in SHORT_STRATEGIES.values() if s.enabled],
+    }
 
 
 def update_strategy_from_validation(symbol: str, wr_2025: float, avg_wr: float):
