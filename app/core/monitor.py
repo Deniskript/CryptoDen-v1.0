@@ -30,6 +30,7 @@ from app.ai.whale_ai import whale_ai
 from app.modules.grid_bot import grid_bot
 from app.modules.funding_scalper import funding_scalper
 from app.modules.arbitrage import arbitrage_scanner
+from app.modules.listing_hunter import listing_hunter
 
 
 class MarketMonitor:
@@ -473,6 +474,22 @@ class MarketMonitor:
                 logger.error(f"Arbitrage Scanner error: {e}")
         
         # ========================================
+        # 🆕 ШАГ 3.8: Listing Hunter
+        # ========================================
+        if listing_hunter.enabled:
+            try:
+                listing_signals = await listing_hunter.get_signals({"prices": prices})
+                
+                for signal in listing_signals:
+                    logger.info(f"🆕 Listing: {signal.symbol} - {signal.reason}")
+                    
+                    # Уведомление в Telegram
+                    await self._notify_listing(signal)
+                    
+            except Exception as e:
+                logger.error(f"Listing Hunter error: {e}")
+        
+        # ========================================
         # 👷 ШАГ 4: Worker ищет сигналы по стратегиям
         # ========================================
         guidance = await get_director_guidance()
@@ -720,6 +737,131 @@ class MarketMonitor:
             
         except Exception as e:
             logger.error(f"Arbitrage notification error: {e}")
+    
+    async def _notify_listing(self, signal):
+        """🆕 Уведомление о новом листинге"""
+        try:
+            # Получаем детали листинга
+            listing = None
+            for l in listing_hunter.history[-10:]:
+                if l.symbol == signal.symbol:
+                    listing = l
+                    break
+            
+            if not listing:
+                return
+            
+            # Эмодзи и текст по типу
+            type_info = {
+                "pre_listing": ("📋", "PRE-LISTING", "Листинг анонсирован"),
+                "listing_scalp": ("⚡", "SCALP", "Торговля началась!"),
+                "launchpad": ("🚀", "LAUNCHPAD", "Новый Launchpad"),
+                "perpetual": ("📊", "PERPETUAL", "Фьючерсы добавлены"),
+            }
+            
+            emoji, title, desc = type_info.get(
+                listing.listing_type.value, 
+                ("🆕", "LISTING", "Новый листинг")
+            )
+            
+            # Формируем текст в зависимости от типа
+            if listing.listing_type.value == "pre_listing":
+                bybit_status = "✅ Есть на Bybit" if listing.is_on_bybit else "❌ Нет на Bybit"
+                
+                if listing.is_on_bybit:
+                    action_text = "💡 *Действие:* Можно купить на Bybit!"
+                else:
+                    action_text = """💡 *Действие:* 
+├── Купить на другой бирже ДО листинга
+├── Или ждать появления на Bybit
+└── Ожидаемый рост: +50-200%"""
+                
+                price_text = f"${listing.current_price:.4f}" if listing.current_price else "N/A"
+                date_text = listing.listing_date.strftime('%Y-%m-%d %H:%M UTC') if listing.listing_date else "Скоро"
+                
+                text = f"""
+{emoji} *{title} — НОВЫЙ ЛИСТИНГ!*
+
+🔥 *Монета:* {listing.name} ({listing.symbol})
+🏦 *Биржа:* {listing.exchange}
+📅 *Дата:* {date_text}
+
+📊 *Статус:* {bybit_status}
+💰 *Цена:* {price_text}
+
+{action_text}
+
+🔗 [Подробнее]({listing.url})
+
+⏰ {listing.announced_at.strftime('%H:%M:%S')}
+"""
+            
+            elif listing.listing_type.value == "listing_scalp":
+                if listing_hunter.config.mode == "auto":
+                    mode_text = "🤖 *Режим:* Авто-торговля активна"
+                else:
+                    mode_text = """💡 *Стратегия скальпинга:*
+├── Купить СЕЙЧАС
+├── TP: +20%
+├── SL: -5%
+└── Время: 5-30 минут"""
+                
+                text = f"""
+{emoji} *{title} — ТОРГОВЛЯ НАЧАЛАСЬ!*
+
+🔥 *Монета:* {listing.name} ({listing.symbol})
+🏦 *Биржа:* {listing.exchange}
+
+⚡ *Статус:* МОЖНО ТОРГОВАТЬ!
+
+{mode_text}
+
+⚠️ *Риск:* HIGH
+🎯 *Потенциал:* +10-50%
+
+🔗 [Торговать]({listing.url})
+
+⏰ {listing.announced_at.strftime('%H:%M:%S')}
+"""
+            
+            elif listing.listing_type.value == "launchpad":
+                text = f"""
+{emoji} *{title} — НОВЫЙ LAUNCHPAD!*
+
+🔥 *Проект:* {listing.name} ({listing.symbol})
+🏦 *Платформа:* {listing.exchange}
+
+📋 *Как участвовать:*
+├── 1. Зайдите на {listing.exchange}
+├── 2. Найдите раздел Launchpad/Launchpool
+├── 3. Застейкайте требуемые токены
+└── 4. Получите {listing.symbol} бесплатно!
+
+⚠️ *Важно:* Действуйте быстро, места ограничены!
+
+🔗 [Участвовать]({listing.url})
+
+⏰ {listing.announced_at.strftime('%H:%M:%S')}
+"""
+            
+            else:
+                text = f"""
+{emoji} *{title}*
+
+🔥 *Монета:* {listing.name} ({listing.symbol})
+🏦 *Биржа:* {listing.exchange}
+
+📊 {desc}
+
+🔗 [Подробнее]({listing.url})
+
+⏰ {listing.announced_at.strftime('%H:%M:%S')}
+"""
+            
+            await telegram_bot.send_message(text)
+            
+        except Exception as e:
+            logger.error(f"Listing notification error: {e}")
     
     async def _execute_signal(self, signal: Signal, value: float = None):
         """Выполнить сигнал — открыть сделку"""

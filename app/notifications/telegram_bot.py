@@ -93,6 +93,7 @@ class TelegramBot:
             BotCommand(command="grid", description="📊 Grid Bot статус"),
             BotCommand(command="funding", description="💰 Funding Scalper"),
             BotCommand(command="arb", description="🔄 Arbitrage Scanner"),
+            BotCommand(command="listing", description="🆕 Listing Hunter"),
             BotCommand(command="market", description="📊 Полная картина рынка"),
             BotCommand(command="debug", description="🔍 Диагностика"),
             BotCommand(command="help", description="❓ Помощь")
@@ -187,11 +188,28 @@ _Управление через 🎛 Панель управления_
 • Настройки рисков
 • AI параметры
 
-*Кнопки:*
+*Кнопки навигации:*
 📊 Статус — текущее состояние
 📈 Сделки — открытые позиции  
 📰 Новости — рыночный контекст
 📋 История — закрытые сделки
+
+*Команды модулей:*
+/grid — 📊 Grid Bot статус
+/funding — 💰 Funding Scalper
+/arb — 🔄 Arbitrage Scanner
+/listing — 🆕 Listing Hunter
+/listing\\_mode — сменить режим (signal/auto)
+
+*AI команды:*
+/ai — 🧠 Статус AI системы
+/director — 🎩 Решения Директора
+/director\\_trades — сделки Директора
+/whale — 🐋 Анализ китов
+/market — 📊 Полная картина рынка
+
+*Сервис:*
+/debug — 🔍 Диагностика
 """
             await message.answer(text, parse_mode=ParseMode.MARKDOWN)
         
@@ -619,6 +637,58 @@ _{mode_desc}_
                 
             except Exception as e:
                 logger.error(f"Arbitrage status error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("listing"))
+        async def cmd_listing(message: types.Message):
+            """🆕 Listing Hunter — статус"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            try:
+                from app.modules.listing_hunter import listing_hunter
+                
+                text = listing_hunter.get_status_text()
+                await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Listing status error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("listing_mode"))
+        async def cmd_listing_mode(message: types.Message):
+            """🆕 Изменить режим Listing Hunter"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            try:
+                from app.modules.listing_hunter import listing_hunter
+                
+                args = message.text.split()
+                
+                if len(args) < 2:
+                    await message.answer(
+                        "📋 *Использование:*\n"
+                        "`/listing_mode auto` — авто-торговля\n"
+                        "`/listing_mode signal` — только сигналы\n\n"
+                        f"Текущий режим: *{listing_hunter.config.mode}*",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                    return
+                
+                mode = args[1].lower()
+                
+                if listing_hunter.set_mode(mode):
+                    emoji = "🤖" if mode == "auto" else "📢"
+                    await message.answer(
+                        f"{emoji} Режим изменён на: *{mode}*",
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                else:
+                    await message.answer("❌ Неверный режим. Используйте: auto или signal")
+                
+            except Exception as e:
+                logger.error(f"Listing mode error: {e}")
                 await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(Command("director"))
