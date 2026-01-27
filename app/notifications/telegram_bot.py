@@ -585,6 +585,87 @@ _{mode_desc}_
                 logger.error(f"Director AI error: {e}")
                 await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
+        @self.dp.message(Command("market"))
+        async def cmd_market(message: types.Message):
+            """📊 Полная картина рынка (все парсеры)"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            loading = await message.answer("📊 *Собираю данные рынка...*", parse_mode=ParseMode.MARKDOWN)
+            
+            try:
+                from app.parsers.coinglass_parser import get_market_data
+                from app.parsers.twitter_parser import twitter_parser
+                from app.parsers.rss_parser import rss_parser
+                
+                # Собираем всё параллельно
+                import asyncio
+                market_task = get_market_data("BTC")
+                whale_task = twitter_parser.get_whale_summary()
+                news_task = rss_parser.get_news_summary()
+                
+                market, whale, news = await asyncio.gather(
+                    market_task, whale_task, news_task,
+                    return_exceptions=True
+                )
+                
+                # Обрабатываем ошибки
+                if isinstance(market, Exception):
+                    market = {"liquidations": {}, "open_interest": {}, "funding": {}, "analysis": {}}
+                if isinstance(whale, Exception):
+                    whale = {}
+                if isinstance(news, Exception):
+                    news = {}
+                
+                # Формируем отчёт
+                liq = market.get("liquidations", {})
+                oi = market.get("open_interest", {})
+                funding = market.get("funding", {})
+                analysis = market.get("analysis", {})
+                
+                text = f"""📊 *ПОЛНАЯ КАРТИНА РЫНКА (BTC)*
+
+🔥 *Ликвидации (1h):*
+  📉 Long: ${liq.get('long_1h', 0)/1e6:.1f}M
+  📈 Short: ${liq.get('short_1h', 0)/1e6:.1f}M
+  🎯 Dominant: {liq.get('dominant', 'neutral')}
+
+📈 *Open Interest:*
+  📊 Change 1h: {oi.get('change_1h', 0):+.1f}%
+  📊 Change 24h: {oi.get('change_24h', 0):+.1f}%
+  📈 Trend: {oi.get('trend', 'neutral')}
+
+💰 *Funding:*
+  💵 Rate: {funding.get('current', 0):+.4f}%
+  🎯 Sentiment: {funding.get('sentiment', 'neutral')}
+
+🐋 *Киты (Twitter):*
+  💸 Net Flow: ${whale.get('net_flow', 0)/1e6:+.1f}M
+  🎯 Sentiment: {whale.get('sentiment', 'neutral')}
+
+📰 *Новости (RSS):*
+  📊 Total: {news.get('total', 0)}
+  🚨 Critical: {news.get('critical', 0)}
+  🎯 Sentiment: {news.get('sentiment', 'neutral')}
+
+🎯 *Анализ:*
+  ⚠️ Risk Score: {analysis.get('risk_score', 0)}/100
+  📊 Overall: {analysis.get('overall_sentiment', 'neutral')}
+"""
+                
+                # Добавляем сигналы
+                signals = analysis.get('signals', [])
+                if signals:
+                    text += "\n*⚠️ Сигналы:*\n"
+                    for s in signals[:5]:
+                        text += f"  • {s}\n"
+                
+                await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Market data error: {e}")
+                await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
         @self.dp.message(Command("ai"))
         async def cmd_ai_status(message: types.Message):
             """📊 Полный статус AI системы"""

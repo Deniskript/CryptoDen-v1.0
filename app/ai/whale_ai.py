@@ -59,9 +59,12 @@ class MarketMetrics:
     fear_greed_index: int = 50
     fear_greed_label: str = "Neutral"
     
-    # Whale Activity
+    # Whale Activity (from Twitter)
     whale_transactions: int = 0
     whale_sentiment: str = "neutral"
+    whale_net_flow: float = 0  # + = outflow (bullish), - = inflow (bearish)
+    whale_inflow: float = 0    # На биржи (bearish)
+    whale_outflow: float = 0   # С бирж (bullish)
     
     timestamp: datetime = field(default_factory=datetime.now)
 
@@ -114,6 +117,32 @@ class WhaleAI:
         if self.session and not self.session.closed:
             await self.session.close()
     
+    async def _get_twitter_whale_data(self) -> Dict:
+        """Получить данные китов из Twitter"""
+        
+        try:
+            from app.parsers.twitter_parser import get_whale_data
+            return await get_whale_data()
+        except ImportError:
+            logger.debug("Twitter parser not available")
+            return {}
+        except Exception as e:
+            logger.debug(f"Twitter whale data error: {e}")
+            return {}
+    
+    async def _get_coinglass_data(self, symbol: str) -> Dict:
+        """Получить данные из Coinglass (ликвидации, детальный OI)"""
+        
+        try:
+            from app.parsers.coinglass_parser import get_market_data
+            return await get_market_data(symbol)
+        except ImportError:
+            logger.debug("Coinglass parser not available")
+            return {}
+        except Exception as e:
+            logger.debug(f"Coinglass data error: {e}")
+            return {}
+    
     async def get_market_metrics(self, symbol: str = "BTC") -> MarketMetrics:
         """Получить все метрики рынка"""
         
@@ -125,17 +154,19 @@ class WhaleAI:
             self._get_funding_rate(symbol),
             self._get_long_short_ratio(symbol),
             self._get_fear_greed(),
+            self._get_twitter_whale_data(),  # Twitter whale data
+            self._get_coinglass_data(symbol),  # Coinglass: liquidations, detailed OI
         ]
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
-        # Open Interest
+        # Open Interest (from Bybit)
         if isinstance(results[0], dict):
             metrics.open_interest = results[0].get("oi", 0)
             metrics.oi_change_1h = results[0].get("change_1h", 0)
             metrics.oi_change_24h = results[0].get("change_24h", 0)
         
-        # Funding Rate
+        # Funding Rate (from Bybit)
         if isinstance(results[1], dict):
             metrics.funding_rate = results[1].get("rate", 0)
             metrics.funding_sentiment = results[1].get("sentiment", "neutral")
@@ -151,8 +182,44 @@ class WhaleAI:
             metrics.fear_greed_index = results[3].get("value", 50)
             metrics.fear_greed_label = results[3].get("label", "Neutral")
         
-        # Оценка ликвидаций на основе OI
-        if metrics.oi_change_1h < -3:
+        # Twitter Whale Data
+        if isinstance(results[4], dict):
+            metrics.whale_net_flow = results[4].get("net_flow", 0)
+            metrics.whale_sentiment = results[4].get("sentiment", "neutral")
+            metrics.whale_transactions = results[4].get("tx_count", 0)
+            metrics.whale_inflow = results[4].get("exchange_inflow", 0)
+            metrics.whale_outflow = results[4].get("exchange_outflow", 0)
+        
+        # Coinglass Data (liquidations, detailed OI)
+        if isinstance(results[5], dict):
+            cg_data = results[5]
+            
+            # Ликвидации из Coinglass (более точные)
+            if cg_data.get("liquidations"):
+                liq = cg_data["liquidations"]
+                metrics.liquidations_1h = liq.get("total_1h", 0)
+                metrics.liq_long = liq.get("long_1h", 0)
+                metrics.liq_short = liq.get("short_1h", 0)
+            
+            # OI из Coinglass (если Bybit не вернул)
+            if cg_data.get("open_interest"):
+                oi_cg = cg_data["open_interest"]
+                if metrics.oi_change_1h == 0:
+                    metrics.oi_change_1h = oi_cg.get("change_1h", 0)
+                if metrics.oi_change_24h == 0:
+                    metrics.oi_change_24h = oi_cg.get("change_24h", 0)
+            
+            # Funding из Coinglass (если Bybit не вернул)
+            if cg_data.get("funding") and metrics.funding_rate == 0:
+                metrics.funding_rate = cg_data["funding"].get("current", 0)
+            
+            # Логируем сигналы из анализа
+            if cg_data.get("analysis"):
+                for signal in cg_data["analysis"].get("signals", [])[:3]:
+                    logger.info(f"📊 Coinglass: {signal}")
+        
+        # Fallback: оценка ликвидаций на основе OI если Coinglass не вернул
+        if metrics.liquidations_1h == 0 and metrics.oi_change_1h < -3:
             estimated = abs(metrics.oi_change_1h) * 10_000_000
             metrics.liquidations_1h = estimated
             metrics.liq_long = estimated * 0.6 if metrics.funding_rate > 0 else estimated * 0.4
@@ -375,7 +442,20 @@ class WhaleAI:
             if level.value < AlertLevel.ATTENTION.value:
                 level = AlertLevel.ATTENTION
         
-        # 5. Комбинированный анализ (КРИТИЧЕСКИЙ)
+        # 5. Twitter Whale Activity
+        if metrics.whale_net_flow < -50_000_000:
+            alerts.append(f"🐋 Киты переводят на биржи: ${abs(metrics.whale_net_flow)/1_000_000:.0f}M!")
+            alerts.append("   → Возможна продажа, медвежий сигнал!")
+            if level.value < AlertLevel.WARNING.value:
+                level = AlertLevel.WARNING
+        
+        elif metrics.whale_net_flow > 50_000_000:
+            alerts.append(f"🐋 Киты выводят с бирж: ${metrics.whale_net_flow/1_000_000:.0f}M!")
+            alerts.append("   → Накопление, бычий сигнал!")
+            if level.value < AlertLevel.ATTENTION.value:
+                level = AlertLevel.ATTENTION
+        
+        # 6. Комбинированный анализ (КРИТИЧЕСКИЙ)
         critical_conditions = 0
         
         if metrics.funding_rate > 0.1 and metrics.long_ratio > 65:
@@ -389,6 +469,11 @@ class WhaleAI:
         if abs(metrics.oi_change_1h) > 5 and metrics.fear_greed_index > 75:
             critical_conditions += 1
             alerts.append("🚨 Резкий рост OI при жадности!")
+        
+        # Whale + другие сигналы
+        if metrics.whale_net_flow < -100_000_000 and metrics.funding_rate > 0.05:
+            critical_conditions += 1
+            alerts.append("🚨 Киты сливают + лонги платят!")
         
         if critical_conditions >= 2:
             level = AlertLevel.CRITICAL
@@ -444,6 +529,7 @@ class WhaleAI:
         ls_emoji = "🐂" if m.long_ratio > 60 else "🐻" if m.short_ratio > 60 else "⚖️"
         fg_emoji = "😱" if m.fear_greed_index < 30 else "🤑" if m.fear_greed_index > 70 else "😐"
         oi_emoji = "📈" if m.oi_change_1h > 2 else "📉" if m.oi_change_1h < -2 else "➡️"
+        whale_emoji = "🟢" if m.whale_net_flow > 10_000_000 else "🔴" if m.whale_net_flow < -10_000_000 else "⚪"
         
         text = f"""🐋 *Whale AI Report*
 
@@ -451,6 +537,16 @@ class WhaleAI:
 {oi_emoji} *Open Interest:* {m.oi_change_1h:+.1f}% (1h) / {m.oi_change_24h:+.1f}% (24h)
 {ls_emoji} *Long/Short:* {m.long_ratio:.0f}% / {m.short_ratio:.0f}%
 {fg_emoji} *Fear & Greed:* {m.fear_greed_index} ({m.fear_greed_label})
+"""
+        
+        # Whale Twitter Data
+        if m.whale_transactions > 0:
+            net_flow_m = m.whale_net_flow / 1_000_000
+            text += f"""
+🐦 *Twitter Whales:*
+{whale_emoji} Net Flow: ${net_flow_m:+.1f}M ({m.whale_sentiment})
+📤 Outflow: ${m.whale_outflow/1_000_000:.1f}M | 📥 Inflow: ${m.whale_inflow/1_000_000:.1f}M
+📊 Транзакций: {m.whale_transactions}
 """
         
         if self.last_alert:
@@ -492,6 +588,12 @@ class WhaleAI:
             bullish_signals += 1  # Страх = время покупать
         elif m.fear_greed_index > 75:
             bearish_signals += 1  # Жадность = время продавать
+        
+        # Whale Activity (прямой сигнал)
+        if m.whale_net_flow > 30_000_000:
+            bullish_signals += 1  # Киты выводят = накопление
+        elif m.whale_net_flow < -30_000_000:
+            bearish_signals += 1  # Киты вносят = продажа
         
         if bullish_signals > bearish_signals:
             return "BULLISH"

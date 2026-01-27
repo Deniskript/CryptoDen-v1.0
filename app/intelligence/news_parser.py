@@ -397,6 +397,84 @@ class NewsParser:
         
         return "NORMAL"
     
+    async def get_combined_news(self) -> Dict:
+        """
+        Получить новости из всех источников:
+        - CryptoCompare API
+        - RSS фиды
+        - Twitter (Nitter)
+        """
+        
+        try:
+            from app.parsers.rss_parser import get_news_summary
+            from app.parsers.twitter_parser import get_twitter_news
+            
+            # Параллельно из всех источников
+            results = await asyncio.gather(
+                self.fetch_news(with_ai=False, limit=10),
+                get_news_summary(),
+                get_twitter_news(),
+                return_exceptions=True
+            )
+            
+            api_news = results[0] if isinstance(results[0], list) else []
+            rss_summary = results[1] if isinstance(results[1], dict) else {}
+            twitter_news = results[2] if isinstance(results[2], list) else []
+            
+            # Объединяем
+            combined = {
+                "api_news": [n.to_dict() for n in api_news],
+                "rss": rss_summary,
+                "twitter": [{"text": n.text, "sentiment": n.sentiment, "importance": n.importance} for n in twitter_news[:10]],
+            }
+            
+            # Определяем общий сентимент
+            sentiments = []
+            
+            # API news sentiment
+            for n in api_news:
+                if n.sentiment > 0.3:
+                    sentiments.append("bullish")
+                elif n.sentiment < -0.3:
+                    sentiments.append("bearish")
+            
+            # RSS sentiment
+            if isinstance(rss_summary, dict):
+                rss_sentiment = rss_summary.get("sentiment", "neutral")
+                if rss_sentiment != "neutral":
+                    sentiments.append(rss_sentiment)
+            
+            # Twitter sentiment
+            for n in twitter_news[:10]:
+                if n.sentiment != "neutral":
+                    sentiments.append(n.sentiment)
+            
+            bullish = sentiments.count("bullish")
+            bearish = sentiments.count("bearish")
+            
+            if bullish > bearish * 1.5:
+                combined["overall_sentiment"] = "bullish"
+            elif bearish > bullish * 1.5:
+                combined["overall_sentiment"] = "bearish"
+            else:
+                combined["overall_sentiment"] = "neutral"
+            
+            # Подсчёт
+            total_news = len(api_news) + rss_summary.get("total", 0) + len(twitter_news)
+            combined["total_news"] = total_news
+            combined["critical_count"] = rss_summary.get("critical", 0)
+            
+            logger.info(f"📰 Combined news: {total_news} total, sentiment: {combined['overall_sentiment']}")
+            
+            return combined
+            
+        except ImportError as e:
+            logger.debug(f"Parser not available: {e}")
+            return {"overall_sentiment": "neutral", "total_news": 0}
+        except Exception as e:
+            logger.error(f"Combined news error: {e}")
+            return {"overall_sentiment": "neutral", "total_news": 0}
+    
     async def get_market_context(self) -> Dict[str, Any]:
         """
         Получить полный контекст рынка
@@ -415,11 +493,13 @@ class NewsParser:
         news_task = self.fetch_news(with_ai=True, limit=10)
         calendar_task = self.fetch_calendar()
         trending_task = self.fetch_coingecko_trending()
+        combined_task = self.get_combined_news()  # RSS + Twitter
         
-        news, calendar, trending = await asyncio.gather(
+        news, calendar, trending, combined = await asyncio.gather(
             news_task,
             calendar_task,
             trending_task,
+            combined_task,
             return_exceptions=True
         )
         
@@ -433,9 +513,18 @@ class NewsParser:
         if isinstance(trending, Exception):
             logger.error(f"Trending fetch error: {trending}")
             trending = []
+        if isinstance(combined, Exception):
+            logger.error(f"Combined news error: {combined}")
+            combined = {}
         
         # Определяем режим рынка
         market_mode = self.determine_market_mode(news, calendar)
+        
+        # Учитываем RSS/Twitter данные
+        if isinstance(combined, dict):
+            rss_data = combined.get("rss", {})
+            if rss_data.get("critical", 0) > 0:
+                market_mode = "NEWS_ALERT"
         
         return {
             "news": [n.to_dict() for n in news],
@@ -444,7 +533,10 @@ class NewsParser:
             "market_mode": market_mode,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "news_count": len(news),
-            "upcoming_events": len(calendar)
+            "upcoming_events": len(calendar),
+            # Дополнительные данные из RSS/Twitter
+            "combined_sentiment": combined.get("overall_sentiment", "neutral") if isinstance(combined, dict) else "neutral",
+            "total_news_sources": combined.get("total_news", 0) if isinstance(combined, dict) else 0,
         }
 
 

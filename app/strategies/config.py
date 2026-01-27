@@ -365,7 +365,7 @@ SHORT_STRATEGIES: Dict[str, StrategyConfig] = {
         avg_win_rate=66.2,
         total_trades_per_day=0.6,
         max_signals_per_day=2,
-        enabled=False,  # Мало сделок
+        enabled=True,  # Включено
     ),
 }
 
@@ -376,7 +376,7 @@ GLOBAL_SETTINGS = {
     "check_interval_seconds": 60,
     "max_total_signals_per_day": 15,
     "min_win_rate_threshold": 60.0,
-    "min_trades_per_day": 1.0,
+    "min_trades_per_day": 0.5,  # Понижено чтобы BTC вернулся
     "max_trades_per_day": 5.0,
     "trading_hours": {"start": 0, "end": 24},  # 24/7
 }
