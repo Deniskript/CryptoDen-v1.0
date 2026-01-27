@@ -498,6 +498,7 @@ class TelegramBot:
 | `/debug` | Диагностика | `cmd_debug()` |
 | `/whale` | Whale AI | `cmd_whale()` |
 | `/director` | Director AI | `cmd_director()` |
+| `/director_trades` | Сделки Director | `cmd_director_trades()` |
 | `/market` | Полный рынок | `cmd_market()` |
 | `/ai` | Статус AI системы | `cmd_ai_status()` |
 
@@ -757,6 +758,36 @@ class DirectorAI:
 
 # Синглтон:
 director_ai = DirectorAI()
+
+
+class DirectorTrader:
+    """
+    🎩 Director как активный трейдер (TAKE_CONTROL)
+    
+    Может торговать САМ, без Работника!
+    
+    Сценарии TAKE_CONTROL:
+    - Fear & Greed < 20 + бычьи новости → LONG
+    - Fear & Greed > 80 + медвежьи новости → SHORT
+    - Массовые ликвидации лонгов ($50M+) → LONG
+    - Массовые ликвидации шортов ($50M+) → SHORT
+    - Funding > 0.1% + Long Ratio > 70% → SHORT
+    - Funding < -0.1% + Long Ratio < 30% → LONG
+    - Extreme Fear (<15) + мало лонгов (<35%) → LONG
+    
+    Методы:
+    - should_take_control(whale, news, market) → (bool, direction, reason)
+    - execute_trade(symbol, direction, reason) → DirectorTrade
+    - _manage_trade(trade) → цикл каждые 10 сек
+    - _update_trailing_stop(trade, price) → передвигает SL
+    - _check_news_exit(trade) → выход по новостям
+    - _check_whale_exit(trade) → выход по метрикам
+    - close_all_director_trades(reason)
+    - get_status() → dict
+    """
+
+# Синглтон:
+director_trader = DirectorTrader()
 ```
 
 ### app/ai/trading_coordinator.py
@@ -1104,4 +1135,4 @@ python -m app.debug.diagnose
 
 ---
 
-**Последнее обновление:** 2026-01-27 05:00 UTC
+**Последнее обновление:** 2026-01-27 07:00 UTC
