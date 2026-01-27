@@ -26,6 +26,7 @@ from app.notifications import telegram_bot
 from app.backtesting.data_loader import BybitDataLoader
 from app.ai.trading_coordinator import trading_coordinator, get_director_guidance
 from app.ai.director_ai import director_trader
+from app.ai.whale_ai import whale_ai
 
 
 class MarketMonitor:
@@ -219,7 +220,15 @@ class MarketMonitor:
         if self.ai_enabled:
             await self._check_active_positions_with_ai(prices)
         
-        # 5. Ищем новые сигналы
+        # 5. Обновляем Whale AI метрики (каждые 5 циклов = 5 мин)
+        if self.check_count % 5 == 0:
+            try:
+                await whale_ai.get_market_metrics("BTC")
+                logger.debug("🐋 Whale AI metrics updated")
+            except Exception as e:
+                logger.error(f"Whale AI update error: {e}")
+        
+        # 6. Ищем новые сигналы (Director TAKE_CONTROL)
         await self._check_for_signals(prices)
         
         # Логируем статус
@@ -326,83 +335,95 @@ class MarketMonitor:
         """
         🔍 Поиск торговых сигналов
         
-        ОБНОВЛЕНО: Теперь Director может брать TAKE_CONTROL!
+        НОВАЯ ЛОГИКА:
+        1. Director проверяет нужен ли TAKE_CONTROL (события)
+        2. Если да - Director торгует, Worker отдыхает
+        3. Если нет - Worker ищет сигналы по стратегиям
         """
         
-        from app.ai.whale_ai import whale_ai
-        
-        # =========================================
+        # ========================================
         # 🐋 ШАГ 0: Собираем данные для Director
-        # =========================================
+        # ========================================
         whale_metrics = {}
-        try:
-            if whale_ai.last_metrics:
-                m = whale_ai.last_metrics
-                whale_metrics = {
-                    "fear_greed": m.fear_greed_index,
-                    "long_ratio": m.long_ratio,
-                    "short_ratio": m.short_ratio,
-                    "funding_rate": m.funding_rate,
-                    "oi_change_1h": m.oi_change_1h,
-                    "oi_change_24h": m.oi_change_24h,
-                    "liq_long": m.liq_long,
-                    "liq_short": m.liq_short,
-                }
-        except Exception as e:
-            logger.debug(f"Whale metrics not available: {e}")
+        if whale_ai.last_metrics:
+            m = whale_ai.last_metrics
+            whale_metrics = {
+                "fear_greed": m.fear_greed_index,
+                "long_ratio": m.long_ratio,
+                "short_ratio": m.short_ratio,
+                "funding_rate": m.funding_rate,
+                "oi_change_1h": m.oi_change_1h,
+                "oi_change_24h": m.oi_change_24h,
+                "liq_long": m.liq_long,
+                "liq_short": m.liq_short,
+            }
+            logger.debug(f"🐋 Whale: F&G={m.fear_greed_index}, L/S={m.long_ratio:.0f}%, Funding={m.funding_rate:+.4f}%")
         
-        news_context = {}
-        try:
-            news = self.market_context.get("news", [])
-            if news:
-                bearish = sum(1 for n in news if n.get("sentiment", 0) < -0.2)
-                bullish = sum(1 for n in news if n.get("sentiment", 0) > 0.2)
-                critical = sum(1 for n in news if n.get("importance") == "HIGH")
-                
-                news_context = {
-                    "sentiment": "bearish" if bearish > bullish else "bullish" if bullish > bearish else "neutral",
-                    "critical_count": critical,
-                }
-        except Exception:
-            pass
-        
-        # =========================================
-        # 🎩 ШАГ 1: Проверить нужен ли TAKE_CONTROL
-        # =========================================
-        if not director_trader.is_controlling:
-            should_take, direction, reason = await director_trader.should_take_control(
-                whale_metrics=whale_metrics,
-                news_context=news_context,
-                market_data={"prices": prices}
-            )
+        # Собираем контекст новостей
+        news_context = {"sentiment": "neutral", "critical_count": 0}
+        news = self.market_context.get("news", [])
+        if news:
+            bearish = sum(1 for n in news if n.get("sentiment", 0) < -0.2)
+            bullish = sum(1 for n in news if n.get("sentiment", 0) > 0.2)
+            critical = sum(1 for n in news if n.get("importance") == "HIGH")
             
-            if should_take:
-                logger.warning(f"🎩 DIRECTOR TAKE_CONTROL: {reason}")
-                
-                # Director берёт управление!
-                best_symbol = "BTC"  # По умолчанию
-                
-                # Открываем позицию Director
-                trade = await director_trader.execute_trade(
-                    symbol=best_symbol,
-                    direction=direction,
-                    reason=reason
+            if bearish > bullish:
+                news_context["sentiment"] = "bearish"
+            elif bullish > bearish:
+                news_context["sentiment"] = "bullish"
+            news_context["critical_count"] = critical
+        
+        # ========================================
+        # 🎩 ШАГ 1: Director проверяет TAKE_CONTROL
+        # ========================================
+        if not director_trader.is_controlling:
+            try:
+                should_take, direction, reason = await director_trader.should_take_control(
+                    whale_metrics=whale_metrics,
+                    news_context=news_context,
+                    market_data={"prices": prices}
                 )
                 
-                if trade:
-                    logger.info(f"🎩 Director открыл {best_symbol} {direction}")
-                    return  # Director управляет, Работник отдыхает
+                if should_take:
+                    logger.warning(f"🎩 TAKE_CONTROL: {direction} - {reason}")
+                    
+                    # Выбираем лучший символ для торговли
+                    best_symbol = "BTC"
+                    if "BTCUSDT" in prices:
+                        best_symbol = "BTC"
+                    elif "BTC" in prices:
+                        best_symbol = "BTC"
+                    
+                    # Рассчитываем размер позиции (20% для Director - агрессивно!)
+                    trade_size = self.current_balance * 0.20
+                    
+                    # Director открывает сделку!
+                    trade = await director_trader.execute_trade(
+                        symbol=best_symbol,
+                        direction=direction,
+                        reason=reason,
+                        size_usd=trade_size
+                    )
+                    
+                    if trade:
+                        logger.info(f"🎩 Director opened {best_symbol} {direction} ${trade_size:.0f}")
+                        await self._notify_director_trade(trade, reason)
+                        return  # Director управляет, дальше не идём
+                    
+            except Exception as e:
+                logger.error(f"Director TAKE_CONTROL error: {e}")
         
-        # =========================================
-        # 🎩 ШАГ 2: Если Director управляет - выходим
-        # =========================================
+        # ========================================
+        # 🎩 ШАГ 2: Если Director управляет - ждём
+        # ========================================
         if director_trader.is_controlling:
-            logger.debug("🎩 Director управляет, Работник ждёт...")
+            active = len(director_trader.active_trades)
+            logger.debug(f"🎩 Director controlling ({active} trades), Worker waiting...")
             return
         
-        # =========================================
-        # 🎩 ШАГ 3: ДИРЕКТОР ПРИНИМАЕТ РЕШЕНИЕ
-        # =========================================
+        # ========================================
+        # 👷 ШАГ 3: Worker ищет сигналы по стратегиям
+        # ========================================
         guidance = await get_director_guidance()
         
         decision = guidance.get("decision", "continue")
@@ -424,7 +445,7 @@ class MarketMonitor:
                     f"🔴 SHORT: {'✅' if guidance.get('allow_shorts') else '🚫'}"
                 )
         
-        # === ШАГ 4: ВЫПОЛНЯЕМ ЗАКРЫТИЯ ПО КОМАНДЕ ДИРЕКТОРА ===
+        # Проверяем закрытия по команде Director
         if decision in ["close_all", "close_longs", "close_shorts"]:
             close_actions = await trading_coordinator.check_for_close_orders(guidance)
             
@@ -437,24 +458,24 @@ class MarketMonitor:
                         f"📝 {action.reason}"
                     )
             
-            # Если close_all — не открываем новые
             if decision == "close_all":
                 return
         
-        # === ШАГ 5: ПРОВЕРЯЕМ МОЖНО ЛИ ОТКРЫВАТЬ ===
+        # Проверяем можно ли открывать новые
         if decision in ["pause_new", "take_control"]:
-            logger.info(f"⏸️ Директор: {decision} — новые сделки запрещены")
+            logger.debug(f"⏸️ Director: {decision} — Worker paused")
             return
         
-        # Базовая проверка
+        # Базовая проверка лимитов
         can_open, reason = self.can_open_new_trade()
         if not can_open:
             logger.debug(f"⏭️ Skip signals: {reason}")
             return
         
-        # === ШАГ 6: TECH AI (РАБОТНИК) ПРОВЕРЯЕТ СТРАТЕГИИ ===
+        # ========================================
+        # 👷 ШАГ 4: Worker проверяет стратегии
+        # ========================================
         for symbol, price in prices.items():
-            # Проверяем ещё раз (лимит мог измениться)
             can_open, reason = self.can_open_new_trade()
             if not can_open:
                 break
@@ -466,7 +487,6 @@ class MarketMonitor:
                 if df is None or len(df) < 50:
                     continue
                 
-                # Берём последние 100 свечей
                 df = df.tail(100).copy()
                 
                 # Проверяем стратегию
@@ -475,25 +495,26 @@ class MarketMonitor:
                 if not signal:
                     continue
                 
-                logger.info(f"🎯 Signal: {symbol} {signal.direction}")
+                logger.info(f"🎯 Worker Signal: {symbol} {signal.direction}")
                 trading_coordinator.signals_generated += 1
                 
-                # === ФИЛЬТРАЦИЯ ЧЕРЕЗ ДИРЕКТОРА ===
+                # Фильтрация через Director
                 allowed, filter_reason = await trading_coordinator.filter_signal(signal, guidance)
                 
                 if not allowed:
                     logger.info(f"⛔ Signal blocked: {filter_reason}")
                     continue
                 
-                # Если AI выключен — торгуем по стратегии напрямую
+                # Уведомляем о сигнале
+                await telegram_bot.notify_signal(signal)
+                
+                # Если AI выключен — торгуем напрямую
                 if not self.ai_enabled:
-                    await telegram_bot.notify_signal(signal)
-                    # Применяем множитель от Директора
                     trade_size = self.get_trade_size() * director_size_mult
                     await self._execute_signal(signal, trade_size)
                     continue
                 
-                # === BRAIN AI АНАЛИЗИРУЕТ ===
+                # AI анализирует
                 async with trading_ai:
                     ai_decision = await trading_ai.analyze(
                         symbol=symbol,
@@ -511,40 +532,57 @@ class MarketMonitor:
                         current_price=price
                     )
                 
-                # Уведомляем о сигнале
-                await telegram_bot.notify_signal(signal)
-                
                 # Выполняем решение AI
                 if ai_decision.action in [AIAction.OPEN_LONG, AIAction.OPEN_SHORT]:
                     if ai_decision.confidence >= self.min_confidence:
-                        # Корректируем SL/TP от AI
                         if ai_decision.stop_loss:
                             signal.stop_loss = ai_decision.stop_loss
                         if ai_decision.take_profit:
                             signal.take_profit = ai_decision.take_profit
                         
-                        # Размер = 15% * AI множитель * Director множитель
                         trade_size = self.get_trade_size() * ai_decision.size_multiplier * director_size_mult
                         
                         await self._execute_signal(signal, trade_size)
                         trading_coordinator.actions_executed += 1
                         
                         await telegram_bot.send_message(
-                            f"🧠 *Trade Approved*\n\n"
+                            f"🧠 *Worker Trade*\n\n"
                             f"📍 {symbol} {ai_decision.direction}\n"
                             f"📊 Confidence: {ai_decision.confidence}%\n"
                             f"📦 Size: ${trade_size:.0f}\n"
-                            f"🎩 Director: {risk_level}\n"
                             f"📝 {ai_decision.reason}"
                         )
                     else:
-                        logger.info(f"🧠 AI rejected {symbol}: confidence {ai_decision.confidence}% < {self.min_confidence}%")
+                        logger.info(f"🧠 AI rejected: {ai_decision.confidence}% < {self.min_confidence}%")
                 
                 elif ai_decision.action == AIAction.WAIT:
-                    logger.info(f"🧠 AI says WAIT for {symbol}: {ai_decision.reason}")
+                    logger.debug(f"🧠 AI says WAIT: {ai_decision.reason}")
                     
             except Exception as e:
                 logger.error(f"Signal check error for {symbol}: {e}")
+    
+    async def _notify_director_trade(self, trade, reason: str):
+        """🎩 Уведомление о сделке Director"""
+        try:
+            emoji = "🟢" if trade.direction == "LONG" else "🔴"
+            
+            text = f"""
+🎩 *DIRECTOR TAKE_CONTROL*
+
+{emoji} *{trade.direction}* {trade.symbol}
+
+💰 *Вход:* ${trade.entry_price:,.2f}
+🎯 *TP:* ${trade.take_profit:,.2f} (+{((trade.take_profit/trade.entry_price)-1)*100:.1f}%)
+🛑 *SL:* ${trade.stop_loss:,.2f} ({((trade.stop_loss/trade.entry_price)-1)*100:.1f}%)
+
+📊 *Причина:* {reason}
+
+⏰ {trade.opened_at.strftime('%H:%M:%S')}
+"""
+            await telegram_bot.send_message(text)
+            
+        except Exception as e:
+            logger.error(f"Director notification error: {e}")
     
     async def _execute_signal(self, signal: Signal, value: float = None):
         """Выполнить сигнал — открыть сделку"""
