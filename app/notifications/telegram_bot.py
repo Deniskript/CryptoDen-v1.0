@@ -92,6 +92,7 @@ class TelegramBot:
             BotCommand(command="whale", description="🐋 Анализ китов"),
             BotCommand(command="grid", description="📊 Grid Bot статус"),
             BotCommand(command="funding", description="💰 Funding Scalper"),
+            BotCommand(command="arb", description="🔄 Arbitrage Scanner"),
             BotCommand(command="market", description="📊 Полная картина рынка"),
             BotCommand(command="debug", description="🔍 Диагностика"),
             BotCommand(command="help", description="❓ Помощь")
@@ -599,6 +600,25 @@ _{mode_desc}_
                 
             except Exception as e:
                 logger.error(f"Funding status error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("arb"))
+        async def cmd_arbitrage(message: types.Message):
+            """🔄 Arbitrage Scanner — статус"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            try:
+                from app.modules.arbitrage import arbitrage_scanner
+                
+                # Сканируем перед показом
+                await arbitrage_scanner.scan_opportunities()
+                
+                text = arbitrage_scanner.get_status_text()
+                await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Arbitrage status error: {e}")
                 await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(Command("director"))

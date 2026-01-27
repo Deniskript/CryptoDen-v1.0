@@ -6,6 +6,7 @@
 from app.modules.base_module import BaseModule, ModuleSignal
 from app.modules.grid_bot import grid_bot, GridBot
 from app.modules.funding_scalper import funding_scalper, FundingScalper
+from app.modules.arbitrage import arbitrage_scanner, ArbitrageScanner
 
 __all__ = [
     "BaseModule",
@@ -14,4 +15,6 @@ __all__ = [
     "GridBot",
     "funding_scalper",
     "FundingScalper",
+    "arbitrage_scanner",
+    "ArbitrageScanner",
 ]

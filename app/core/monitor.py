@@ -29,6 +29,7 @@ from app.ai.director_ai import director_trader
 from app.ai.whale_ai import whale_ai
 from app.modules.grid_bot import grid_bot
 from app.modules.funding_scalper import funding_scalper
+from app.modules.arbitrage import arbitrage_scanner
 
 
 class MarketMonitor:
@@ -456,6 +457,22 @@ class MarketMonitor:
                 logger.error(f"Funding Scalper error: {e}")
         
         # ========================================
+        # 🔄 ШАГ 3.7: Arbitrage Scanner
+        # ========================================
+        if arbitrage_scanner.enabled:
+            try:
+                arb_signals = await arbitrage_scanner.get_signals({"prices": prices})
+                
+                for signal in arb_signals:
+                    logger.info(f"🔄 Arbitrage: {signal.reason}")
+                    
+                    # Уведомление в Telegram
+                    await self._notify_arbitrage_trade(signal)
+                    
+            except Exception as e:
+                logger.error(f"Arbitrage Scanner error: {e}")
+        
+        # ========================================
         # 👷 ШАГ 4: Worker ищет сигналы по стратегиям
         # ========================================
         guidance = await get_director_guidance()
@@ -681,6 +698,28 @@ class MarketMonitor:
             
         except Exception as e:
             logger.error(f"Funding notification error: {e}")
+    
+    async def _notify_arbitrage_trade(self, signal):
+        """🔄 Уведомление об арбитраже"""
+        try:
+            # Получаем статус
+            status = await arbitrage_scanner.get_status()
+            
+            text = f"""
+🔄 *ARBITRAGE EXECUTED*
+
+💰 {signal.reason}
+
+📊 *Статистика:*
+├── Сделок сегодня: {status['stats']['today_trades']}
+└── Профит сегодня: ${status['stats']['today_profit_usdt']:.2f}
+
+⏰ {signal.timestamp.strftime('%H:%M:%S')}
+"""
+            await telegram_bot.send_message(text)
+            
+        except Exception as e:
+            logger.error(f"Arbitrage notification error: {e}")
     
     async def _execute_signal(self, signal: Signal, value: float = None):
         """Выполнить сигнал — открыть сделку"""
