@@ -1,7 +1,7 @@
 # 🚀 CryptoDen Trading Bot — ПОЛНАЯ ДОКУМЕНТАЦИЯ
 
-> **Версия:** 1.0  
-> **Дата:** 2026-01-27  
+> **Версия:** 2.0  
+> **Дата:** 2026-01-28  
 > **Путь:** `/root/crypto-bot/`  
 > **Python:** 3.11+  
 > **Биржа:** Bybit Spot  
@@ -14,62 +14,113 @@
 1. [Архитектура](#архитектура)
 2. [Структура файлов](#структура-файлов)
 3. [Ключевые модули](#ключевые-модули)
-4. [Telegram Bot](#telegram-bot)
-5. [WebApp](#webapp)
-6. [AI система](#ai-система)
-7. [Стратегии](#стратегии)
-8. [Торговля](#торговля)
-9. [Переменные окружения](#переменные-окружения)
-10. [Команды управления](#команды-управления)
-11. [Troubleshooting](#troubleshooting)
-12. [Правила для AI агента](#правила-для-ai-агента)
+4. [Trading Modules](#trading-modules) ⭐ NEW
+5. [Telegram Bot](#telegram-bot)
+6. [WebApp](#webapp)
+7. [AI система](#ai-система)
+8. [Стратегии](#стратегии)
+9. [Торговля](#торговля)
+10. [Переменные окружения](#переменные-окружения)
+11. [Команды управления](#команды-управления)
+12. [Troubleshooting](#troubleshooting)
+13. [Правила для AI агента](#правила-для-ai-агента)
 
 ---
 
 ## 🏗️ АРХИТЕКТУРА
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    TELEGRAM USER                             │
-│                         ↓                                    │
-│              ┌─────────────────────┐                         │
-│              │   Telegram Bot      │                         │
-│              │  (Reply Keyboard)   │                         │
-│              └──────────┬──────────┘                         │
-│                         ↓                                    │
-│              ┌─────────────────────┐                         │
-│              │   WebApp (Flask)    │ ← app.cryptoden.ru      │
-│              │   Настройки бота    │                         │
-│              └──────────┬──────────┘                         │
-│                         ↓                                    │
-│              ┌─────────────────────┐                         │
-│              │   MarketMonitor     │ ← 24/7 цикл             │
-│              │   (каждые 60 сек)   │                         │
-│              └──────────┬──────────┘                         │
-│                         │                                    │
-│         ┌───────────────┼───────────────┐                    │
-│         ↓               ↓               ↓                    │
-│   ┌───────────┐   ┌───────────┐   ┌───────────┐              │
-│   │ DirectorAI│   │  WhaleAI  │   │ TechAI    │              │
-│   │ (Решения) │   │  (Рынок)  │   │(Стратегии)│              │
-│   └─────┬─────┘   └─────┬─────┘   └─────┬─────┘              │
-│         └───────────────┼───────────────┘                    │
-│                         ↓                                    │
-│              ┌─────────────────────┐                         │
-│              │TradingCoordinator   │                         │
-│              │  (Оркестрация)      │                         │
-│              └──────────┬──────────┘                         │
-│                         ↓                                    │
-│              ┌─────────────────────┐                         │
-│              │   TradeManager      │                         │
-│              │ SL/TP/Trailing Stop │                         │
-│              └──────────┬──────────┘                         │
-│                         ↓                                    │
-│              ┌─────────────────────┐                         │
-│              │   BybitClient       │ ← API Bybit             │
-│              │  (Исполнение)       │                         │
-│              └─────────────────────┘                         │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         TELEGRAM USER                                │
+│                              ↓                                       │
+│               ┌─────────────────────────┐                            │
+│               │     Telegram Bot        │                            │
+│               │    (Reply Keyboard)     │                            │
+│               └───────────┬─────────────┘                            │
+│                           ↓                                          │
+│               ┌─────────────────────────┐                            │
+│               │    WebApp (Flask)       │ ← app.cryptoden.ru         │
+│               │    Настройки бота       │                            │
+│               └───────────┬─────────────┘                            │
+│                           ↓                                          │
+│               ┌─────────────────────────┐                            │
+│               │     MarketMonitor       │ ← 24/7 цикл                │
+│               │    (каждые 60 сек)      │                            │
+│               └───────────┬─────────────┘                            │
+│                           │                                          │
+│     ┌─────────────────────┼─────────────────────┐                    │
+│     │                     │                     │                    │
+│     ↓                     ↓                     ↓                    │
+│ ┌────────────┐     ┌────────────┐       ┌────────────┐               │
+│ │ DirectorAI │     │  WhaleAI   │       │  TechAI    │               │
+│ │ (Решения)  │     │  (Рынок)   │       │(Стратегии) │               │
+│ └─────┬──────┘     └─────┬──────┘       └─────┬──────┘               │
+│       │                  │                    │                      │
+│       └──────────────────┼────────────────────┘                      │
+│                          ↓                                           │
+│     ┌────────────────────────────────────────────────┐               │
+│     │              TRADING MODULES                   │               │
+│     │  ┌──────────┬──────────┬──────────┬─────────┐  │               │
+│     │  │📊 Grid   │💰Funding │🔄 Arb    │👷Worker │  │               │
+│     │  │   Bot    │ Scalper  │ Scanner  │Strategies│  │               │
+│     │  └──────────┴──────────┴──────────┴─────────┘  │               │
+│     └────────────────────┬───────────────────────────┘               │
+│                          ↓                                           │
+│               ┌─────────────────────────┐                            │
+│               │     TradeManager        │                            │
+│               │   SL/TP/Trailing Stop   │                            │
+│               └───────────┬─────────────┘                            │
+│                           ↓                                          │
+│               ┌─────────────────────────┐                            │
+│               │     BybitClient         │ ← API Bybit                │
+│               │     (Исполнение)        │                            │
+│               └─────────────────────────┘                            │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📊 ГЛАВНЫЙ ЦИКЛ (_check_for_signals)
+
+```
+Каждые 60 секунд:
+│
+├── 🐋 ШАГ 0: Собираем данные (Whale AI метрики, News контекст)
+│
+├── 🎩 ШАГ 1: Director TAKE_CONTROL
+│   └── Проверяет 7 сценариев для прямой торговли
+│       • Fear & Greed < 20 + бычьи новости → LONG
+│       • Fear & Greed > 80 + медвежьи новости → SHORT
+│       • Массовые ликвидации лонгов ($50M+) → LONG
+│       • Массовые ликвидации шортов ($50M+) → SHORT
+│       • Funding > 0.1% + Long Ratio > 70% → SHORT
+│       • Funding < -0.1% + Long Ratio < 30% → LONG
+│       • Extreme Fear (<15) + мало лонгов (<35%) → LONG
+│
+├── 🎩 ШАГ 2: Если Director управляет → Worker ждёт
+│
+├── 📊 ШАГ 3: Grid Bot
+│   └── Сетка ордеров BUY/SELL вокруг цены
+│       • BTC: 10 уровней, 0.3% шаг, $100/ордер
+│       • ETH: 10 уровней, 0.4% шаг, $75/ордер
+│       • Альты: 8 уровней, 0.5% шаг, $50/ордер
+│
+├── 💰 ШАГ 3.5: Funding Scalper
+│   └── Торговля против толпы при экстремальном Funding
+│       • Funding > +0.05% → SHORT
+│       • Funding < -0.05% → LONG
+│       • Вход за 45 мин до начисления
+│
+├── 🔄 ШАГ 3.7: Arbitrage Scanner
+│   └── Треугольный арбитраж (USDT → BTC → ETH → USDT)
+│       • Мин профит: 0.15% после комиссий
+│       • Сканирует 10 монет
+│       • Кулдаун 30 сек между сделками
+│
+└── 👷 ШАГ 4: Worker Strategies
+    └── Классические стратегии (RSI, Stoch, MACD)
+        • LONG: RSI < 30 + Price > EMA
+        • SHORT: Stoch > 80 + Cross Down
 ```
 
 ---
@@ -95,7 +146,14 @@
 │   │   ├── constants.py              # Константы
 │   │   ├── database.py               # Redis/PostgreSQL
 │   │   ├── logger.py                 # Loguru
-│   │   └── monitor.py                # 🔄 MarketMonitor
+│   │   └── monitor.py                # 🔄 MarketMonitor (ГЛАВНЫЙ ЦИКЛ)
+│   │
+│   ├── modules/                      # 📦 ТОРГОВЫЕ МОДУЛИ ⭐ NEW
+│   │   ├── __init__.py
+│   │   ├── base_module.py            # BaseModule, ModuleSignal
+│   │   ├── grid_bot.py               # 📊 Grid Bot
+│   │   ├── funding_scalper.py        # 💰 Funding Scalper
+│   │   └── arbitrage.py              # 🔄 Arbitrage Scanner
 │   │
 │   ├── strategies/                   # 📊 СТРАТЕГИИ
 │   │   ├── __init__.py
@@ -130,7 +188,7 @@
 │   ├── ai/                           # 🐋 AI АГЕНТЫ
 │   │   ├── __init__.py
 │   │   ├── whale_ai.py               # WhaleAI (OI, Funding, Ликвидации)
-│   │   ├── director_ai.py            # DirectorAI (Стратегические решения)
+│   │   ├── director_ai.py            # DirectorAI + DirectorTrader
 │   │   └── trading_coordinator.py    # TradingCoordinator
 │   │
 │   ├── parsers/                      # 📰 ПАРСЕРЫ
@@ -154,7 +212,7 @@
 │   │   ├── strategies.py             # 140+ стратегий
 │   │   ├── optimizer.py              # Оптимизация
 │   │   ├── reports.py                # Отчёты
-│   │   └── leverage_backtest.py      # 🆕 С комиссиями
+│   │   └── leverage_backtest.py      # С комиссиями
 │   │
 │   ├── backtest/                     # SHORT БЭКТЕСТЫ
 │   │   ├── __init__.py
@@ -190,6 +248,210 @@
 │   └── healthcheck.sh
 │
 └── tests/                            # 🧪 ТЕСТЫ
+```
+
+---
+
+## 📦 TRADING MODULES ⭐ NEW
+
+### Общая структура модулей
+
+```python
+# app/modules/base_module.py
+
+@dataclass
+class ModuleSignal:
+    """Сигнал от модуля"""
+    module_name: str
+    symbol: str
+    direction: str       # "LONG" | "SHORT" | "BUY" | "SELL" | "CYCLE"
+    entry_price: float
+    stop_loss: float
+    take_profit: float
+    reason: str
+    confidence: float = 0.7
+    timestamp: datetime = None
+
+class BaseModule(ABC):
+    """Базовый класс для всех торговых модулей"""
+    
+    name: str = "base"
+    enabled: bool = True
+    
+    @abstractmethod
+    async def get_signals(self, market_data: Dict) -> List[ModuleSignal]:
+        """Получить сигналы от модуля"""
+        pass
+    
+    @abstractmethod
+    async def get_status(self) -> Dict:
+        """Статус модуля"""
+        pass
+```
+
+---
+
+### 📊 GRID BOT (app/modules/grid_bot.py)
+
+```
+📊 Grid Bot - Сетка ордеров для любого рынка
+
+Принцип работы:
+├── Ставим BUY ордера ниже текущей цены
+├── Ставим SELL ордера выше текущей цены
+├── Когда BUY срабатывает → ставим SELL выше
+├── Когда SELL срабатывает → ставим BUY ниже
+└── = Профит на каждом движении!
+
+Конфигурация:
+┌─────────┬───────────┬────────────┬───────────┬──────────┐
+│ Монета  │ Уровней   │ Шаг %      │ Размер $  │ Профит % │
+├─────────┼───────────┼────────────┼───────────┼──────────┤
+│ BTC     │ 10        │ 0.3%       │ $100      │ 0.2%     │
+│ ETH     │ 10        │ 0.4%       │ $75       │ 0.25%    │
+│ Альты   │ 8         │ 0.5%       │ $50       │ 0.3%     │
+└─────────┴───────────┴────────────┴───────────┴──────────┘
+
+Ожидаемые сигналы: ~5-15/день
+```
+
+```python
+class GridBot(BaseModule):
+    name = "grid_bot"
+    
+    # Методы:
+    setup_grid(symbol, current_price)     # Настроить сетку
+    check_orders(symbol, price)           # Проверить исполнение
+    get_signals(market_data)              # Получить сигналы
+    get_status_text()                     # Для Telegram
+    
+# Синглтон:
+grid_bot = GridBot()
+```
+
+**Telegram команда:** `/grid`
+
+---
+
+### 💰 FUNDING SCALPER (app/modules/funding_scalper.py)
+
+```
+💰 Funding Scalper - Торговля против толпы
+
+Принцип работы:
+├── Funding > +0.05% → много лонгов → SHORT (против толпы)
+├── Funding < -0.05% → много шортов → LONG (против толпы)
+└── Бонус: получаем Funding payment каждые 8 часов!
+
+Timing (UTC):
+├── 00:00 - Funding #1
+├── 08:00 - Funding #2
+└── 16:00 - Funding #3
+
+Параметры:
+├── Вход за 45 мин до начисления
+├── Мин 10 мин до начисления
+├── Макс держать 4 часа
+├── SL: 1%
+├── TP: 1.5%
+├── Размер: $200
+└── Макс 3 позиции одновременно
+
+Пороги:
+├── |Funding| > 0.1% = EXTREME → x1.5 размер
+├── |Funding| > 0.05% = HIGH → стандарт
+└── |Funding| < 0.05% = NEUTRAL → пропуск
+
+Ожидаемые сигналы: ~1-3/день
+```
+
+```python
+class FundingScalper(BaseModule):
+    name = "funding_scalper"
+    
+    # Методы:
+    fetch_funding_rates()                 # Получить с Bybit
+    check_entries()                       # Проверить входы
+    check_exits()                         # Проверить выходы
+    get_signals(market_data)              # Получить сигналы
+    get_status_text()                     # Для Telegram
+    
+# Синглтон:
+funding_scalper = FundingScalper()
+```
+
+**Telegram команда:** `/funding`
+
+---
+
+### 🔄 ARBITRAGE SCANNER (app/modules/arbitrage.py)
+
+```
+🔄 Arbitrage Scanner - Треугольный арбитраж
+
+Принцип работы:
+USDT → BTC → ETH → USDT (и обратно)
+
+Пример:
+$100 USDT
+  ↓ купить BTC
+0.000995 BTC
+  ↓ обменять на ETH
+0.0315 ETH
+  ↓ продать за USDT
+$100.18 USDT
+
+Профит: +$0.18 - комиссии 0.3% = реальный профит
+
+Параметры:
+├── Мин профит: 0.15% (после комиссий)
+├── Комиссия: 0.1% × 3 = 0.3%
+├── Размер сделки: $100
+├── Кулдаун: 30 сек
+├── Макс сделок/день: 50
+└── Мин объём: $1000 в стакане
+
+Монеты: BTC, ETH, SOL, BNB, XRP, ADA, DOGE, LINK, AVAX, MATIC
+
+Ожидаемые сигналы: ~0-5/день (редко прибыльно на одной бирже!)
+```
+
+```python
+class ArbitrageScanner(BaseModule):
+    name = "arbitrage"
+    
+    # Методы:
+    fetch_available_pairs()               # Получить пары
+    fetch_orderbook_prices()              # Получить bid/ask
+    scan_opportunities()                  # Найти возможности
+    execute_arbitrage(arb)                # Исполнить
+    get_signals(market_data)              # Получить сигналы
+    get_status_text()                     # Для Telegram
+    
+# Синглтон:
+arbitrage_scanner = ArbitrageScanner()
+```
+
+**Telegram команда:** `/arb`
+
+---
+
+### 📊 ИТОГО ВСЕ МОДУЛИ
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                    СИГНАЛЫ В ДЕНЬ                         │
+├─────────────────────┬──────────────┬──────────────────────┤
+│ Модуль              │ Сигналов     │ Примечание           │
+├─────────────────────┼──────────────┼──────────────────────┤
+│ 🎩 Director         │ 2-5          │ Только при событиях  │
+│ 📊 Grid Bot         │ 5-15         │ В боковике больше    │
+│ 💰 Funding Scalper  │ 1-3          │ Каждые 8 часов       │
+│ 🔄 Arbitrage        │ 0-5          │ Редко прибыльно      │
+│ 👷 Worker           │ 1-3          │ Ждёт RSI < 30        │
+├─────────────────────┼──────────────┼──────────────────────┤
+│ ИТОГО               │ 9-31         │                      │
+└─────────────────────┴──────────────┴──────────────────────┘
 ```
 
 ---
@@ -237,10 +499,11 @@ class MarketMonitor:
     
     Цикл _main_cycle() каждые 60 сек:
     1. Получить цены: await self.bybit.get_prices(symbols)
-    2. Обновить новости (раз в 5 мин)
-    3. Обновить активные сделки: trade_manager.update_prices(prices)
-    4. AI проверяет позиции: _check_active_positions_with_ai()
-    5. Ищем сигналы: _check_for_signals()
+    2. Обновить Whale AI метрики (раз в 5 мин)
+    3. Обновить новости (раз в 5 мин)
+    4. Обновить активные сделки: trade_manager.update_prices(prices)
+    5. AI проверяет позиции: _check_active_positions_with_ai()
+    6. Ищем сигналы: _check_for_signals()
     
     Методы:
     - start() → запустить
@@ -248,6 +511,12 @@ class MarketMonitor:
     - get_trade_size() → 15% от баланса
     - can_open_new_trade() → (bool, reason)
     - update_balance_after_close(pnl) → обновить баланс
+    
+    Уведомления:
+    - _notify_director_trade(trade, reason)
+    - _notify_grid_trade(signal)
+    - _notify_funding_trade(signal)
+    - _notify_arbitrage_trade(signal)
     """
 
 # Синглтон:
@@ -311,73 +580,7 @@ get_all_strategies() → Dict[str, StrategyConfig]  # LONG + SHORT
 get_enabled_strategies() → Dict[str, StrategyConfig]
 ```
 
-### 4️⃣ app/strategies/checker.py — ПРОВЕРКА СИГНАЛОВ
-
-```python
-@dataclass
-class Signal:
-    symbol: str
-    direction: str
-    strategy_id: str
-    strategy_name: str
-    entry_price: float
-    stop_loss: float
-    take_profit: float
-    indicators: Dict[str, float]
-    win_rate: float
-    confidence: float
-    timestamp: datetime
-    expires_at: datetime
-
-class StrategyChecker:
-    """
-    Проверяет условия в реальном времени
-    
-    Лимиты:
-    - max_signals_per_day: 3 на монету
-    - min_time_between_signals: 60 мин
-    - max_total_signals_per_day: 15
-    
-    Методы:
-    - check_symbol(symbol, df, price) → Optional[Signal]
-    - check_all_symbols(market_data) → List[Signal]
-    - get_status() → dict
-    """
-
-# Синглтон:
-strategy_checker = StrategyChecker()
-```
-
-### 5️⃣ app/strategies/indicators.py — ИНДИКАТОРЫ
-
-```python
-class TechnicalIndicators:
-    @staticmethod
-    def rsi(series, period=14) → float
-    
-    @staticmethod
-    def ema(series, period) → float
-    
-    @staticmethod
-    def sma(series, period) → float
-    
-    @staticmethod
-    def stochastic_k(df, period=14) → float
-    
-    @staticmethod
-    def macd(series, fast=12, slow=26, signal=9) → (macd, signal, histogram)
-    
-    @staticmethod
-    def macd_cross_direction(series) → Optional[str]  # "up" | "down"
-    
-    @staticmethod
-    def bollinger_bands(series, period=20, std=2.0) → (upper, mid, lower)
-    
-    @staticmethod
-    def atr(df, period=14) → float
-```
-
-### 6️⃣ app/trading/trade_manager.py — СДЕЛКИ
+### 4️⃣ app/trading/trade_manager.py — СДЕЛКИ
 
 ```python
 class TradeStatus(Enum):
@@ -438,7 +641,7 @@ class TradeManager:
 trade_manager = TradeManager()
 ```
 
-### 7️⃣ app/trading/bybit/client.py — BYBIT API
+### 5️⃣ app/trading/bybit/client.py — BYBIT API
 
 ```python
 class BybitClient:
@@ -497,6 +700,9 @@ class TelegramBot:
 | `/help` | Помощь | `cmd_help()` |
 | `/debug` | Диагностика | `cmd_debug()` |
 | `/whale` | Whale AI | `cmd_whale()` |
+| `/grid` | 📊 Grid Bot | `cmd_grid()` |
+| `/funding` | 💰 Funding Scalper | `cmd_funding()` |
+| `/arb` | 🔄 Arbitrage | `cmd_arbitrage()` |
 | `/director` | Director AI | `cmd_director()` |
 | `/director_trades` | Сделки Director | `cmd_director_trades()` |
 | `/market` | Полный рынок | `cmd_market()` |
@@ -605,44 +811,6 @@ app = Flask(__name__)
 └─────────────────────────────────────────┘
 ```
 
-### JS ФУНКЦИИ:
-
-```javascript
-// Проверка статуса бота
-async function checkBotStatus() {
-    const resp = await fetch('/api/bot-status');
-    const data = await resp.json();
-    botRunning = data.running;
-    updateControlCard();
-}
-
-// Обновление UI
-function updateControlCard() {
-    if (botRunning) {
-        // Зелёный индикатор
-        // Кнопка "ОСТАНОВИТЬ" (красная)
-        // Скрыть настройки
-    } else {
-        // Красный индикатор
-        // Кнопка "ЗАПУСТИТЬ" (зелёная)
-        // Показать настройки
-    }
-}
-
-// Запуск/остановка
-async function handleMainAction() {
-    if (botRunning) {
-        await fetch('/api/stop', { method: 'POST' });
-    } else {
-        await fetch('/api/start', {
-            method: 'POST',
-            body: JSON.stringify(settings)
-        });
-    }
-    tg.close();
-}
-```
-
 ---
 
 ## 🤖 AI СИСТЕМА
@@ -703,30 +871,6 @@ async function handleMainAction() {
 └─────────────────────────────────────────┘
 ```
 
-### app/ai/whale_ai.py
-
-```python
-class WhaleAI:
-    """
-    Мониторинг китов и рыночных метрик
-    
-    Методы:
-    - get_market_metrics(symbol) → MarketMetrics
-    - analyze(metrics) → WhaleAlert
-    - get_status_text() → str (для Telegram)
-    - get_trading_bias() → "BULLISH" | "BEARISH" | "NEUTRAL"
-    
-    AlertLevel:
-    - CALM (спокойно)
-    - ATTENTION (внимание)
-    - WARNING (предупреждение)
-    - CRITICAL (критично)
-    """
-
-# Синглтон:
-whale_ai = WhaleAI()
-```
-
 ### app/ai/director_ai.py
 
 ```python
@@ -749,11 +893,6 @@ class DirectorAI:
     - TAKE_CONTROL
     - AGGRESSIVE_LONG
     - AGGRESSIVE_SHORT
-    
-    Методы:
-    - analyze_situation() → MarketSituation
-    - make_decision() → DirectorCommand
-    - get_status_text() → str
     """
 
 # Синглтон:
@@ -767,13 +906,13 @@ class DirectorTrader:
     Может торговать САМ, без Работника!
     
     Сценарии TAKE_CONTROL:
-    - Fear & Greed < 20 + бычьи новости → LONG
-    - Fear & Greed > 80 + медвежьи новости → SHORT
-    - Массовые ликвидации лонгов ($50M+) → LONG
-    - Массовые ликвидации шортов ($50M+) → SHORT
-    - Funding > 0.1% + Long Ratio > 70% → SHORT
-    - Funding < -0.1% + Long Ratio < 30% → LONG
-    - Extreme Fear (<15) + мало лонгов (<35%) → LONG
+    1. Fear & Greed < 20 + бычьи новости → LONG
+    2. Fear & Greed > 80 + медвежьи новости → SHORT
+    3. Массовые ликвидации лонгов ($50M+) → LONG
+    4. Массовые ликвидации шортов ($50M+) → SHORT
+    5. Funding > 0.1% + Long Ratio > 70% → SHORT
+    6. Funding < -0.1% + Long Ratio < 30% → LONG
+    7. Extreme Fear (<15) + мало лонгов (<35%) → LONG
     
     Методы:
     - should_take_control(whale, news, market) → (bool, direction, reason)
@@ -788,67 +927,6 @@ class DirectorTrader:
 
 # Синглтон:
 director_trader = DirectorTrader()
-```
-
-### app/ai/trading_coordinator.py
-
-```python
-class TradingCoordinator:
-    """
-    Координация всех AI агентов
-    
-    Атрибуты:
-    - signals_generated: int
-    - actions_executed: int
-    - director_interventions: int
-    
-    Методы:
-    - run_cycle() → List[TradingAction]
-    - filter_signal(signal, guidance) → (bool, reason)
-    - check_for_close_orders(guidance) → List[TradingAction]
-    - execute_close_action(action) → bool
-    """
-
-# Синглтон:
-trading_coordinator = TradingCoordinator()
-```
-
-### app/brain/trading_ai.py
-
-```python
-class TradingAI:
-    """
-    Финальные торговые решения через Claude
-    
-    Модель: anthropic/claude-sonnet-4
-    Через: OpenRouter API
-    
-    Методы:
-    - analyze(symbol, market_context, strategy_signal,
-              current_position, price_data, current_price) → AIDecision
-    - should_adjust_position(symbol, position, 
-                            market_context, current_price) → AIDecision
-    
-    AIAction:
-    - OPEN_LONG
-    - OPEN_SHORT
-    - CLOSE
-    - ADJUST_SL
-    - ADJUST_TP
-    - WAIT
-    
-    AIDecision:
-    - action: AIAction
-    - direction: str
-    - confidence: int (0-100)
-    - reason: str
-    - stop_loss: Optional[float]
-    - take_profit: Optional[float]
-    - size_multiplier: float
-    """
-
-# Синглтон:
-trading_ai = TradingAI()
 ```
 
 ---
@@ -1090,6 +1168,7 @@ python -m app.debug.diagnose
 3. **Конфиг** — `from app.core.config import settings`
 4. **Стратегии** — добавлять в `app/strategies/config.py`
 5. **Telegram** — обработчики в `app/notifications/telegram_bot.py`
+6. **Модули** — наследовать от `BaseModule` в `app/modules/`
 
 ### После изменений:
 
@@ -1120,8 +1199,54 @@ tail -50 /var/log/supervisor/crypto-bot-stderr.log
 # Стратегии
 python -c "from app.strategies.config import get_all_strategies; print(len(get_all_strategies()))"
 
+# Модули
+python -c "from app.modules import grid_bot, funding_scalper, arbitrage_scanner; print('All modules OK')"
+
 # Индикаторы
 python -m app.debug.diagnose
+```
+
+### Добавление нового модуля:
+
+```python
+# 1. Создать файл app/modules/new_module.py
+
+from app.modules.base_module import BaseModule, ModuleSignal
+
+class NewModule(BaseModule):
+    name = "new_module"
+    
+    async def get_signals(self, market_data: Dict) -> List[ModuleSignal]:
+        # Логика генерации сигналов
+        pass
+    
+    async def get_status(self) -> Dict:
+        # Возвращает статус
+        pass
+    
+    def get_status_text(self) -> str:
+        # Текст для Telegram
+        pass
+
+new_module = NewModule()
+
+# 2. Добавить в app/modules/__init__.py
+from app.modules.new_module import new_module, NewModule
+
+# 3. Добавить в app/core/monitor.py
+from app.modules.new_module import new_module
+
+# В _check_for_signals():
+if new_module.enabled:
+    signals = await new_module.get_signals({"prices": prices})
+    for signal in signals:
+        await self._notify_new_module_trade(signal)
+
+# 4. Добавить команду в telegram_bot.py
+@self.dp.message(Command("newmodule"))
+async def cmd_new_module(message):
+    text = new_module.get_status_text()
+    await message.answer(text, parse_mode=ParseMode.MARKDOWN)
 ```
 
 ---
@@ -1135,4 +1260,4 @@ python -m app.debug.diagnose
 
 ---
 
-**Последнее обновление:** 2026-01-27 07:00 UTC
+**Последнее обновление:** 2026-01-28 21:00 UTC
