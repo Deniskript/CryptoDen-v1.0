@@ -15,171 +15,53 @@
         
         body {
             font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 50%, #d9e2ec 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
             min-height: 100vh;
-            overflow-x: hidden;
-            position: relative;
+            color: #f1f5f9;
         }
         
-        /* ==================== ANIMATED BACKGROUND ==================== */
-        .bg-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: 0;
-            pointer-events: none;
-        }
-        
-        .chart-lines {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            opacity: 0.15;
-        }
-        
-        .chart-line {
-            position: absolute;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #3b82f6, #06b6d4, transparent);
-            animation: chartMove 8s ease-in-out infinite;
-        }
-        
-        .chart-line:nth-child(1) { top: 20%; width: 60%; left: -10%; animation-delay: 0s; }
-        .chart-line:nth-child(2) { top: 35%; width: 80%; left: 20%; animation-delay: 1s; }
-        .chart-line:nth-child(3) { top: 50%; width: 70%; left: -5%; animation-delay: 2s; }
-        .chart-line:nth-child(4) { top: 65%; width: 90%; left: 10%; animation-delay: 3s; }
-        .chart-line:nth-child(5) { top: 80%; width: 50%; left: 30%; animation-delay: 4s; }
-        
-        @keyframes chartMove {
-            0%, 100% { transform: translateX(-20%) scaleY(1); opacity: 0.3; }
-            50% { transform: translateX(20%) scaleY(2); opacity: 0.6; }
-        }
-        
-        .floating-coins {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-        }
-        
-        .coin {
-            position: absolute;
-            opacity: 0.12;
-            animation: float 20s ease-in-out infinite;
-        }
-        
-        .coin:nth-child(1) { top: 10%; left: 5%; animation-delay: 0s; }
-        .coin:nth-child(2) { top: 25%; right: 10%; animation-delay: 2s; }
-        .coin:nth-child(3) { top: 45%; left: 8%; animation-delay: 4s; }
-        .coin:nth-child(4) { top: 60%; right: 5%; animation-delay: 6s; }
-        .coin:nth-child(5) { top: 75%; left: 15%; animation-delay: 8s; }
-        
-        @keyframes float {
-            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-            25% { transform: translateY(-20px) rotate(5deg) scale(1.05); }
-            50% { transform: translateY(-10px) rotate(-3deg) scale(1.02); }
-            75% { transform: translateY(-25px) rotate(3deg) scale(1.08); }
-        }
-        
-        .particles {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-        }
-        
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: linear-gradient(135deg, #3b82f6, #06b6d4);
-            border-radius: 50%;
-            animation: sparkle 4s ease-in-out infinite;
-        }
-        
-        .particle:nth-child(1) { top: 15%; left: 20%; animation-delay: 0s; }
-        .particle:nth-child(2) { top: 30%; right: 15%; animation-delay: 0.5s; }
-        .particle:nth-child(3) { top: 50%; left: 10%; animation-delay: 1s; }
-        .particle:nth-child(4) { top: 70%; right: 25%; animation-delay: 1.5s; }
-        .particle:nth-child(5) { top: 85%; left: 30%; animation-delay: 2s; }
-        
-        @keyframes sparkle {
-            0%, 100% { opacity: 0.2; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.5); }
-        }
-        
-        /* ==================== MAIN CONTENT ==================== */
         .main-container {
-            position: relative;
-            z-index: 1;
-            padding: 20px;
-            padding-bottom: 40px;
+            padding: 16px;
+            padding-bottom: 100px;
             max-width: 500px;
             margin: 0 auto;
         }
         
+        /* Header */
         .header {
             text-align: center;
             padding: 20px 0;
-            animation: fadeInDown 0.6s ease;
         }
         
         .logo {
             font-size: 48px;
-            margin-bottom: 10px;
-            animation: pulse 2s ease-in-out infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        .header h1 {
-            font-size: 28px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #1e3a5f, #3b82f6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
             margin-bottom: 8px;
         }
         
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
         .header p {
-            color: #64748b;
-            font-size: 14px;
-            font-weight: 500;
+            color: #94a3b8;
+            font-size: 13px;
         }
         
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* Status Card */
+        .status-card {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(71, 85, 105, 0.5);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
         }
         
-        @keyframes fadeInDown {
-            from { opacity: 0; transform: translateY(-30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* ==================== CONTROL CARD ==================== */
-        .control-card {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.9);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-            padding: 24px;
-            margin-bottom: 20px;
-            animation: fadeInUp 0.5s ease;
-        }
-        
-        .bot-status-display {
-            margin-bottom: 20px;
-        }
-        
-        .status-indicator {
+        .status-row {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -188,148 +70,80 @@
         }
         
         .status-dot {
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background: #94a3b8;
-            transition: all 0.3s ease;
-        }
-        
-        .status-dot.stopped {
             background: #ef4444;
-            box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
-            animation: pulse-red 2s infinite;
         }
         
         .status-dot.running {
             background: #22c55e;
             box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
-            animation: pulse-green 2s infinite;
+            animation: pulse 2s infinite;
         }
         
-        @keyframes pulse-red {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.2); }
-        }
-        
-        @keyframes pulse-green {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.15); }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
         
         .status-text {
             font-size: 18px;
-            font-weight: 700;
-            color: #1e293b;
+            font-weight: 600;
         }
         
         .status-info {
             display: flex;
             justify-content: center;
-            gap: 20px;
-            font-size: 13px;
-            color: #64748b;
+            gap: 16px;
+            font-size: 12px;
+            color: #94a3b8;
             flex-wrap: wrap;
         }
         
-        .status-info-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .main-control-btn {
+        .main-btn {
             width: 100%;
-            padding: 18px 32px;
+            padding: 16px;
             border: none;
-            border-radius: 14px;
-            font-size: 18px;
+            border-radius: 12px;
+            font-size: 16px;
             font-weight: 700;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            transition: all 0.3s ease;
+            margin-top: 16px;
+            transition: all 0.3s;
         }
         
-        .main-control-btn:disabled {
-            background: #e2e8f0;
+        .main-btn.start {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+        }
+        
+        .main-btn.stop {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        
+        .main-btn:disabled {
+            background: #475569;
             color: #94a3b8;
             cursor: not-allowed;
         }
         
-        .main-control-btn.start {
-            background: linear-gradient(135deg, #22c55e, #16a34a);
-            color: white;
-            box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
-        }
-        
-        .main-control-btn.start:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 28px rgba(34, 197, 94, 0.5);
-        }
-        
-        .main-control-btn.stop {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            color: white;
-            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
-        }
-        
-        .main-control-btn.stop:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 28px rgba(239, 68, 68, 0.5);
-        }
-        
-        .main-control-btn .btn-icon {
-            font-size: 22px;
-        }
-        
-        .main-control-btn.loading {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            pointer-events: none;
-        }
-        
-        .main-control-btn.loading .btn-icon {
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
-        /* ==================== CARDS ==================== */
+        /* Cards */
         .card {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
-            margin-bottom: 16px;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(71, 85, 105, 0.4);
+            border-radius: 16px;
+            margin-bottom: 12px;
             overflow: hidden;
-            animation: fadeInUp 0.6s ease;
-            animation-fill-mode: both;
         }
-        
-        .card:nth-child(2) { animation-delay: 0.1s; }
-        .card:nth-child(3) { animation-delay: 0.2s; }
-        .card:nth-child(4) { animation-delay: 0.3s; }
-        .card:nth-child(5) { animation-delay: 0.4s; }
         
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 18px 20px;
+            padding: 16px;
             cursor: pointer;
-            transition: background 0.3s ease;
-            user-select: none;
-        }
-        
-        .card-header:hover {
-            background: rgba(59, 130, 246, 0.05);
         }
         
         .card-title {
@@ -339,90 +153,59 @@
         }
         
         .card-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 18px;
             background: linear-gradient(135deg, #3b82f6, #06b6d4);
-            color: white;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
         }
         
         .card-title h3 {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
-            color: #1e293b;
         }
         
         .card-title .subtitle {
-            font-size: 12px;
-            color: #64748b;
-            margin-top: 2px;
+            font-size: 11px;
+            color: #94a3b8;
         }
         
         .card-arrow {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: rgba(59, 130, 246, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #3b82f6;
-            font-size: 12px;
-            transition: all 0.3s ease;
+            color: #64748b;
+            transition: transform 0.3s;
         }
         
         .card.open .card-arrow {
             transform: rotate(180deg);
-            background: #3b82f6;
-            color: white;
         }
         
         .card-content {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            padding: 0 20px;
+            transition: max-height 0.3s ease;
         }
         
         .card.open .card-content {
-            max-height: 600px;
-            padding: 0 20px 20px;
+            max-height: 800px;
         }
         
-        .status-badge {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-left: 8px;
+        .card-body {
+            padding: 0 16px 16px;
         }
         
-        .status-badge.success {
-            background: rgba(34, 197, 94, 0.15);
-            color: #16a34a;
-        }
-        
-        .status-badge.warning {
-            background: rgba(245, 158, 11, 0.15);
-            color: #d97706;
-        }
-        
-        /* ==================== INPUTS ==================== */
+        /* API Inputs */
         .input-group {
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
         
         .input-group label {
             display: block;
-            font-size: 13px;
-            font-weight: 600;
-            color: #475569;
-            margin-bottom: 8px;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 6px;
         }
         
         .input-wrapper {
@@ -431,20 +214,18 @@
         
         .input-wrapper input {
             width: 100%;
-            padding: 14px 16px;
-            padding-right: 50px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 15px;
-            color: #1e293b;
-            background: rgba(255, 255, 255, 0.8);
-            transition: all 0.3s ease;
+            padding: 12px;
+            padding-right: 44px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #475569;
+            border-radius: 10px;
+            color: #f1f5f9;
+            font-size: 14px;
         }
         
         .input-wrapper input:focus {
             outline: none;
             border-color: #3b82f6;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
         }
         
         .input-toggle {
@@ -454,113 +235,203 @@
             transform: translateY(-50%);
             background: none;
             border: none;
-            font-size: 18px;
+            color: #64748b;
             cursor: pointer;
-            opacity: 0.5;
-            transition: opacity 0.3s;
+            font-size: 16px;
         }
         
-        .input-toggle:hover {
-            opacity: 1;
-        }
-        
-        .toggle-group {
+        /* Toggle Buttons */
+        .toggle-row {
             display: flex;
-            gap: 10px;
-            margin-top: 16px;
+            gap: 8px;
         }
         
         .toggle-btn {
             flex: 1;
-            padding: 14px 16px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.6);
-            font-size: 14px;
+            padding: 12px;
+            border: 1px solid #475569;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.6);
+            color: #94a3b8;
+            font-size: 13px;
             font-weight: 600;
-            color: #64748b;
             cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
-        .toggle-btn:hover {
-            border-color: #3b82f6;
-            background: rgba(59, 130, 246, 0.05);
+            transition: all 0.3s;
         }
         
         .toggle-btn.active {
             border-color: #3b82f6;
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(6, 182, 212, 0.1));
-            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
         }
         
         .toggle-btn.active.danger {
             border-color: #ef4444;
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
         }
         
-        /* ==================== COINS GRID ==================== */
-        .coins-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
+        /* Module Modes */
+        .module-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .module-info {
+            display: flex;
+            align-items: center;
             gap: 10px;
         }
         
-        .coin-btn {
-            padding: 14px 8px;
-            border: 2px solid #e2e8f0;
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.6);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
+        .module-icon {
+            font-size: 20px;
         }
         
-        .coin-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        .module-name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .module-desc {
+            font-size: 10px;
+            color: #64748b;
+        }
+        
+        .mode-toggle {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .mode-btn {
+            padding: 6px 12px;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            background: transparent;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .mode-btn.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+        }
+        
+        .mode-btn.auto.active {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+        }
+        
+        .mode-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Enable/Disable Toggle */
+        .enable-toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            margin-right: 8px;
+        }
+        
+        .enable-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .enable-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #475569;
+            border-radius: 24px;
+            transition: 0.3s;
+        }
+        
+        .enable-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        
+        .enable-toggle input:checked + .enable-slider {
+            background: #22c55e;
+        }
+        
+        .enable-toggle input:checked + .enable-slider:before {
+            transform: translateX(20px);
+        }
+        
+        /* Coins Grid */
+        .coins-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .coin-btn {
+            padding: 12px 8px;
+            border: 1px solid #475569;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.6);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
         }
         
         .coin-btn.active {
             border-color: #22c55e;
-            background: rgba(34, 197, 94, 0.1);
+            background: rgba(34, 197, 94, 0.2);
         }
         
-        .coin-btn .coin-icon {
-            width: 36px;
-            height: 36px;
+        .coin-icon {
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
+            margin: 0 auto 6px;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 11px;
             font-weight: 700;
-            font-size: 12px;
             color: white;
         }
         
-        .coin-btn .coin-name {
+        .coin-name {
             font-size: 12px;
             font-weight: 600;
-            color: #475569;
         }
         
-        .coin-btn .coin-status {
+        .coin-status {
             font-size: 10px;
-            color: #94a3b8;
+            color: #64748b;
         }
         
         .coin-btn.active .coin-status {
             color: #22c55e;
         }
         
+        /* Coin colors */
         .coin-btc { background: linear-gradient(135deg, #f7931a, #ffab40); }
         .coin-eth { background: linear-gradient(135deg, #627eea, #8c9eff); }
         .coin-bnb { background: linear-gradient(135deg, #f3ba2f, #ffd54f); }
@@ -571,207 +442,362 @@
         .coin-link { background: linear-gradient(135deg, #2a5ada, #5c6bc0); }
         .coin-avax { background: linear-gradient(135deg, #e84142, #ff5252); }
         
-        /* ==================== SLIDERS ==================== */
+        /* Sliders */
         .slider-group {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
         
         .slider-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         
         .slider-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #475569;
+            font-size: 13px;
+            color: #94a3b8;
         }
         
         .slider-value {
-            font-size: 16px;
-            font-weight: 700;
-            color: #3b82f6;
-            background: rgba(59, 130, 246, 0.1);
-            padding: 4px 12px;
-            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #60a5fa;
         }
         
         .slider-wrapper {
             position: relative;
-            height: 8px;
-            background: #e2e8f0;
-            border-radius: 4px;
-            overflow: visible;
+            height: 6px;
+            background: #475569;
+            border-radius: 3px;
         }
         
         .slider-fill {
             position: absolute;
-            left: 0;
-            top: 0;
             height: 100%;
             background: linear-gradient(90deg, #3b82f6, #06b6d4);
-            border-radius: 4px;
-            transition: width 0.3s ease;
+            border-radius: 3px;
         }
         
-        input[type="range"] {
+        .slider-wrapper input {
             position: absolute;
             width: 100%;
             height: 100%;
-            top: 0;
-            left: 0;
             opacity: 0;
             cursor: pointer;
-            -webkit-appearance: none;
         }
         
         .slider-thumb {
             position: absolute;
             top: 50%;
             transform: translate(-50%, -50%);
-            width: 24px;
-            height: 24px;
-            background: white;
-            border: 3px solid #3b82f6;
+            width: 20px;
+            height: 20px;
+            background: #f1f5f9;
             border-radius: 50%;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             pointer-events: none;
         }
         
+        /* Warning */
         .warning-box {
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(239, 68, 68, 0.15);
             border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 12px;
-            padding: 14px 16px;
-            margin-top: 16px;
-            font-size: 13px;
-            color: #dc2626;
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 12px;
+            color: #f87171;
             display: flex;
-            align-items: flex-start;
-            gap: 10px;
+            gap: 8px;
         }
         
         .warning-box.hidden {
             display: none;
         }
         
-        .info-text {
-            font-size: 12px;
-            color: #94a3b8;
-            text-align: center;
+        .info-box {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 10px;
+            padding: 12px;
             margin-top: 12px;
+            font-size: 12px;
+            color: #60a5fa;
         }
         
-        @media (max-width: 380px) {
-            .coins-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .header h1 {
-                font-size: 24px;
-            }
+        /* API Status Badge */
+        .api-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        
+        .api-badge.ok {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+        }
+        
+        .api-badge.missing {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+        
+        /* Summary before start */
+        .summary-box {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #475569;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        
+        .summary-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #94a3b8;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+        }
+        
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+        
+        .summary-label {
+            color: #94a3b8;
+        }
+        
+        .summary-value {
+            font-weight: 600;
+        }
+        
+        .summary-value.signal {
+            color: #fbbf24;
+        }
+        
+        .summary-value.auto {
+            color: #4ade80;
         }
     </style>
 </head>
 <body>
-    <!-- Animated Background -->
-    <div class="bg-container">
-        <div class="chart-lines">
-            <div class="chart-line"></div>
-            <div class="chart-line"></div>
-            <div class="chart-line"></div>
-            <div class="chart-line"></div>
-            <div class="chart-line"></div>
-        </div>
-        
-        <div class="floating-coins">
-            <div class="coin" style="width: 60px;">
-                <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#f7931a"/><path d="M22.5 14.2c.3-2-1.2-3-3.3-3.8l.7-2.7-1.6-.4-.7 2.7c-.4-.1-.8-.2-1.3-.3l.7-2.7-1.6-.4-.7 2.7c-.3-.1-.7-.2-1-.2l-2.3-.6-.4 1.7s1.2.3 1.2.3c.7.2.8.6.8 1l-.8 3.2c0 .1.1.1.1.2h-.1l-1.1 4.5c-.1.2-.3.5-.8.4 0 0-1.2-.3-1.2-.3l-.8 1.9 2.1.5c.4.1.8.2 1.2.3l-.7 2.8 1.6.4.7-2.8c.4.1.9.2 1.3.3l-.7 2.7 1.6.4.7-2.8c2.9.6 5.1.3 6-2.3.7-2.1 0-3.3-1.5-4 1.1-.3 1.9-1 2.1-2.5z" fill="white"/></svg>
-            </div>
-            <div class="coin" style="width: 50px;">
-                <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#627eea"/><path d="M16 4v8.9l7.5 3.3L16 4z" fill="white" fill-opacity="0.6"/><path d="M16 4l-7.5 12.2 7.5-3.3V4z" fill="white"/></svg>
-            </div>
-            <div class="coin" style="width: 45px;">
-                <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="url(#sol)"/><defs><linearGradient id="sol" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#9945ff"/><stop offset="1" stop-color="#14f195"/></linearGradient></defs></svg>
-            </div>
-            <div class="coin" style="width: 55px;">
-                <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#f3ba2f"/><path d="M16 6l3 3-5 5-3-3 5-5zm-6 6l3 3-3 3-3-3 3-3zm12 0l3 3-3 3-3-3 3-3zm-6 6l3 3-5 5-3-3 5-5z" fill="white"/></svg>
-            </div>
-            <div class="coin" style="width: 40px;">
-                <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#23292f"/><path d="M10 10h2.5l3.5 4.5L19.5 10H22l-5 6.5v.5l5 6.5h-2.5L16 19l-3.5 4.5H10l5-6.5v-.5L10 10z" fill="white"/></svg>
-            </div>
-        </div>
-        
-        <div class="particles">
-            <div class="particle"></div>
-            <div class="particle"></div>
-            <div class="particle"></div>
-            <div class="particle"></div>
-            <div class="particle"></div>
-        </div>
-    </div>
-    
-    <!-- Main Content -->
     <div class="main-container">
         <!-- Header -->
         <div class="header">
             <div class="logo">🤖</div>
             <h1>CryptoDen</h1>
-            <p>Professional AI Trading Bot</p>
+            <p>AI Trading Bot</p>
         </div>
         
-        <!-- Control Card with Dynamic Button -->
-        <div class="control-card" id="control-card">
-            <div class="bot-status-display">
-                <div class="status-indicator">
-                    <span class="status-dot" id="status-dot"></span>
-                    <span class="status-text" id="status-text">Проверка...</span>
-                </div>
-                <div class="status-info" id="status-info">
-                    <!-- Filled by JS -->
-                </div>
+        <!-- Status Card -->
+        <div class="status-card">
+            <div class="status-row">
+                <span class="status-dot" id="status-dot"></span>
+                <span class="status-text" id="status-text">Проверка...</span>
             </div>
+            <div class="status-info" id="status-info"></div>
             
-            <button class="main-control-btn" id="main-control-btn" onclick="handleMainAction()" disabled>
-                <span class="btn-icon" id="btn-icon">⏳</span>
-                <span class="btn-text" id="btn-text">Загрузка...</span>
+            <button class="main-btn start" id="main-btn" onclick="handleMainAction()" disabled>
+                🚀 ЗАПУСТИТЬ
             </button>
         </div>
         
-        <!-- Settings Cards (shown only when bot is stopped) -->
+        <!-- Settings (only when stopped) -->
         <div id="settings-section">
+        
             <!-- API Keys -->
             <div class="card" id="card-api">
                 <div class="card-header" onclick="toggleCard('api')">
                     <div class="card-title">
                         <div class="card-icon">🔐</div>
                         <div>
-                            <h3>API Ключи <span class="status-badge warning" id="api-status">Не настроено</span></h3>
-                            <div class="subtitle">Подключение к Bybit</div>
+                            <h3>API Ключи Bybit <span class="api-badge missing" id="api-badge">Не указаны</span></h3>
+                            <div class="subtitle">Требуется для авто-режимов</div>
                         </div>
                     </div>
                     <div class="card-arrow">▼</div>
                 </div>
                 <div class="card-content">
-                    <div class="input-group">
-                        <label>API Key</label>
-                        <div class="input-wrapper">
-                            <input type="password" id="api-key" placeholder="Введите ваш API ключ">
-                            <button class="input-toggle" onclick="togglePassword('api-key')">👁️</button>
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label>API Key</label>
+                            <div class="input-wrapper">
+                                <input type="password" id="api-key" placeholder="Введите API ключ">
+                                <button class="input-toggle" onclick="togglePassword('api-key')">👁</button>
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>API Secret</label>
+                            <div class="input-wrapper">
+                                <input type="password" id="api-secret" placeholder="Введите Secret">
+                                <button class="input-toggle" onclick="togglePassword('api-secret')">👁</button>
+                            </div>
+                        </div>
+                        <div class="toggle-row">
+                            <button class="toggle-btn active" id="btn-testnet" onclick="setNetwork('testnet')">🧪 Testnet</button>
+                            <button class="toggle-btn" id="btn-mainnet" onclick="setNetwork('mainnet')">💰 Mainnet</button>
+                        </div>
+                        
+                        <div class="info-box">
+                            ℹ️ Без API ключей все модули работают в режиме <b>СИГНАЛОВ</b> — вы получаете уведомления и торгуете вручную.
                         </div>
                     </div>
-                    <div class="input-group">
-                        <label>API Secret</label>
-                        <div class="input-wrapper">
-                            <input type="password" id="api-secret" placeholder="Введите ваш Secret">
-                            <button class="input-toggle" onclick="togglePassword('api-secret')">👁️</button>
+                </div>
+            </div>
+            
+            <!-- Module Modes -->
+            <div class="card open" id="card-modules">
+                <div class="card-header" onclick="toggleCard('modules')">
+                    <div class="card-title">
+                        <div class="card-icon">⚙️</div>
+                        <div>
+                            <h3>Режимы модулей</h3>
+                            <div class="subtitle" id="modules-summary">📢 Сигналы: 6 | 🤖 Авто: 0</div>
                         </div>
                     </div>
-                    <div class="toggle-group">
-                        <button class="toggle-btn active" id="btn-testnet" onclick="setNetwork('testnet')">🧪 Testnet</button>
-                        <button class="toggle-btn" id="btn-mainnet" onclick="setNetwork('mainnet')">💰 Mainnet</button>
+                    <div class="card-arrow">▼</div>
+                </div>
+                <div class="card-content">
+                    <div class="card-body">
+                        
+                        <!-- Director AI -->
+                        <div class="module-item">
+                            <div class="module-info">
+                                <label class="enable-toggle">
+                                    <input type="checkbox" id="module-director-enabled" checked onchange="updateModule('director')">
+                                    <span class="enable-slider"></span>
+                                </label>
+                                <div>
+                                    <div class="module-icon">🎩</div>
+                                </div>
+                                <div>
+                                    <div class="module-name">Director AI</div>
+                                    <div class="module-desc">Стратегические решения</div>
+                                </div>
+                            </div>
+                            <div class="mode-toggle">
+                                <button class="mode-btn active" id="director-signal" onclick="setModuleMode('director', 'signal')">📢</button>
+                                <button class="mode-btn auto" id="director-auto" onclick="setModuleMode('director', 'auto')">🤖</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Grid Bot -->
+                        <div class="module-item">
+                            <div class="module-info">
+                                <label class="enable-toggle">
+                                    <input type="checkbox" id="module-grid-enabled" checked onchange="updateModule('grid')">
+                                    <span class="enable-slider"></span>
+                                </label>
+                                <div>
+                                    <div class="module-icon">📊</div>
+                                </div>
+                                <div>
+                                    <div class="module-name">Grid Bot</div>
+                                    <div class="module-desc">Сетка ордеров</div>
+                                </div>
+                            </div>
+                            <div class="mode-toggle">
+                                <button class="mode-btn active" id="grid-signal" onclick="setModuleMode('grid', 'signal')">📢</button>
+                                <button class="mode-btn auto" id="grid-auto" onclick="setModuleMode('grid', 'auto')">🤖</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Funding Scalper -->
+                        <div class="module-item">
+                            <div class="module-info">
+                                <label class="enable-toggle">
+                                    <input type="checkbox" id="module-funding-enabled" checked onchange="updateModule('funding')">
+                                    <span class="enable-slider"></span>
+                                </label>
+                                <div>
+                                    <div class="module-icon">💰</div>
+                                </div>
+                                <div>
+                                    <div class="module-name">Funding Scalper</div>
+                                    <div class="module-desc">Funding Rate арбитраж</div>
+                                </div>
+                            </div>
+                            <div class="mode-toggle">
+                                <button class="mode-btn active" id="funding-signal" onclick="setModuleMode('funding', 'signal')">📢</button>
+                                <button class="mode-btn auto" id="funding-auto" onclick="setModuleMode('funding', 'auto')">🤖</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Arbitrage -->
+                        <div class="module-item">
+                            <div class="module-info">
+                                <label class="enable-toggle">
+                                    <input type="checkbox" id="module-arbitrage-enabled" onchange="updateModule('arbitrage')">
+                                    <span class="enable-slider"></span>
+                                </label>
+                                <div>
+                                    <div class="module-icon">🔄</div>
+                                </div>
+                                <div>
+                                    <div class="module-name">Arbitrage</div>
+                                    <div class="module-desc">Треугольный арбитраж</div>
+                                </div>
+                            </div>
+                            <div class="mode-toggle">
+                                <button class="mode-btn active" id="arbitrage-signal" onclick="setModuleMode('arbitrage', 'signal')">📢</button>
+                                <button class="mode-btn auto" id="arbitrage-auto" onclick="setModuleMode('arbitrage', 'auto')">🤖</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Listing Hunter -->
+                        <div class="module-item">
+                            <div class="module-info">
+                                <label class="enable-toggle">
+                                    <input type="checkbox" id="module-listing-enabled" checked onchange="updateModule('listing')">
+                                    <span class="enable-slider"></span>
+                                </label>
+                                <div>
+                                    <div class="module-icon">🆕</div>
+                                </div>
+                                <div>
+                                    <div class="module-name">Listing Hunter</div>
+                                    <div class="module-desc">Охота за листингами</div>
+                                </div>
+                            </div>
+                            <div class="mode-toggle">
+                                <button class="mode-btn active" id="listing-signal" onclick="setModuleMode('listing', 'signal')">📢</button>
+                                <button class="mode-btn auto" id="listing-auto" onclick="setModuleMode('listing', 'auto')">🤖</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Worker (RSI) -->
+                        <div class="module-item">
+                            <div class="module-info">
+                                <label class="enable-toggle">
+                                    <input type="checkbox" id="module-worker-enabled" checked onchange="updateModule('worker')">
+                                    <span class="enable-slider"></span>
+                                </label>
+                                <div>
+                                    <div class="module-icon">👷</div>
+                                </div>
+                                <div>
+                                    <div class="module-name">RSI Strategy</div>
+                                    <div class="module-desc">Классические индикаторы</div>
+                                </div>
+                            </div>
+                            <div class="mode-toggle">
+                                <button class="mode-btn active" id="worker-signal" onclick="setModuleMode('worker', 'signal')">📢</button>
+                                <button class="mode-btn auto" id="worker-auto" onclick="setModuleMode('worker', 'auto')">🤖</button>
+                            </div>
+                        </div>
+                        
+                        <div class="info-box" id="auto-warning" style="display:none;">
+                            ⚠️ Для авто-режимов требуются API ключи Bybit!
+                        </div>
+                        
                     </div>
                 </div>
             </div>
@@ -789,128 +815,126 @@
                     <div class="card-arrow">▼</div>
                 </div>
                 <div class="card-content">
-                    <div class="coins-grid" id="coins-grid"></div>
-                    <p class="info-text">Стратегии оптимизированы на основе бэктеста 2022-2025</p>
+                    <div class="card-body">
+                        <div class="coins-grid" id="coins-grid"></div>
+                    </div>
                 </div>
             </div>
             
-            <!-- Risk -->
+            <!-- Risk Management -->
             <div class="card" id="card-risk">
                 <div class="card-header" onclick="toggleCard('risk')">
                     <div class="card-title">
-                        <div class="card-icon">💰</div>
+                        <div class="card-icon">📊</div>
                         <div>
                             <h3>Управление рисками</h3>
-                            <div class="subtitle">Размер позиций и лимиты</div>
+                            <div class="subtitle">Для авто-режимов</div>
                         </div>
                     </div>
                     <div class="card-arrow">▼</div>
                 </div>
                 <div class="card-content">
-                    <div class="slider-group">
-                        <div class="slider-header">
-                            <span class="slider-label">Размер сделки</span>
-                            <span class="slider-value" id="risk-value">15%</span>
+                    <div class="card-body">
+                        <div class="slider-group">
+                            <div class="slider-header">
+                                <span class="slider-label">Размер сделки</span>
+                                <span class="slider-value" id="risk-value">15%</span>
+                            </div>
+                            <div class="slider-wrapper">
+                                <div class="slider-fill" id="risk-fill" style="width:50%"></div>
+                                <div class="slider-thumb" id="risk-thumb" style="left:50%"></div>
+                                <input type="range" id="risk-slider" min="5" max="25" value="15" oninput="updateSlider('risk')">
+                            </div>
                         </div>
-                        <div class="slider-wrapper">
-                            <div class="slider-fill" id="risk-fill" style="width: 50%"></div>
-                            <div class="slider-thumb" id="risk-thumb" style="left: 50%"></div>
-                            <input type="range" id="risk-slider" min="5" max="25" value="15" oninput="updateSlider('risk')">
-                        </div>
-                    </div>
-                    <div class="slider-group">
-                        <div class="slider-header">
-                            <span class="slider-label">Макс. сделок</span>
-                            <span class="slider-value" id="trades-value">6</span>
-                        </div>
-                        <div class="slider-wrapper">
-                            <div class="slider-fill" id="trades-fill" style="width: 55%"></div>
-                            <div class="slider-thumb" id="trades-thumb" style="left: 55%"></div>
-                            <input type="range" id="trades-slider" min="1" max="10" value="6" oninput="updateSlider('trades')">
+                        <div class="slider-group">
+                            <div class="slider-header">
+                                <span class="slider-label">Макс. сделок одновременно</span>
+                                <span class="slider-value" id="trades-value">6</span>
+                            </div>
+                            <div class="slider-wrapper">
+                                <div class="slider-fill" id="trades-fill" style="width:55%"></div>
+                                <div class="slider-thumb" id="trades-thumb" style="left:55%"></div>
+                                <input type="range" id="trades-slider" min="1" max="10" value="6" oninput="updateSlider('trades')">
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- AI -->
+            <!-- AI Settings -->
             <div class="card" id="card-ai">
                 <div class="card-header" onclick="toggleCard('ai')">
                     <div class="card-title">
                         <div class="card-icon">🧠</div>
                         <div>
                             <h3>AI Настройки</h3>
-                            <div class="subtitle">Claude Sonnet</div>
+                            <div class="subtitle">Claude Sonnet анализ</div>
                         </div>
                     </div>
                     <div class="card-arrow">▼</div>
                 </div>
                 <div class="card-content">
-                    <div class="toggle-group">
-                        <button class="toggle-btn active" id="btn-ai-on" onclick="setAI(true)">✅ AI Включён</button>
-                        <button class="toggle-btn" id="btn-ai-off" onclick="setAI(false)">❌ Без AI</button>
-                    </div>
-                    <div class="slider-group" style="margin-top: 20px;">
-                        <div class="slider-header">
-                            <span class="slider-label">Мин. уверенность</span>
-                            <span class="slider-value" id="confidence-value">60%</span>
+                    <div class="card-body">
+                        <div class="toggle-row">
+                            <button class="toggle-btn active" id="btn-ai-on" onclick="setAI(true)">✅ AI Включён</button>
+                            <button class="toggle-btn" id="btn-ai-off" onclick="setAI(false)">❌ Без AI</button>
                         </div>
-                        <div class="slider-wrapper">
-                            <div class="slider-fill" id="confidence-fill" style="width: 50%"></div>
-                            <div class="slider-thumb" id="confidence-thumb" style="left: 50%"></div>
-                            <input type="range" id="confidence-slider" min="30" max="90" value="60" oninput="updateSlider('confidence')">
+                        <div class="slider-group" style="margin-top:16px;">
+                            <div class="slider-header">
+                                <span class="slider-label">Мин. уверенность AI</span>
+                                <span class="slider-value" id="confidence-value">60%</span>
+                            </div>
+                            <div class="slider-wrapper">
+                                <div class="slider-fill" id="confidence-fill" style="width:50%"></div>
+                                <div class="slider-thumb" id="confidence-thumb" style="left:50%"></div>
+                                <input type="range" id="confidence-slider" min="30" max="90" value="60" oninput="updateSlider('confidence')">
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Mode -->
-            <div class="card" id="card-mode">
-                <div class="card-header" onclick="toggleCard('mode')">
-                    <div class="card-title">
-                        <div class="card-icon">📊</div>
-                        <div>
-                            <h3>Режим торговли</h3>
-                            <div class="subtitle" id="mode-subtitle">Paper Trading</div>
-                        </div>
-                    </div>
-                    <div class="card-arrow">▼</div>
-                </div>
-                <div class="card-content">
-                    <div class="toggle-group">
-                        <button class="toggle-btn active" id="btn-paper" onclick="setMode('paper')">📝 Paper</button>
-                        <button class="toggle-btn" id="btn-live" onclick="setMode('live')">💰 Live</button>
-                    </div>
-                    <div class="warning-box hidden" id="live-warning">
-                        <span>⚠️</span>
-                        <span>LIVE режим торгует реальными деньгами!</span>
-                    </div>
-                </div>
+            <!-- Summary -->
+            <div class="summary-box" id="summary-box">
+                <div class="summary-title">📋 Итого перед запуском:</div>
+                <div id="summary-content"></div>
             </div>
+            
         </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        tg.enableClosingConfirmation();
         
         let botRunning = false;
-        let botData = {};
+        let hasApiKeys = false;
         
+        // Settings
         let settings = {
             bybit_api_key: "",
             bybit_api_secret: "",
             bybit_testnet: true,
+            
+            modules: {
+                director: { enabled: true, mode: "signal" },
+                grid: { enabled: true, mode: "signal" },
+                funding: { enabled: true, mode: "signal" },
+                arbitrage: { enabled: false, mode: "signal" },
+                listing: { enabled: true, mode: "signal" },
+                worker: { enabled: true, mode: "signal" }
+            },
+            
             coins: {
                 BTC: true, ETH: true, BNB: true,
                 SOL: true, XRP: true, ADA: true,
                 DOGE: true, LINK: false, AVAX: false
             },
+            
             risk_percent: 15,
             max_trades: 6,
             ai_enabled: true,
-            ai_confidence: 60,
-            paper_trading: true
+            ai_confidence: 60
         };
         
         const coinsData = [
@@ -925,110 +949,73 @@
             { id: 'AVAX', name: 'Avalanche', color: 'coin-avax' }
         ];
         
-        // === BOT STATUS ===
+        // ============ STATUS ============
         async function checkBotStatus() {
             try {
                 const resp = await fetch('/api/bot-status');
                 const data = await resp.json();
-                
                 botRunning = data.running;
-                botData = data;
-                
-                updateControlCard();
+                updateUI();
             } catch (e) {
-                console.error('Status check failed:', e);
                 botRunning = false;
-                updateControlCard();
+                updateUI();
             }
         }
         
-        function updateControlCard() {
+        function updateUI() {
             const dot = document.getElementById('status-dot');
             const text = document.getElementById('status-text');
             const info = document.getElementById('status-info');
-            const btn = document.getElementById('main-control-btn');
-            const btnIcon = document.getElementById('btn-icon');
-            const btnText = document.getElementById('btn-text');
+            const btn = document.getElementById('main-btn');
             const settingsSection = document.getElementById('settings-section');
             
             if (botRunning) {
-                dot.className = 'status-dot running';
+                dot.classList.add('running');
                 text.textContent = 'Бот работает';
-                
-                info.innerHTML = `
-                    <span class="status-info-item">💰 $${(botData.balance || 0).toLocaleString()}</span>
-                    <span class="status-info-item">📊 ${botData.active_trades || 0} сделок</span>
-                    <span class="status-info-item">${botData.paper_trading ? '📝 Paper' : '💰 Live'}</span>
-                `;
-                
-                btn.className = 'main-control-btn stop';
+                info.innerHTML = '<span>Уведомления приходят в Telegram</span>';
+                btn.className = 'main-btn stop';
+                btn.textContent = '🛑 ОСТАНОВИТЬ';
                 btn.disabled = false;
-                btnIcon.textContent = '🛑';
-                btnText.textContent = 'ОСТАНОВИТЬ БОТА';
-                
-                // Hide settings when running
                 settingsSection.style.display = 'none';
-                
             } else {
-                dot.className = 'status-dot stopped';
+                dot.classList.remove('running');
                 text.textContent = 'Бот остановлен';
-                
-                info.innerHTML = `<span class="status-info-item">Настройте и запустите</span>`;
-                
-                btn.className = 'main-control-btn start';
+                info.innerHTML = '<span>Настройте и запустите</span>';
+                btn.className = 'main-btn start';
+                btn.textContent = '🚀 ЗАПУСТИТЬ';
                 btn.disabled = false;
-                btnIcon.textContent = '🚀';
-                btnText.textContent = 'ЗАПУСТИТЬ БОТА';
-                
-                // Show settings
                 settingsSection.style.display = 'block';
             }
+            
+            updateSummary();
         }
         
+        // ============ MAIN ACTION ============
         async function handleMainAction() {
-            const btn = document.getElementById('main-control-btn');
-            const btnIcon = document.getElementById('btn-icon');
-            const btnText = document.getElementById('btn-text');
-            
-            btn.className = 'main-control-btn loading';
+            const btn = document.getElementById('main-btn');
             btn.disabled = true;
-            btnIcon.textContent = '⏳';
-            btnText.textContent = botRunning ? 'Останавливаю...' : 'Запускаю...';
+            btn.textContent = botRunning ? '⏳ Останавливаю...' : '⏳ Запускаю...';
             
-            if (botRunning) {
-                // STOP
-                try {
+            // Собираем настройки
+            collectSettings();
+            
+            try {
+                if (botRunning) {
                     await fetch('/api/stop', { method: 'POST' });
-                    
-                    btnIcon.textContent = '✅';
-                    btnText.textContent = 'Готово!';
-                    
-                    setTimeout(() => tg.close(), 800);
-                } catch (e) {
-                    console.error('Stop error:', e);
-                    alert('Ошибка остановки');
-                    checkBotStatus();
-                }
-            } else {
-                // START
-                collectSettings();
-                
-                try {
+                } else {
                     await fetch('/api/start', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(settings)
                     });
-                    
-                    btnIcon.textContent = '✅';
-                    btnText.textContent = 'Запущено!';
-                    
-                    setTimeout(() => tg.close(), 800);
-                } catch (e) {
-                    console.error('Start error:', e);
-                    alert('Ошибка запуска');
-                    checkBotStatus();
                 }
+                
+                btn.textContent = '✅ Готово!';
+                setTimeout(() => tg.close(), 500);
+                
+            } catch (e) {
+                alert('Ошибка: ' + e.message);
+                checkBotStatus();
             }
         }
         
@@ -1037,75 +1024,118 @@
             settings.bybit_api_secret = document.getElementById('api-secret').value;
         }
         
-        // === SETTINGS ===
-        async function loadSettings() {
-            try {
-                const resp = await fetch('/api/settings');
-                if (resp.ok) {
-                    const data = await resp.json();
-                    settings = { ...settings, ...data };
-                    applySettings();
-                }
-            } catch (e) {
-                console.log('Using defaults');
-            }
-        }
-        
-        function applySettings() {
-            document.getElementById('api-key').value = settings.bybit_api_key || '';
-            document.getElementById('api-secret').value = settings.bybit_api_secret || '';
-            updateApiStatus();
-            
-            setNetwork(settings.bybit_testnet ? 'testnet' : 'mainnet', false);
-            renderCoins();
-            
-            document.getElementById('risk-slider').value = settings.risk_percent;
-            document.getElementById('trades-slider').value = settings.max_trades;
-            document.getElementById('confidence-slider').value = settings.ai_confidence;
-            updateAllSliders();
-            
-            setAI(settings.ai_enabled, false);
-            setMode(settings.paper_trading ? 'paper' : 'live', false);
-        }
-        
-        function toggleCard(id) {
-            document.getElementById('card-' + id).classList.toggle('open');
-        }
-        
-        function togglePassword(inputId) {
-            const input = document.getElementById(inputId);
-            input.type = input.type === 'password' ? 'text' : 'password';
-        }
-        
+        // ============ API KEYS ============
         function updateApiStatus() {
             const key = document.getElementById('api-key').value;
             const secret = document.getElementById('api-secret').value;
-            const status = document.getElementById('api-status');
+            const badge = document.getElementById('api-badge');
+            const warning = document.getElementById('auto-warning');
             
-            if (key && secret && key.length > 10 && secret.length > 10) {
-                status.textContent = '✓ OK';
-                status.className = 'status-badge success';
+            hasApiKeys = key.length > 10 && secret.length > 10;
+            
+            if (hasApiKeys) {
+                badge.textContent = '✓ OK';
+                badge.className = 'api-badge ok';
+                warning.style.display = 'none';
             } else {
-                status.textContent = 'Не настроено';
-                status.className = 'status-badge warning';
+                badge.textContent = 'Не указаны';
+                badge.className = 'api-badge missing';
+                
+                // Проверяем есть ли авто-режимы
+                const hasAuto = Object.values(settings.modules).some(m => m.enabled && m.mode === 'auto');
+                warning.style.display = hasAuto ? 'block' : 'none';
             }
+            
+            updateModuleButtons();
+            updateSummary();
+        }
+        
+        function togglePassword(id) {
+            const input = document.getElementById(id);
+            input.type = input.type === 'password' ? 'text' : 'password';
         }
         
         function setNetwork(network) {
-            const testnet = document.getElementById('btn-testnet');
-            const mainnet = document.getElementById('btn-mainnet');
-            
-            if (network === 'testnet') {
-                testnet.classList.add('active');
-                mainnet.classList.remove('active');
-                settings.bybit_testnet = true;
-            } else {
-                mainnet.classList.add('active');
-                testnet.classList.remove('active');
-                settings.bybit_testnet = false;
-            }
+            document.getElementById('btn-testnet').classList.toggle('active', network === 'testnet');
+            document.getElementById('btn-mainnet').classList.toggle('active', network === 'mainnet');
+            settings.bybit_testnet = network === 'testnet';
         }
         
+        // ============ MODULES ============
+        function setModuleMode(module, mode) {
+            // Если нет API и пытается включить авто — предупреждаем
+            if (mode === 'auto' && !hasApiKeys) {
+                alert('⚠️ Для авто-режима нужно ввести API ключи Bybit');
+                return;
+            }
+            
+            settings.modules[module].mode = mode;
+            
+            // UI
+            document.getElementById(`${module}-signal`).classList.toggle('active', mode === 'signal');
+            document.getElementById(`${module}-auto`).classList.toggle('active', mode === 'auto');
+            
+            updateModulesSummary();
+            updateSummary();
+        }
+        
+        function updateModule(module) {
+            const enabled = document.getElementById(`module-${module}-enabled`).checked;
+            settings.modules[module].enabled = enabled;
+            
+            // Disable mode buttons if module disabled
+            const signalBtn = document.getElementById(`${module}-signal`);
+            const autoBtn = document.getElementById(`${module}-auto`);
+            
+            signalBtn.disabled = !enabled;
+            autoBtn.disabled = !enabled;
+            signalBtn.style.opacity = enabled ? '1' : '0.3';
+            autoBtn.style.opacity = enabled ? '1' : '0.3';
+            
+            updateModulesSummary();
+            updateSummary();
+        }
+        
+        function updateModuleButtons() {
+            // Disable auto buttons if no API keys
+            Object.keys(settings.modules).forEach(module => {
+                const autoBtn = document.getElementById(`${module}-auto`);
+                if (!hasApiKeys) {
+                    autoBtn.disabled = true;
+                    autoBtn.style.opacity = '0.3';
+                    
+                    // Reset to signal if was auto
+                    if (settings.modules[module].mode === 'auto') {
+                        setModuleMode(module, 'signal');
+                    }
+                } else {
+                    const enabled = settings.modules[module].enabled;
+                    autoBtn.disabled = !enabled;
+                    autoBtn.style.opacity = enabled ? '1' : '0.3';
+                }
+            });
+        }
+        
+        function updateModulesSummary() {
+            let signalCount = 0;
+            let autoCount = 0;
+            
+            Object.values(settings.modules).forEach(m => {
+                if (m.enabled) {
+                    if (m.mode === 'signal') signalCount++;
+                    else autoCount++;
+                }
+            });
+            
+            document.getElementById('modules-summary').textContent = 
+                `📢 Сигналы: ${signalCount} | 🤖 Авто: ${autoCount}`;
+            
+            // Show warning if auto without API
+            const warning = document.getElementById('auto-warning');
+            warning.style.display = (autoCount > 0 && !hasApiKeys) ? 'block' : 'none';
+        }
+        
+        // ============ COINS ============
         function renderCoins() {
             const grid = document.getElementById('coins-grid');
             let count = 0;
@@ -1115,7 +1145,7 @@
                 if (active) count++;
                 return `
                     <button class="coin-btn ${active ? 'active' : ''}" onclick="toggleCoin('${coin.id}')">
-                        <div class="coin-icon ${coin.color}">${coin.id.charAt(0)}</div>
+                        <div class="coin-icon ${coin.color}">${coin.id[0]}</div>
                         <div class="coin-name">${coin.id}</div>
                         <div class="coin-status">${active ? '✓' : '—'}</div>
                     </button>
@@ -1128,23 +1158,19 @@
         function toggleCoin(id) {
             settings.coins[id] = !settings.coins[id];
             renderCoins();
+            updateSummary();
         }
         
-        function updateAllSliders() {
-            updateSlider('risk');
-            updateSlider('trades');
-            updateSlider('confidence');
-        }
-        
+        // ============ SLIDERS ============
         function updateSlider(type) {
-            const slider = document.getElementById(type + '-slider');
+            const slider = document.getElementById(`${type}-slider`);
             const value = parseInt(slider.value);
             const min = parseInt(slider.min);
             const max = parseInt(slider.max);
             const percent = ((value - min) / (max - min)) * 100;
             
-            document.getElementById(type + '-fill').style.width = percent + '%';
-            document.getElementById(type + '-thumb').style.left = percent + '%';
+            document.getElementById(`${type}-fill`).style.width = percent + '%';
+            document.getElementById(`${type}-thumb`).style.left = percent + '%';
             
             if (type === 'risk') {
                 document.getElementById('risk-value').textContent = value + '%';
@@ -1158,53 +1184,127 @@
             }
         }
         
+        // ============ AI ============
         function setAI(enabled) {
-            const on = document.getElementById('btn-ai-on');
-            const off = document.getElementById('btn-ai-off');
-            
-            if (enabled) {
-                on.classList.add('active');
-                off.classList.remove('active');
-            } else {
-                off.classList.add('active');
-                on.classList.remove('active');
-            }
+            document.getElementById('btn-ai-on').classList.toggle('active', enabled);
+            document.getElementById('btn-ai-off').classList.toggle('active', !enabled);
             settings.ai_enabled = enabled;
         }
         
-        function setMode(mode) {
-            const paper = document.getElementById('btn-paper');
-            const live = document.getElementById('btn-live');
-            const warning = document.getElementById('live-warning');
-            const subtitle = document.getElementById('mode-subtitle');
-            
-            if (mode === 'paper') {
-                paper.classList.add('active');
-                live.classList.remove('active');
-                live.classList.remove('danger');
-                warning.classList.add('hidden');
-                subtitle.textContent = 'Paper Trading';
-                settings.paper_trading = true;
-            } else {
-                live.classList.add('active');
-                live.classList.add('danger');
-                paper.classList.remove('active');
-                warning.classList.remove('hidden');
-                subtitle.textContent = '⚠️ Live Trading';
-                settings.paper_trading = false;
-            }
+        // ============ CARDS ============
+        function toggleCard(id) {
+            document.getElementById('card-' + id).classList.toggle('open');
         }
         
+        // ============ SUMMARY ============
+        function updateSummary() {
+            const content = document.getElementById('summary-content');
+            
+            const modulesMap = {
+                director: '🎩 Director',
+                grid: '📊 Grid Bot',
+                funding: '💰 Funding',
+                arbitrage: '🔄 Arbitrage',
+                listing: '🆕 Listing',
+                worker: '👷 RSI'
+            };
+            
+            let html = '';
+            
+            // Модули
+            Object.entries(settings.modules).forEach(([key, val]) => {
+                if (val.enabled) {
+                    const modeClass = val.mode === 'auto' ? 'auto' : 'signal';
+                    const modeText = val.mode === 'auto' ? '🤖 Авто' : '📢 Сигнал';
+                    html += `
+                        <div class="summary-row">
+                            <span class="summary-label">${modulesMap[key]}</span>
+                            <span class="summary-value ${modeClass}">${modeText}</span>
+                        </div>
+                    `;
+                }
+            });
+            
+            // Монеты
+            const coinsList = Object.entries(settings.coins)
+                .filter(([k, v]) => v)
+                .map(([k]) => k)
+                .join(', ');
+            
+            html += `
+                <div class="summary-row">
+                    <span class="summary-label">Монеты</span>
+                    <span class="summary-value">${coinsList || 'Не выбраны'}</span>
+                </div>
+            `;
+            
+            // AI
+            html += `
+                <div class="summary-row">
+                    <span class="summary-label">AI анализ</span>
+                    <span class="summary-value">${settings.ai_enabled ? '✅ Вкл' : '❌ Выкл'}</span>
+                </div>
+            `;
+            
+            // API
+            html += `
+                <div class="summary-row">
+                    <span class="summary-label">API Bybit</span>
+                    <span class="summary-value ${hasApiKeys ? 'auto' : 'signal'}">${hasApiKeys ? '✅ Подключён' : '❌ Нет'}</span>
+                </div>
+            `;
+            
+            content.innerHTML = html;
+        }
+        
+        // ============ INIT ============
+        async function init() {
+            // Load saved settings
+            try {
+                const resp = await fetch('/api/settings');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    settings = { ...settings, ...data };
+                    
+                    // Apply to UI
+                    document.getElementById('api-key').value = settings.bybit_api_key || '';
+                    document.getElementById('api-secret').value = settings.bybit_api_secret || '';
+                    setNetwork(settings.bybit_testnet ? 'testnet' : 'mainnet');
+                    
+                    // Modules
+                    Object.entries(settings.modules).forEach(([module, config]) => {
+                        document.getElementById(`module-${module}-enabled`).checked = config.enabled;
+                        document.getElementById(`${module}-signal`).classList.toggle('active', config.mode === 'signal');
+                        document.getElementById(`${module}-auto`).classList.toggle('active', config.mode === 'auto');
+                        updateModule(module);
+                    });
+                    
+                    // Sliders
+                    document.getElementById('risk-slider').value = settings.risk_percent;
+                    document.getElementById('trades-slider').value = settings.max_trades;
+                    document.getElementById('confidence-slider').value = settings.ai_confidence;
+                    updateSlider('risk');
+                    updateSlider('trades');
+                    updateSlider('confidence');
+                    
+                    setAI(settings.ai_enabled);
+                }
+            } catch (e) {
+                console.log('Using defaults');
+            }
+            
+            updateApiStatus();
+            renderCoins();
+            updateModulesSummary();
+            checkBotStatus();
+        }
+        
+        // Event listeners
         document.getElementById('api-key').addEventListener('input', updateApiStatus);
         document.getElementById('api-secret').addEventListener('input', updateApiStatus);
         
-        // Init
-        checkBotStatus();
-        loadSettings();
-        renderCoins();
-        updateAllSliders();
-        
-        // Refresh status every 5 sec
+        // Start
+        init();
         setInterval(checkBotStatus, 5000);
     </script>
 </body>
