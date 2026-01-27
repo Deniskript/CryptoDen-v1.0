@@ -28,6 +28,7 @@ from app.ai.trading_coordinator import trading_coordinator, get_director_guidanc
 from app.ai.director_ai import director_trader
 from app.ai.whale_ai import whale_ai
 from app.modules.grid_bot import grid_bot
+from app.modules.funding_scalper import funding_scalper
 
 
 class MarketMonitor:
@@ -439,6 +440,22 @@ class MarketMonitor:
                 logger.error(f"Grid Bot error: {e}")
         
         # ========================================
+        # 💰 ШАГ 3.5: Funding Scalper
+        # ========================================
+        if funding_scalper.enabled:
+            try:
+                funding_signals = await funding_scalper.get_signals({"prices": prices})
+                
+                for signal in funding_signals:
+                    logger.info(f"💰 Funding: {signal.direction} {signal.symbol} - {signal.reason}")
+                    
+                    # Уведомление в Telegram
+                    await self._notify_funding_trade(signal)
+                    
+            except Exception as e:
+                logger.error(f"Funding Scalper error: {e}")
+        
+        # ========================================
         # 👷 ШАГ 4: Worker ищет сигналы по стратегиям
         # ========================================
         guidance = await get_director_guidance()
@@ -623,6 +640,47 @@ class MarketMonitor:
             
         except Exception as e:
             logger.error(f"Grid notification error: {e}")
+    
+    async def _notify_funding_trade(self, signal):
+        """💰 Уведомление о сделке Funding Scalper"""
+        try:
+            is_close = signal.direction.startswith("CLOSE")
+            
+            if is_close:
+                emoji = "✅" if "+" in signal.reason else "❌"
+                text = f"""
+💰 *FUNDING SCALPER — ЗАКРЫТИЕ*
+
+{emoji} {signal.symbol}
+📊 {signal.reason}
+
+⏰ {signal.timestamp.strftime('%H:%M:%S')}
+"""
+            else:
+                emoji = "🟢" if signal.direction == "LONG" else "🔴"
+                
+                # Получаем статус
+                status = await funding_scalper.get_status()
+                minutes_to = status.get("minutes_to_funding", 0)
+                
+                text = f"""
+💰 *FUNDING SCALPER — ВХОД*
+
+{emoji} *{signal.direction}* {signal.symbol}
+
+💵 *Вход:* ${signal.entry_price:,.2f}
+🎯 *TP:* ${signal.take_profit:,.2f}
+🛑 *SL:* ${signal.stop_loss:,.2f}
+
+📊 *Причина:* {signal.reason}
+⏰ *До Funding:* {minutes_to} мин
+
+⏰ {signal.timestamp.strftime('%H:%M:%S')}
+"""
+            await telegram_bot.send_message(text)
+            
+        except Exception as e:
+            logger.error(f"Funding notification error: {e}")
     
     async def _execute_signal(self, signal: Signal, value: float = None):
         """Выполнить сигнал — открыть сделку"""

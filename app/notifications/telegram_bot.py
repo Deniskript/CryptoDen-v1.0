@@ -91,6 +91,7 @@ class TelegramBot:
             BotCommand(command="director_trades", description="🎩 Сделки Директора"),
             BotCommand(command="whale", description="🐋 Анализ китов"),
             BotCommand(command="grid", description="📊 Grid Bot статус"),
+            BotCommand(command="funding", description="💰 Funding Scalper"),
             BotCommand(command="market", description="📊 Полная картина рынка"),
             BotCommand(command="debug", description="🔍 Диагностика"),
             BotCommand(command="help", description="❓ Помощь")
@@ -579,6 +580,25 @@ _{mode_desc}_
                 
             except Exception as e:
                 logger.error(f"Grid status error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("funding"))
+        async def cmd_funding(message: types.Message):
+            """💰 Funding Scalper — статус"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            try:
+                from app.modules.funding_scalper import funding_scalper
+                
+                # Обновляем данные перед показом
+                await funding_scalper.fetch_funding_rates()
+                
+                text = funding_scalper.get_status_text()
+                await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Funding status error: {e}")
                 await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(Command("director"))
