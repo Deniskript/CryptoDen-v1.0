@@ -90,6 +90,7 @@ class TelegramBot:
             BotCommand(command="director", description="🎩 Решения Директора"),
             BotCommand(command="director_trades", description="🎩 Сделки Директора"),
             BotCommand(command="whale", description="🐋 Анализ китов"),
+            BotCommand(command="grid", description="📊 Grid Bot статус"),
             BotCommand(command="market", description="📊 Полная картина рынка"),
             BotCommand(command="debug", description="🔍 Диагностика"),
             BotCommand(command="help", description="❓ Помощь")
@@ -563,6 +564,22 @@ _{mode_desc}_
             except Exception as e:
                 logger.error(f"Whale AI error: {e}")
                 await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("grid"))
+        async def cmd_grid(message: types.Message):
+            """📊 Grid Bot — статус сетки ордеров"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            try:
+                from app.modules.grid_bot import grid_bot
+                
+                text = grid_bot.get_status_text()
+                await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Grid status error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(Command("director"))
         async def cmd_director(message: types.Message):

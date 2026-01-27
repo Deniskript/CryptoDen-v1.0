@@ -27,6 +27,7 @@ from app.backtesting.data_loader import BybitDataLoader
 from app.ai.trading_coordinator import trading_coordinator, get_director_guidance
 from app.ai.director_ai import director_trader
 from app.ai.whale_ai import whale_ai
+from app.modules.grid_bot import grid_bot
 
 
 class MarketMonitor:
@@ -422,7 +423,23 @@ class MarketMonitor:
             return
         
         # ========================================
-        # 👷 ШАГ 3: Worker ищет сигналы по стратегиям
+        # 📊 ШАГ 3: Grid Bot
+        # ========================================
+        if grid_bot.enabled:
+            try:
+                grid_signals = await grid_bot.get_signals({"prices": prices})
+                
+                for signal in grid_signals:
+                    logger.info(f"📊 Grid: {signal.direction} {signal.symbol} @ {signal.entry_price:.2f}")
+                    
+                    # Уведомление в Telegram
+                    await self._notify_grid_trade(signal)
+                    
+            except Exception as e:
+                logger.error(f"Grid Bot error: {e}")
+        
+        # ========================================
+        # 👷 ШАГ 4: Worker ищет сигналы по стратегиям
         # ========================================
         guidance = await get_director_guidance()
         
@@ -583,6 +600,29 @@ class MarketMonitor:
             
         except Exception as e:
             logger.error(f"Director notification error: {e}")
+    
+    async def _notify_grid_trade(self, signal):
+        """📊 Уведомление о сделке Grid Bot"""
+        try:
+            emoji = "🟢" if signal.direction == "BUY" else "🔴"
+            
+            # Получаем статистику
+            status = await grid_bot.get_status()
+            
+            text = f"""
+📊 *GRID BOT*
+
+{emoji} *{signal.direction}* {signal.symbol} @ ${signal.entry_price:,.2f}
+
+📈 *Сегодня:* {status['today_trades']} сделок | ${status['today_profit_usdt']:.2f}
+📊 *Всего:* {status['total_trades']} сделок | ${status['total_profit_usdt']:.2f}
+
+⏰ {signal.timestamp.strftime('%H:%M:%S')}
+"""
+            await telegram_bot.send_message(text)
+            
+        except Exception as e:
+            logger.error(f"Grid notification error: {e}")
     
     async def _execute_signal(self, signal: Signal, value: float = None):
         """Выполнить сигнал — открыть сделку"""
