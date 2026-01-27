@@ -101,7 +101,7 @@ class TelegramBot:
         await self.bot.set_my_commands(commands)
     
     def _get_status_text(self) -> str:
-        """Текст статуса — БЕЗ кнопок!"""
+        """Текст статуса с режимами модулей"""
         
         running = self.monitor.running
         status = "🟢 *БОТ РАБОТАЕТ*" if running else "🔴 *БОТ ОСТАНОВЛЕН*"
@@ -118,39 +118,92 @@ class TelegramBot:
         win_rate = stats.get('win_rate', 0)
         
         ai = "✅" if self.monitor.ai_enabled else "❌"
-        mode = "📝 Paper" if self.monitor.paper_trading else "💰 LIVE"
+        api_status = "✅ Подключён" if getattr(self.monitor, 'has_api_keys', False) else "❌ Нет"
+        
+        # Подсчёт режимов модулей
+        module_settings = getattr(self.monitor, 'module_settings', {})
+        signal_count = sum(1 for m in module_settings.values() if m.get('enabled') and m.get('mode') == 'signal')
+        auto_count = sum(1 for m in module_settings.values() if m.get('enabled') and m.get('mode') == 'auto')
+        
+        # Формируем строку модулей
+        modules_text = ""
+        module_icons = {
+            'director': '🎩',
+            'grid': '📊',
+            'funding': '💰',
+            'arbitrage': '🔄',
+            'listing': '🆕',
+            'worker': '👷'
+        }
+        
+        for name, config in module_settings.items():
+            if config.get('enabled'):
+                icon = module_icons.get(name, '📦')
+                mode = "🤖" if config.get('mode') == 'auto' else "📢"
+                modules_text += f"{icon}{mode} "
         
         text = f"""
 {status}
 
-🧠 AI: {ai}  •  {mode}
-
 ━━━━━━━━━━━━━━━━━━━━━━
+🧠 AI: {ai}  •  🔐 API: {api_status}
+📢 Сигналы: {signal_count} | 🤖 Авто: {auto_count}
+━━━━━━━━━━━━━━━━━━━━━━
+
 💰 *Баланс:* ${balance:,.2f}
 💵 *Сделка:* ${trade_size:,.2f} ({percent}%)
 📊 *Позиции:* {active}/{max_trades}
+
 ━━━━━━━━━━━━━━━━━━━━━━
 📈 *Сегодня:* ${today_pnl:+,.2f}
 💎 *Всего:* ${total_pnl:+,.2f}
 🎯 *Win Rate:* {win_rate:.1f}%
 
-_Управление через 🎛 Панель управления_
+*Модули:* {modules_text.strip()}
+
+_🎛 Панель управления — настройки_
 """
         return text.strip()
     
     def _apply_settings(self, settings_data: dict):
-        """Применить настройки из WebApp"""
+        """Применить настройки из WebApp включая режимы модулей"""
         if not settings_data:
             return
         
+        # Базовые настройки
         self.monitor.ai_enabled = settings_data.get('ai_enabled', True)
-        self.monitor.paper_trading = settings_data.get('paper_trading', True)
         self.monitor.balance_percent_per_trade = settings_data.get('risk_percent', 15) / 100
         self.monitor.max_open_trades = settings_data.get('max_trades', 6)
         self.monitor.min_confidence = settings_data.get('ai_confidence', 60)
         
+        # Монеты
         coins = settings_data.get('coins', {})
         self.monitor.symbols = [c for c, enabled in coins.items() if enabled]
+        
+        # API ключи (проверяем наличие)
+        api_key = settings_data.get('bybit_api_key', '')
+        api_secret = settings_data.get('bybit_api_secret', '')
+        self.monitor.has_api_keys = bool(api_key and api_secret and len(api_key) > 10 and len(api_secret) > 10)
+        self.monitor.bybit_testnet = settings_data.get('bybit_testnet', True)
+        
+        # Режимы модулей
+        modules_config = settings_data.get('modules', {})
+        self.monitor.module_settings = {
+            'director': modules_config.get('director', {'enabled': True, 'mode': 'signal'}),
+            'grid': modules_config.get('grid', {'enabled': True, 'mode': 'signal'}),
+            'funding': modules_config.get('funding', {'enabled': True, 'mode': 'signal'}),
+            'arbitrage': modules_config.get('arbitrage', {'enabled': False, 'mode': 'signal'}),
+            'listing': modules_config.get('listing', {'enabled': True, 'mode': 'signal'}),
+            'worker': modules_config.get('worker', {'enabled': True, 'mode': 'signal'}),
+        }
+        
+        # Если нет API ключей — все модули в режиме signal
+        if not self.monitor.has_api_keys:
+            for module in self.monitor.module_settings:
+                self.monitor.module_settings[module]['mode'] = 'signal'
+        
+        logger.info(f"📱 Settings applied: {len(self.monitor.symbols)} coins, API: {self.monitor.has_api_keys}")
+        logger.info(f"📱 Module modes: {self.monitor.module_settings}")
     
     def _register_handlers(self):
         """Регистрация обработчиков"""

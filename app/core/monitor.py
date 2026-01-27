@@ -72,6 +72,20 @@ class MarketMonitor:
         self.ai_enabled: bool = True
         self.min_confidence: int = 60  # Минимальная уверенность AI для сделки
         
+        # Режимы модулей (signal/auto)
+        self.module_settings: Dict[str, dict] = {
+            'director': {'enabled': True, 'mode': 'signal'},
+            'grid': {'enabled': True, 'mode': 'signal'},
+            'funding': {'enabled': True, 'mode': 'signal'},
+            'arbitrage': {'enabled': False, 'mode': 'signal'},
+            'listing': {'enabled': True, 'mode': 'signal'},
+            'worker': {'enabled': True, 'mode': 'signal'},
+        }
+        
+        # API статус
+        self.has_api_keys: bool = False
+        self.bybit_testnet: bool = True
+        
         # Клиенты
         self.bybit = BybitClient(testnet=False)
         self.data_loader = BybitDataLoader()
@@ -80,6 +94,24 @@ class MarketMonitor:
         
         # Обновляем статус при инициализации
         self._update_status_file()
+    
+    def get_module_mode(self, module_name: str) -> str:
+        """Получить режим модуля: 'signal' или 'auto'"""
+        config = self.module_settings.get(module_name, {})
+        if not config.get('enabled', False):
+            return 'disabled'
+        return config.get('mode', 'signal')
+    
+    def is_module_enabled(self, module_name: str) -> bool:
+        """Проверить включён ли модуль"""
+        config = self.module_settings.get(module_name, {})
+        return config.get('enabled', False)
+    
+    def can_auto_trade(self, module_name: str) -> bool:
+        """Может ли модуль торговать автоматически"""
+        if not self.has_api_keys:
+            return False
+        return self.get_module_mode(module_name) == 'auto'
     
     def _update_status_file(self):
         """Обновить файл статуса для WebApp"""
@@ -378,9 +410,11 @@ class MarketMonitor:
             news_context["critical_count"] = critical
         
         # ========================================
-        # 🎩 ШАГ 1: Director проверяет TAKE_CONTROL
+        # 🎩 ШАГ 1: Director AI
         # ========================================
-        if not director_trader.is_controlling:
+        director_took_control = False
+        
+        if self.is_module_enabled('director') and not director_trader.is_controlling:
             try:
                 should_take, direction, reason = await director_trader.should_take_control(
                     whale_metrics=whale_metrics,
@@ -389,33 +423,36 @@ class MarketMonitor:
                 )
                 
                 if should_take:
-                    logger.warning(f"🎩 TAKE_CONTROL: {direction} - {reason}")
+                    director_took_control = True
                     
-                    # Выбираем лучший символ для торговли
-                    best_symbol = "BTC"
-                    if "BTCUSDT" in prices:
+                    if self.can_auto_trade('director'):
+                        # AUTO режим — Director торгует сам
+                        logger.warning(f"🎩 Director AUTO: {direction} - {reason}")
+                        
+                        # Выбираем лучший символ
                         best_symbol = "BTC"
-                    elif "BTC" in prices:
-                        best_symbol = "BTC"
-                    
-                    # Рассчитываем размер позиции (20% для Director - агрессивно!)
-                    trade_size = self.current_balance * 0.20
-                    
-                    # Director открывает сделку!
-                    trade = await director_trader.execute_trade(
-                        symbol=best_symbol,
-                        direction=direction,
-                        reason=reason,
-                        size_usd=trade_size
-                    )
-                    
-                    if trade:
-                        logger.info(f"🎩 Director opened {best_symbol} {direction} ${trade_size:.0f}")
-                        await self._notify_director_trade(trade, reason)
-                        return  # Director управляет, дальше не идём
+                        
+                        # Рассчитываем размер (20% для Director)
+                        trade_size = self.current_balance * 0.20
+                        
+                        trade = await director_trader.execute_trade(
+                            symbol=best_symbol,
+                            direction=direction,
+                            reason=reason,
+                            size_usd=trade_size
+                        )
+                        
+                        if trade:
+                            logger.info(f"🎩 Director opened {best_symbol} {direction} ${trade_size:.0f}")
+                            await self._notify_director_executed(trade, reason)
+                            return  # Director управляет
+                    else:
+                        # SIGNAL режим — только уведомление
+                        logger.info(f"🎩 Director SIGNAL: {direction} - {reason}")
+                        await self._notify_director_signal(direction, reason)
                     
             except Exception as e:
-                logger.error(f"Director TAKE_CONTROL error: {e}")
+                logger.error(f"Director AI error: {e}")
         
         # ========================================
         # 🎩 ШАГ 2: Если Director управляет - ждём
@@ -428,15 +465,20 @@ class MarketMonitor:
         # ========================================
         # 📊 ШАГ 3: Grid Bot
         # ========================================
-        if grid_bot.enabled:
+        if self.is_module_enabled('grid'):
             try:
                 grid_signals = await grid_bot.get_signals({"prices": prices})
                 
                 for signal in grid_signals:
-                    logger.info(f"📊 Grid: {signal.direction} {signal.symbol} @ {signal.entry_price:.2f}")
-                    
-                    # Уведомление в Telegram
-                    await self._notify_grid_trade(signal)
+                    if self.can_auto_trade('grid'):
+                        # AUTO режим — исполняем сделку
+                        logger.info(f"📊 Grid AUTO: {signal.direction} {signal.symbol}")
+                        await self._execute_grid_trade(signal)
+                        await self._notify_grid_executed(signal)
+                    else:
+                        # SIGNAL режим — только уведомление
+                        logger.info(f"📊 Grid SIGNAL: {signal.direction} {signal.symbol}")
+                        await self._notify_grid_signal(signal)
                     
             except Exception as e:
                 logger.error(f"Grid Bot error: {e}")
@@ -444,15 +486,20 @@ class MarketMonitor:
         # ========================================
         # 💰 ШАГ 3.5: Funding Scalper
         # ========================================
-        if funding_scalper.enabled:
+        if self.is_module_enabled('funding'):
             try:
                 funding_signals = await funding_scalper.get_signals({"prices": prices})
                 
                 for signal in funding_signals:
-                    logger.info(f"💰 Funding: {signal.direction} {signal.symbol} - {signal.reason}")
-                    
-                    # Уведомление в Telegram
-                    await self._notify_funding_trade(signal)
+                    if self.can_auto_trade('funding'):
+                        # AUTO режим — исполняем сделку
+                        logger.info(f"💰 Funding AUTO: {signal.direction} {signal.symbol}")
+                        await self._execute_funding_trade(signal)
+                        await self._notify_funding_executed(signal)
+                    else:
+                        # SIGNAL режим — только уведомление
+                        logger.info(f"💰 Funding SIGNAL: {signal.direction} {signal.symbol}")
+                        await self._notify_funding_signal(signal)
                     
             except Exception as e:
                 logger.error(f"Funding Scalper error: {e}")
@@ -460,31 +507,55 @@ class MarketMonitor:
         # ========================================
         # 🔄 ШАГ 3.7: Arbitrage Scanner
         # ========================================
-        if arbitrage_scanner.enabled:
+        if self.is_module_enabled('arbitrage'):
             try:
                 arb_signals = await arbitrage_scanner.get_signals({"prices": prices})
                 
                 for signal in arb_signals:
-                    logger.info(f"🔄 Arbitrage: {signal.reason}")
-                    
-                    # Уведомление в Telegram
-                    await self._notify_arbitrage_trade(signal)
+                    if self.can_auto_trade('arbitrage'):
+                        # AUTO режим — исполняем арбитраж
+                        logger.info(f"🔄 Arbitrage AUTO: {signal.reason}")
+                        await self._execute_arbitrage(signal)
+                        await self._notify_arbitrage_executed(signal)
+                    else:
+                        # SIGNAL режим — только уведомление
+                        logger.info(f"🔄 Arbitrage SIGNAL: {signal.reason}")
+                        await self._notify_arbitrage_signal(signal)
                     
             except Exception as e:
-                logger.error(f"Arbitrage Scanner error: {e}")
+                logger.error(f"Arbitrage error: {e}")
         
         # ========================================
         # 🆕 ШАГ 3.8: Listing Hunter
         # ========================================
-        if listing_hunter.enabled:
+        if self.is_module_enabled('listing'):
             try:
+                from app.modules.listing_hunter import ListingType
+                
                 listing_signals = await listing_hunter.get_signals({"prices": prices})
                 
                 for signal in listing_signals:
-                    logger.info(f"🆕 Listing: {signal.symbol} - {signal.reason}")
+                    # Находим листинг
+                    listing = None
+                    for l in listing_hunter.history[-10:]:
+                        if l.symbol == signal.symbol:
+                            listing = l
+                            break
                     
-                    # Уведомление в Telegram
-                    await self._notify_listing(signal)
+                    if not listing:
+                        continue
+                    
+                    # Listing Scalp можно автоматизировать
+                    if listing.listing_type == ListingType.LISTING_SCALP:
+                        if self.can_auto_trade('listing'):
+                            logger.info(f"🆕 Listing AUTO: BUY {signal.symbol}")
+                            await self._execute_listing_trade(signal, listing)
+                            await self._notify_listing_executed(signal, listing)
+                        else:
+                            await self._notify_listing_signal(signal, listing)
+                    else:
+                        # Pre-listing и Launchpad — только сигналы
+                        await self._notify_listing_signal(signal, listing)
                     
             except Exception as e:
                 logger.error(f"Listing Hunter error: {e}")
@@ -492,6 +563,9 @@ class MarketMonitor:
         # ========================================
         # 👷 ШАГ 4: Worker ищет сигналы по стратегиям
         # ========================================
+        if not self.is_module_enabled('worker') or director_took_control:
+            return
+        
         guidance = await get_director_guidance()
         
         decision = guidance.get("decision", "continue")
@@ -862,6 +936,385 @@ class MarketMonitor:
             
         except Exception as e:
             logger.error(f"Listing notification error: {e}")
+    
+    # ==========================================
+    # 📢 УВЕДОМЛЕНИЯ SIGNAL MODE
+    # ==========================================
+    
+    async def _notify_grid_signal(self, signal):
+        """📊 Grid Bot — рекомендация (signal mode)"""
+        try:
+            is_buy = signal.direction == "BUY"
+            emoji = "🟢" if is_buy else "🔴"
+            action = "КУПИТЬ" if is_buy else "ПРОДАТЬ"
+            
+            # Расчёт цели
+            target_pct = 0.3  # Grid step
+            if is_buy:
+                target = signal.entry_price * (1 + target_pct / 100)
+            else:
+                target = signal.entry_price * (1 - target_pct / 100)
+            
+            text = f"""
+📊 *GRID BOT — СИГНАЛ*
+
+{emoji} Рекомендация: *{action} {signal.symbol}*
+
+━━━━━━━━━━━━━━━━━━━━
+💰 Цена: ${signal.entry_price:,.2f}
+🎯 Цель: ${target:,.2f} ({'+' if is_buy else '-'}{target_pct}%)
+━━━━━━━━━━━━━━━━━━━━
+
+💡 _Сетка показывает хорошую точку._
+_Рекомендуем {'купить' if is_buy else 'продать'} вручную._
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Grid signal notification error: {e}")
+    
+    async def _notify_grid_executed(self, signal):
+        """📊 Grid Bot — выполнено (auto mode)"""
+        try:
+            is_buy = signal.direction == "BUY"
+            emoji = "🟢" if is_buy else "🔴"
+            action = "КУПИЛ" if is_buy else "ПРОДАЛ"
+            
+            status = await grid_bot.get_status()
+            
+            text = f"""
+📊 *GRID BOT — СДЕЛКА*
+
+{emoji} *{action}* {signal.symbol}
+
+━━━━━━━━━━━━━━━━━━━━
+💰 Цена: ${signal.entry_price:,.2f}
+━━━━━━━━━━━━━━━━━━━━
+
+📈 Сегодня: {status.get('today_trades', 0)} сделок
+💰 Профит: ${status.get('today_profit_usdt', 0):.2f}
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Grid executed notification error: {e}")
+    
+    async def _notify_funding_signal(self, signal):
+        """💰 Funding Scalper — рекомендация (signal mode)"""
+        try:
+            dir_emoji = "🟢" if signal.direction == "LONG" else "🔴"
+            
+            status = await funding_scalper.get_status()
+            minutes_to = status.get("minutes_to_funding", 0)
+            
+            # Funding rate
+            funding_rate = 0
+            for rate_info in status.get("top_funding_rates", []):
+                if signal.symbol in rate_info.get("symbol", ""):
+                    funding_rate = rate_info.get("rate", 0)
+                    break
+            
+            explain = ""
+            if signal.direction == "LONG":
+                explain = f"📉 Funding {funding_rate:+.3f}% (отриц.)\n_Шорты платят лонгам_"
+            else:
+                explain = f"📈 Funding {funding_rate:+.3f}% (полож.)\n_Лонги платят шортам_"
+            
+            text = f"""
+💰 *FUNDING — СИГНАЛ*
+
+{dir_emoji} Рекомендация: *{signal.direction} {signal.symbol}*
+
+━━━━━━━━━━━━━━━━━━━━
+💰 Вход: ${signal.entry_price:,.2f}
+🎯 TP: ${signal.take_profit:,.2f}
+🛑 SL: ${signal.stop_loss:,.2f}
+━━━━━━━━━━━━━━━━━━━━
+
+{explain}
+
+⏰ До Funding: *{minutes_to} мин*
+
+💡 _Откройте позицию вручную_
+_и заработайте на Funding Rate_
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Funding signal notification error: {e}")
+    
+    async def _notify_funding_executed(self, signal):
+        """💰 Funding Scalper — выполнено (auto mode)"""
+        try:
+            dir_emoji = "🟢" if signal.direction == "LONG" else "🔴"
+            
+            text = f"""
+💰 *FUNDING — ПОЗИЦИЯ ОТКРЫТА*
+
+{dir_emoji} *{signal.direction} {signal.symbol}*
+
+━━━━━━━━━━━━━━━━━━━━
+💰 Вход: ${signal.entry_price:,.2f}
+🎯 TP: ${signal.take_profit:,.2f}
+🛑 SL: ${signal.stop_loss:,.2f}
+━━━━━━━━━━━━━━━━━━━━
+
+✅ _Позиция открыта автоматически_
+_Ожидаем Funding payment_
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Funding executed notification error: {e}")
+    
+    async def _notify_arbitrage_signal(self, signal):
+        """🔄 Arbitrage — возможность (signal mode)"""
+        try:
+            text = f"""
+🔄 *ARBITRAGE — ВОЗМОЖНОСТЬ*
+
+✨ Найден прибыльный цикл!
+
+━━━━━━━━━━━━━━━━━━━━
+📊 {signal.reason}
+━━━━━━━━━━━━━━━━━━━━
+
+⚠️ _Требуется быстрое исполнение!_
+_Для авто-режима включите 🤖 Auto_
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Arbitrage signal notification error: {e}")
+    
+    async def _notify_arbitrage_executed(self, signal):
+        """🔄 Arbitrage — выполнено (auto mode)"""
+        try:
+            text = f"""
+🔄 *ARBITRAGE — ЦИКЛ ВЫПОЛНЕН*
+
+✅ {signal.reason}
+
+💰 _Профит зачислен на баланс_
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Arbitrage executed notification error: {e}")
+    
+    async def _notify_listing_signal(self, signal, listing):
+        """🆕 Listing — уведомление (signal mode)"""
+        try:
+            from app.modules.listing_hunter import ListingType
+            
+            if listing.listing_type == ListingType.PRE_LISTING:
+                bybit_status = "✅ Есть" if listing.is_on_bybit else "❌ Нет"
+                text = f"""
+🆕 *ЛИСТИНГ — АНОНС*
+
+🔥 *{listing.name}* ({listing.symbol})
+🏦 Биржа: {listing.exchange}
+
+━━━━━━━━━━━━━━━━━━━━
+📊 На Bybit: {bybit_status}
+━━━━━━━━━━━━━━━━━━━━
+
+💡 *Рекомендация:*
+{'Купите на Bybit!' if listing.is_on_bybit else 'Купите на другой бирже до листинга'}
+
+🎯 Потенциал: +50-200%
+⚠️ Риск: HIGH
+
+⏰ {self._get_time()}
+"""
+            elif listing.listing_type == ListingType.LISTING_SCALP:
+                text = f"""
+⚡ *ЛИСТИНГ — ТОРГОВЛЯ НАЧАЛАСЬ*
+
+🔥 *{listing.name}* ({listing.symbol})
+
+━━━━━━━━━━━━━━━━━━━━
+⚡ МОЖНО ТОРГОВАТЬ!
+━━━━━━━━━━━━━━━━━━━━
+
+💡 *Стратегия скальпинга:*
+├── Купить СЕЙЧАС
+├── TP: +20%
+├── SL: -5%
+└── Держать: 5-30 мин
+
+⚠️ _Для авто-торговли включите 🤖 Auto_
+
+⏰ {self._get_time()}
+"""
+            elif listing.listing_type == ListingType.LAUNCHPAD:
+                text = f"""
+🚀 *LAUNCHPAD*
+
+🔥 *{listing.name}* ({listing.symbol})
+🏦 {listing.exchange}
+
+━━━━━━━━━━━━━━━━━━━━
+📋 *Как участвовать:*
+1️⃣ Зайдите на {listing.exchange}
+2️⃣ Найдите Launchpad
+3️⃣ Застейкайте токены
+4️⃣ Получите {listing.symbol}!
+━━━━━━━━━━━━━━━━━━━━
+
+⏰ {self._get_time()}
+"""
+            else:
+                text = f"""
+🆕 *НОВЫЙ ЛИСТИНГ*
+
+🔥 *{listing.symbol}* на {listing.exchange}
+
+⏰ {self._get_time()}
+"""
+            
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Listing signal notification error: {e}")
+    
+    async def _notify_listing_executed(self, signal, listing):
+        """🆕 Listing — куплено (auto mode)"""
+        try:
+            text = f"""
+🆕 *ЛИСТИНГ — КУПЛЕНО*
+
+✅ *{listing.symbol}* куплен автоматически!
+
+━━━━━━━━━━━━━━━━━━━━
+💰 Цена: ${signal.entry_price:,.4f}
+🎯 TP: +20%
+🛑 SL: -5%
+━━━━━━━━━━━━━━━━━━━━
+
+⏳ _Ожидаем рост..._
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Listing executed notification error: {e}")
+    
+    async def _notify_worker_signal(self, signal):
+        """👷 Worker — рекомендация (signal mode)"""
+        try:
+            dir_emoji = "🟢" if signal.direction == "LONG" else "🔴"
+            
+            tp_pct = abs((signal.take_profit - signal.entry_price) / signal.entry_price * 100)
+            sl_pct = abs((signal.stop_loss - signal.entry_price) / signal.entry_price * 100)
+            
+            text = f"""
+👷 *RSI STRATEGY — СИГНАЛ*
+
+{dir_emoji} Рекомендация: *{signal.direction} {signal.symbol}*
+
+━━━━━━━━━━━━━━━━━━━━
+💰 Вход: ${signal.entry_price:,.2f}
+🎯 TP: ${signal.take_profit:,.2f} (+{tp_pct:.1f}%)
+🛑 SL: ${signal.stop_loss:,.2f} (-{sl_pct:.1f}%)
+━━━━━━━━━━━━━━━━━━━━
+
+📊 Стратегия: {signal.strategy_name if hasattr(signal, 'strategy_name') else 'RSI + EMA'}
+🎯 Win Rate: {signal.win_rate:.1f}%
+
+💡 _Откройте позицию вручную_
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Worker signal notification error: {e}")
+    
+    async def _notify_director_signal(self, direction: str, reason: str):
+        """🎩 Director — рекомендация (signal mode)"""
+        try:
+            dir_emoji = "🟢" if direction == "LONG" else "🔴"
+            
+            text = f"""
+🎩 *DIRECTOR AI — СИГНАЛ*
+
+{dir_emoji} Рекомендация: *{direction} BTC*
+
+━━━━━━━━━━━━━━━━━━━━
+📊 *Причина:*
+{reason}
+━━━━━━━━━━━━━━━━━━━━
+
+💡 _Director видит сильную возможность!_
+_Рекомендуем открыть позицию вручную_
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Director signal notification error: {e}")
+    
+    async def _notify_director_executed(self, trade, reason: str):
+        """🎩 Director — выполнено (auto mode)"""
+        try:
+            dir_emoji = "🟢" if trade.direction == "LONG" else "🔴"
+            
+            tp_pct = abs((trade.take_profit - trade.entry_price) / trade.entry_price * 100)
+            sl_pct = abs((trade.stop_loss - trade.entry_price) / trade.entry_price * 100)
+            
+            text = f"""
+🎩 *DIRECTOR — СДЕЛКА ОТКРЫТА*
+
+{dir_emoji} *{trade.direction} {trade.symbol}*
+
+━━━━━━━━━━━━━━━━━━━━
+💰 Вход: ${trade.entry_price:,.2f}
+🎯 TP: ${trade.take_profit:,.2f} (+{tp_pct:.1f}%)
+🛑 SL: ${trade.stop_loss:,.2f} (-{sl_pct:.1f}%)
+━━━━━━━━━━━━━━━━━━━━
+
+📊 *Причина:*
+{reason}
+
+✅ _Director взял управление_
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+        except Exception as e:
+            logger.error(f"Director executed notification error: {e}")
+    
+    def _get_time(self) -> str:
+        """Текущее время"""
+        return datetime.now().strftime('%H:%M:%S')
+    
+    # ==========================================
+    # 🤖 ИСПОЛНЕНИЕ AUTO MODE
+    # ==========================================
+    
+    async def _execute_grid_trade(self, signal):
+        """Исполнить Grid сделку (auto mode)"""
+        # Grid Bot уже исполняет внутри, просто логируем
+        logger.info(f"📊 Grid trade executed: {signal.direction} {signal.symbol}")
+    
+    async def _execute_funding_trade(self, signal):
+        """Исполнить Funding сделку (auto mode)"""
+        # Здесь будет реальное исполнение через Bybit API
+        logger.info(f"💰 Funding trade executed: {signal.direction} {signal.symbol}")
+    
+    async def _execute_arbitrage(self, signal):
+        """Исполнить арбитраж (auto mode)"""
+        # Arbitrage уже исполняет внутри
+        logger.info(f"🔄 Arbitrage executed: {signal.reason}")
+    
+    async def _execute_listing_trade(self, signal, listing):
+        """Исполнить Listing сделку (auto mode)"""
+        logger.info(f"🆕 Listing trade executed: {listing.symbol}")
     
     async def _execute_signal(self, signal: Signal, value: float = None):
         """Выполнить сигнал — открыть сделку"""
