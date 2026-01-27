@@ -1,179 +1,277 @@
-# 🚀 CryptoDen Trading Bot — Полная документация проекта
+# 🚀 CryptoDen Trading Bot — ПОЛНАЯ ДОКУМЕНТАЦИЯ
 
-## 📋 ОБЩАЯ ИНФОРМАЦИЯ
-
-**Название:** CryptoDen Trading Bot
-**Версия:** 1.0
-**Путь:** `/root/crypto-bot/`
-**Язык:** Python 3.11+
-**Тип:** AI-powered Cryptocurrency Trading Bot
-**Биржа:** Bybit (Spot + Futures)
-**Управление:** Telegram Bot + WebApp
+> **Версия:** 1.0  
+> **Дата:** 2026-01-27  
+> **Путь:** `/root/crypto-bot/`  
+> **Python:** 3.11+  
+> **Биржа:** Bybit Spot  
+> **AI:** Claude Sonnet 4 via OpenRouter
 
 ---
 
-## 🏗️ АРХИТЕКТУРА ПРОЕКТА
+## 📋 СОДЕРЖАНИЕ
+
+1. [Архитектура](#архитектура)
+2. [Структура файлов](#структура-файлов)
+3. [Ключевые модули](#ключевые-модули)
+4. [Telegram Bot](#telegram-bot)
+5. [WebApp](#webapp)
+6. [AI система](#ai-система)
+7. [Стратегии](#стратегии)
+8. [Торговля](#торговля)
+9. [Переменные окружения](#переменные-окружения)
+10. [Команды управления](#команды-управления)
+11. [Troubleshooting](#troubleshooting)
+12. [Правила для AI агента](#правила-для-ai-агента)
+
+---
+
+## 🏗️ АРХИТЕКТУРА
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    TELEGRAM USER                             │
+│                         ↓                                    │
+│              ┌─────────────────────┐                         │
+│              │   Telegram Bot      │                         │
+│              │  (Reply Keyboard)   │                         │
+│              └──────────┬──────────┘                         │
+│                         ↓                                    │
+│              ┌─────────────────────┐                         │
+│              │   WebApp (Flask)    │ ← app.cryptoden.ru      │
+│              │   Настройки бота    │                         │
+│              └──────────┬──────────┘                         │
+│                         ↓                                    │
+│              ┌─────────────────────┐                         │
+│              │   MarketMonitor     │ ← 24/7 цикл             │
+│              │   (каждые 60 сек)   │                         │
+│              └──────────┬──────────┘                         │
+│                         │                                    │
+│         ┌───────────────┼───────────────┐                    │
+│         ↓               ↓               ↓                    │
+│   ┌───────────┐   ┌───────────┐   ┌───────────┐              │
+│   │ DirectorAI│   │  WhaleAI  │   │ TechAI    │              │
+│   │ (Решения) │   │  (Рынок)  │   │(Стратегии)│              │
+│   └─────┬─────┘   └─────┬─────┘   └─────┬─────┘              │
+│         └───────────────┼───────────────┘                    │
+│                         ↓                                    │
+│              ┌─────────────────────┐                         │
+│              │TradingCoordinator   │                         │
+│              │  (Оркестрация)      │                         │
+│              └──────────┬──────────┘                         │
+│                         ↓                                    │
+│              ┌─────────────────────┐                         │
+│              │   TradeManager      │                         │
+│              │ SL/TP/Trailing Stop │                         │
+│              └──────────┬──────────┘                         │
+│                         ↓                                    │
+│              ┌─────────────────────┐                         │
+│              │   BybitClient       │ ← API Bybit             │
+│              │  (Исполнение)       │                         │
+│              └─────────────────────┘                         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📁 СТРУКТУРА ФАЙЛОВ
 
 ```
 /root/crypto-bot/
 │
-├── .env                          # API ключи и настройки
-├── .gitignore                    # Git ignore
-├── .cursorrules                  # ЭТО ЭТОТ ФАЙЛ - документация проекта
-├── requirements.txt              # Python зависимости
-├── README.md                     # Краткая документация
+├── .env                              # 🔑 API ключи (НЕ В GIT!)
+├── .gitignore                        # Git ignore
+├── .cursorrules                      # 📚 ЭТА ДОКУМЕНТАЦИЯ
+├── requirements.txt                  # Python зависимости
+├── README.md                         # Краткое описание
 │
-├── app/                          # ГЛАВНЫЙ МОДУЛЬ ПРИЛОЖЕНИЯ
+├── app/                              # 🚀 ГЛАВНЫЙ МОДУЛЬ
 │   ├── __init__.py
-│   ├── main.py                   # 🚀 ТОЧКА ВХОДА - запуск бота
+│   ├── main.py                       # ТОЧКА ВХОДА
 │   │
-│   ├── core/                     # ⚙️ ЯДРО СИСТЕМЫ
+│   ├── core/                         # ⚙️ ЯДРО
 │   │   ├── __init__.py
-│   │   ├── config.py             # Pydantic Settings - все настройки из .env
-│   │   ├── constants.py          # Константы (монеты, таймфреймы)
-│   │   ├── database.py           # Redis/PostgreSQL подключения
-│   │   ├── logger.py             # Loguru настройка логирования
-│   │   └── monitor.py            # 🔄 MarketMonitor - ГЛАВНЫЙ ЦИКЛ 24/7
+│   │   ├── config.py                 # Pydantic Settings
+│   │   ├── constants.py              # Константы
+│   │   ├── database.py               # Redis/PostgreSQL
+│   │   ├── logger.py                 # Loguru
+│   │   └── monitor.py                # 🔄 MarketMonitor
 │   │
-│   ├── strategies/               # 📊 ТОРГОВЫЕ СТРАТЕГИИ
-│   │   ├── __init__.py           # Экспорт: strategy_checker, Signal, etc.
-│   │   ├── config.py             # BEST_STRATEGIES + SHORT_STRATEGIES конфиги
-│   │   ├── checker.py            # StrategyChecker - проверка условий в реальном времени
-│   │   ├── indicators.py         # TechnicalIndicators - RSI, EMA, MACD, Stoch, BB, ATR
-│   │   └── signals.py            # Генерация сигналов
-│   │
-│   ├── trading/                  # 💰 ТОРГОВЛЯ
+│   ├── strategies/                   # 📊 СТРАТЕГИИ
 │   │   ├── __init__.py
-│   │   ├── trade_manager.py      # TradeManager - управление сделками, SL/TP, Trailing
-│   │   ├── position_calculator.py # Расчёт размера позиции
-│   │   ├── risk_manager.py       # Управление рисками
-│   │   └── bybit/                # Bybit API
+│   │   ├── config.py                 # BEST_STRATEGIES + SHORT_STRATEGIES
+│   │   ├── checker.py                # StrategyChecker
+│   │   ├── indicators.py             # TechnicalIndicators
+│   │   └── signals.py                # Signal dataclass
+│   │
+│   ├── trading/                      # 💰 ТОРГОВЛЯ
+│   │   ├── __init__.py
+│   │   ├── trade_manager.py          # TradeManager + Trade
+│   │   ├── position_calculator.py    # Расчёт позиций
+│   │   ├── risk_manager.py           # Риски
+│   │   └── bybit/
 │   │       ├── __init__.py
-│   │       ├── client.py         # BybitClient - API клиент (get_price, buy, sell)
-│   │       ├── orders.py         # Работа с ордерами
-│   │       └── account.py        # Баланс и аккаунт
+│   │       ├── client.py             # BybitClient
+│   │       ├── orders.py             # Ордера
+│   │       └── account.py            # Баланс
 │   │
-│   ├── intelligence/             # 🧠 AI ПАРСИНГ НОВОСТЕЙ
+│   ├── intelligence/                 # 🧠 NEWS AI
 │   │   ├── __init__.py
-│   │   ├── news_parser.py        # NewsParser - агрегация новостей + sentiment
-│   │   ├── ai_client.py          # OpenRouter API для AI анализа
-│   │   ├── sentiment.py          # Sentiment анализ
-│   │   ├── market_state.py       # Определение состояния рынка
-│   │   └── calendar.py           # Экономический календарь
+│   │   ├── news_parser.py            # NewsParser
+│   │   ├── ai_client.py              # OpenRouter API
+│   │   ├── sentiment.py              # Sentiment
+│   │   ├── market_state.py           # Market Mode
+│   │   └── calendar.py               # Календарь
 │   │
-│   ├── brain/                    # 🤖 TRADING AI (Claude Sonnet)
+│   ├── brain/                        # 🤖 TRADING AI
 │   │   ├── __init__.py
-│   │   └── trading_ai.py         # TradingAI - принятие решений с помощью AI
+│   │   └── trading_ai.py             # TradingAI (Claude Sonnet)
 │   │
-│   ├── ai/                       # 🐋 AI АГЕНТЫ (Директор + Друг)
+│   ├── ai/                           # 🐋 AI АГЕНТЫ
 │   │   ├── __init__.py
-│   │   ├── whale_ai.py           # WhaleAI - мониторинг китов, OI, Funding
-│   │   ├── director_ai.py        # DirectorAI - стратегические решения
-│   │   └── trading_coordinator.py # TradingCoordinator - координация AI агентов
+│   │   ├── whale_ai.py               # WhaleAI (OI, Funding, Ликвидации)
+│   │   ├── director_ai.py            # DirectorAI (Стратегические решения)
+│   │   └── trading_coordinator.py    # TradingCoordinator
 │   │
-│   ├── parsers/                  # 📰 ПАРСЕРЫ ДАННЫХ
+│   ├── parsers/                      # 📰 ПАРСЕРЫ
 │   │   ├── __init__.py
-│   │   ├── twitter_parser.py     # TwitterParser - Nitter scraping (не работает)
-│   │   ├── rss_parser.py         # RSSParser - новости из RSS feeds
-│   │   └── coinglass_parser.py   # CoinglassParser - ликвидации, OI, Funding
+│   │   ├── twitter_parser.py         # Nitter (не работает)
+│   │   ├── rss_parser.py             # RSS новости
+│   │   └── coinglass_parser.py       # Ликвидации, OI
 │   │
-│   ├── notifications/            # 📱 TELEGRAM УВЕДОМЛЕНИЯ
+│   ├── notifications/                # 📱 TELEGRAM
 │   │   ├── __init__.py
-│   │   └── telegram_bot.py       # TelegramBot - бот + команды + уведомления
+│   │   └── telegram_bot.py           # TelegramBot
 │   │
-│   ├── bot/                      # 🎛️ TELEGRAM UI
+│   ├── bot/                          # 🎛️ KEYBOARDS
 │   │   ├── __init__.py
-│   │   └── keyboards.py          # Reply Keyboard с WebApp кнопкой
+│   │   └── keyboards.py              # get_main_keyboard()
 │   │
-│   ├── backtesting/              # 📈 БЭКТЕСТИНГ
+│   ├── backtesting/                  # 📈 БЭКТЕСТ
 │   │   ├── __init__.py
-│   │   ├── data_loader.py        # BybitDataLoader - загрузка исторических данных
-│   │   ├── backtest_engine.py    # BacktestEngine - движок бэктеста
-│   │   ├── strategies.py         # 140+ стратегий для тестирования
-│   │   ├── optimizer.py          # Оптимизация параметров
-│   │   ├── reports.py            # Генерация отчётов
-│   │   └── leverage_backtest.py  # 🆕 Бэктест с плечами и комиссиями
+│   │   ├── data_loader.py            # BybitDataLoader
+│   │   ├── backtest_engine.py        # BacktestEngine
+│   │   ├── strategies.py             # 140+ стратегий
+│   │   ├── optimizer.py              # Оптимизация
+│   │   ├── reports.py                # Отчёты
+│   │   └── leverage_backtest.py      # 🆕 С комиссиями
 │   │
-│   ├── backtest/                 # 📊 ОТДЕЛЬНЫЕ БЭКТЕСТЫ
+│   ├── backtest/                     # SHORT БЭКТЕСТЫ
 │   │   ├── __init__.py
-│   │   ├── short_backtest_2025.py # Бэктест SHORT стратегий
-│   │   └── combo_short_backtest.py # Бэктест комбо SHORT стратегий
+│   │   ├── short_backtest_2025.py
+│   │   └── combo_short_backtest.py
 │   │
-│   ├── debug/                    # 🔧 ДИАГНОСТИКА
+│   ├── debug/                        # 🔧 ДИАГНОСТИКА
 │   │   ├── __init__.py
-│   │   ├── diagnose.py           # Полная диагностика системы
-│   │   └── test_parsers.py       # Тест всех парсеров
+│   │   ├── diagnose.py               # Полная диагностика
+│   │   └── test_parsers.py           # Тест парсеров
 │   │
-│   ├── webapp/                   # 🌐 FLASK WEBAPP
-│   │   ├── __init__.py
-│   │   ├── server.py             # Flask сервер + API endpoints
-│   │   └── templates/
-│   │       └── webapp.html       # Telegram WebApp UI
-│   │
-│   └── api/                      # 🔌 REST API (не используется активно)
-│       └── __init__.py
+│   └── webapp/                       # 🌐 FLASK
+│       ├── __init__.py
+│       ├── server.py                 # Flask app
+│       └── templates/
+│           └── webapp.html           # Telegram WebApp UI
 │
-├── data/                         # 📁 ДАННЫЕ
-│   ├── *.json                    # Кэш свечей
-│   ├── *.parquet                 # Кэш бэктеста
-│   ├── bot_status.json           # Статус бота для WebApp
-│   └── start_requested.json      # Запрос на старт от WebApp
+├── data/                             # 📁 ДАННЫЕ
+│   ├── *.json                        # Кэш свечей
+│   ├── *.parquet                     # Кэш бэктеста
+│   ├── bot_status.json               # Статус для WebApp
+│   └── start_requested.json          # Запрос старта
 │
-├── reports/                      # 📊 ОТЧЁТЫ
-│   └── *.json                    # Результаты бэктестов
+├── reports/                          # 📊 ОТЧЁТЫ
+│   └── *.json
 │
-├── logs/                         # 📝 ЛОГИ
-│   └── *.log
+├── logs/                             # 📝 ЛОГИ
 │
-├── scripts/                      # 🛠️ УТИЛИТЫ
-│   ├── run_backtest.py           # Запуск бэктеста
-│   ├── download_data.py          # Загрузка данных
-│   ├── check_system.py           # Проверка системы
-│   └── healthcheck.sh            # Healthcheck для cron
+├── scripts/                          # 🛠️ УТИЛИТЫ
+│   ├── run_backtest.py
+│   ├── download_data.py
+│   ├── check_system.py
+│   └── healthcheck.sh
 │
-└── tests/                        # 🧪 ТЕСТЫ
-    └── *.py
+└── tests/                            # 🧪 ТЕСТЫ
 ```
 
 ---
 
-## 🔧 КЛЮЧЕВЫЕ ФАЙЛЫ И ИХ ФУНКЦИИ
+## 🔧 КЛЮЧЕВЫЕ МОДУЛИ
 
 ### 1️⃣ app/main.py — ТОЧКА ВХОДА
-```python
-# Запускает:
-# 1. Telegram Bot (polling)
-# 2. WebApp Server (Flask на порту 5000)
-# 3. MarketMonitor (главный торговый цикл)
 
-# Запуск: python -m app.main
-# Или через Supervisor: supervisorctl start crypto-bot
+```python
+# Запускает 3 задачи параллельно:
+async def main():
+    # 1. Telegram Bot polling
+    bot_task = telegram_bot.start_polling()
+    
+    # 2. Flask WebApp на порту 5000
+    webapp_task = run_webapp()
+    
+    # 3. MarketMonitor НЕ запускается автоматически
+    #    Ждёт команду /run или кнопку в WebApp
+    
+    await asyncio.gather(bot_task, webapp_task)
+
+# Запуск:
+# python -m app.main
+# supervisorctl start crypto-bot
 ```
 
 ### 2️⃣ app/core/monitor.py — ГЛАВНЫЙ ЦИКЛ
+
 ```python
 class MarketMonitor:
     """
     24/7 мониторинг рынка
     
-    Цикл каждые 60 секунд:
-    1. Получить цены с Bybit
-    2. Обновить новости (каждые 5 мин)
-    3. Проверить активные сделки (SL/TP/Trailing)
-    4. Запустить TradingCoordinator
-    5. Выполнить действия (открыть/закрыть сделки)
-    """
+    Атрибуты:
+    - running: bool = False
+    - check_interval: int = 60  # секунд
+    - paper_trading: bool = True
+    - current_balance: float = 1000.0
+    - balance_percent_per_trade: float = 0.15  # 15%
+    - max_open_trades: int = 6
+    - ai_enabled: bool = True
+    - min_confidence: int = 60
+    - symbols: List[str] = []
     
-    # Ключевые атрибуты:
-    self.running = False
-    self.paper_trading = True  # Paper mode по умолчанию
-    self.current_balance = 1000.0
-    self.ai_enabled = True
+    Цикл _main_cycle() каждые 60 сек:
+    1. Получить цены: await self.bybit.get_prices(symbols)
+    2. Обновить новости (раз в 5 мин)
+    3. Обновить активные сделки: trade_manager.update_prices(prices)
+    4. AI проверяет позиции: _check_active_positions_with_ai()
+    5. Ищем сигналы: _check_for_signals()
+    
+    Методы:
+    - start() → запустить
+    - stop() → остановить
+    - get_trade_size() → 15% от баланса
+    - can_open_new_trade() → (bool, reason)
+    - update_balance_after_close(pnl) → обновить баланс
+    """
+
+# Синглтон:
+market_monitor = MarketMonitor()
 ```
 
 ### 3️⃣ app/strategies/config.py — КОНФИГ СТРАТЕГИЙ
+
 ```python
-# LONG стратегии (9 штук):
+@dataclass
+class StrategyConfig:
+    id: str
+    name: str
+    symbol: str
+    direction: str  # "LONG" | "SHORT"
+    conditions: List[Dict]
+    tp_percent: float = 0.5
+    sl_percent: float = 0.5
+    win_rate_2024: float = 0.0
+    avg_win_rate: float = 0.0
+    enabled: bool = True
+    max_signals_per_day: int = 3
+
+# LONG стратегии (9 шт):
 BEST_STRATEGIES = {
     "BTC": StrategyConfig(
         name="RSI(14) < 30 + Price > EMA(21)",
@@ -182,14 +280,19 @@ BEST_STRATEGIES = {
             {"indicator": "rsi", "period": 14, "operator": "<", "value": 30},
             {"indicator": "price_vs_ema", "period": 21, "operator": ">", "value": 0},
         ],
-        tp_percent=0.5,
-        sl_percent=0.5,
         win_rate_2024=65.7,
     ),
-    # ... ETH, BNB, SOL, XRP, ADA, DOGE, LINK, AVAX
+    "ETH": StrategyConfig(...),
+    "BNB": StrategyConfig(...),
+    "SOL": StrategyConfig(...),  # SHORT!
+    "XRP": StrategyConfig(...),  # SHORT!
+    "ADA": StrategyConfig(...),
+    "DOGE": StrategyConfig(...),
+    "LINK": StrategyConfig(...),
+    "AVAX": StrategyConfig(...),
 }
 
-# SHORT стратегии (8 штук):
+# SHORT стратегии (8 шт):
 SHORT_STRATEGIES = {
     "BTC_SHORT": StrategyConfig(
         name="Stoch Reversal Short",
@@ -199,221 +302,662 @@ SHORT_STRATEGIES = {
             {"indicator": "stoch_cross_down", "value": True},
         ],
     ),
-    # ... ETH_SHORT, SOL_SHORT, etc.
+    # ETH_SHORT, SOL_SHORT, ADA_SHORT, LINK_SHORT, AVAX_SHORT, BNB_SHORT
 }
+
+# Функции:
+get_strategy(symbol) → StrategyConfig
+get_all_strategies() → Dict[str, StrategyConfig]  # LONG + SHORT
+get_enabled_strategies() → Dict[str, StrategyConfig]
 ```
 
 ### 4️⃣ app/strategies/checker.py — ПРОВЕРКА СИГНАЛОВ
+
 ```python
+@dataclass
+class Signal:
+    symbol: str
+    direction: str
+    strategy_id: str
+    strategy_name: str
+    entry_price: float
+    stop_loss: float
+    take_profit: float
+    indicators: Dict[str, float]
+    win_rate: float
+    confidence: float
+    timestamp: datetime
+    expires_at: datetime
+
 class StrategyChecker:
     """
-    Проверяет условия стратегий в реальном времени
+    Проверяет условия в реальном времени
     
     Лимиты:
     - max_signals_per_day: 3 на монету
     - min_time_between_signals: 60 мин
     - max_total_signals_per_day: 15
-    """
     
-    async def check_symbol(self, symbol, df, price) -> Optional[Signal]:
-        # Проверяет ВСЕ условия стратегии
-        # Возвращает Signal если все условия выполнены
+    Методы:
+    - check_symbol(symbol, df, price) → Optional[Signal]
+    - check_all_symbols(market_data) → List[Signal]
+    - get_status() → dict
+    """
+
+# Синглтон:
+strategy_checker = StrategyChecker()
 ```
 
-### 5️⃣ app/trading/trade_manager.py — УПРАВЛЕНИЕ СДЕЛКАМИ
+### 5️⃣ app/strategies/indicators.py — ИНДИКАТОРЫ
+
 ```python
-class Trade:
-    """
-    Активная сделка
+class TechnicalIndicators:
+    @staticmethod
+    def rsi(series, period=14) → float
     
-    Trailing Stop:
-    - Активируется после +0.3% прибыли
-    - Дистанция: 0.2%
-    - Двигается только в сторону прибыли
-    """
+    @staticmethod
+    def ema(series, period) → float
+    
+    @staticmethod
+    def sma(series, period) → float
+    
+    @staticmethod
+    def stochastic_k(df, period=14) → float
+    
+    @staticmethod
+    def macd(series, fast=12, slow=26, signal=9) → (macd, signal, histogram)
+    
+    @staticmethod
+    def macd_cross_direction(series) → Optional[str]  # "up" | "down"
+    
+    @staticmethod
+    def bollinger_bands(series, period=20, std=2.0) → (upper, mid, lower)
+    
+    @staticmethod
+    def atr(df, period=14) → float
+```
+
+### 6️⃣ app/trading/trade_manager.py — СДЕЛКИ
+
+```python
+class TradeStatus(Enum):
+    PENDING = "pending"
+    OPEN = "open"
+    CLOSED = "closed"
+    CANCELLED = "cancelled"
+
+class CloseReason(Enum):
+    TAKE_PROFIT = "take_profit"
+    STOP_LOSS = "stop_loss"
+    TRAILING_STOP = "trailing_stop"
+    MANUAL = "manual"
+    EXPIRED = "expired"
+
+@dataclass
+class Trade:
+    id: str
+    symbol: str
+    direction: str  # "LONG" | "SHORT"
+    entry_price: float
+    current_price: float
+    stop_loss: float
+    take_profit: float
+    
+    # Trailing Stop:
+    trailing_stop_enabled: bool = True
+    trailing_stop_percent: float = 0.3  # Активация после +0.3%
+    trailing_stop_distance: float = 0.2  # Дистанция 0.2%
+    highest_price: float = 0.0  # Для LONG
+    lowest_price: float = inf   # Для SHORT
+    trailing_stop_price: Optional[float] = None
+    
+    # P&L:
+    unrealized_pnl: float = 0.0
+    unrealized_pnl_percent: float = 0.0
+    
+    # Методы:
+    update_price(new_price)  # Пересчёт P&L + trailing
+    should_close() → Optional[CloseReason]
 
 class TradeManager:
     """
-    Управление сделками
-    
     Лимиты:
     - max_trades_per_symbol: 1
     - max_total_trades: 6
     - default_trade_value: 15% от баланса
-    """
-```
-
-### 6️⃣ app/ai/trading_coordinator.py — КООРДИНАТОР AI
-```python
-class TradingCoordinator:
-    """
-    Координирует работу AI агентов:
     
-    1. DirectorAI — стратегические решения
-       - Анализирует риски
-       - Команды: CONTINUE, CLOSE_ALL, PAUSE_NEW
-       
-    2. WhaleAI — рыночная разведка
-       - Open Interest
-       - Funding Rate
-       - Fear & Greed Index
-       - Ликвидации
-       
-    3. TechAI — технический анализ
-       - Проверка стратегий
-       - Генерация сигналов
+    Методы:
+    - open_trade(signal, value) → Trade
+    - close_trade(trade_id, reason) → Trade
+    - update_prices(prices) → List[Trade]  # закрытые
+    - get_active_trades() → List[Trade]
+    - get_statistics() → dict
     """
+
+# Синглтон:
+trade_manager = TradeManager()
 ```
 
-### 7️⃣ app/notifications/telegram_bot.py — TELEGRAM BOT
+### 7️⃣ app/trading/bybit/client.py — BYBIT API
+
 ```python
-class TelegramBot:
+class BybitClient:
     """
-    Telegram бот для управления
+    Bybit V5 API клиент
     
-    Команды:
-    /start - Приветствие + главная клавиатура
-    /status - Статус бота
-    /trades - Активные сделки
-    /news - Новости
-    /history - История сделок
-    /whale - Whale AI статус
-    /director - Director AI статус
-    /market - Полная картина рынка
-    /debug - Диагностика
-    /help - Помощь
+    Инициализация:
+    - api_key, api_secret из settings
+    - testnet: bool
+    - base_url: https://api.bybit.com или testnet
     
-    Reply Keyboard кнопки:
-    🎛 Панель управления → Открывает WebApp
-    📊 Статус
-    📈 Сделки
-    📰 Новости
-    📋 История
+    Публичные методы:
+    - get_price(symbol) → float
+    - get_prices(symbols) → Dict[str, float]
+    - get_all_spot_prices() → Dict[str, float]
+    
+    Приватные методы (требуют ключи):
+    - get_balance(coin) → float
+    - get_all_balances() → Dict[str, float]
+    - market_buy(symbol, quote_qty) → dict
+    - market_sell(symbol, base_qty) → dict
+    - get_order(order_id) → dict
+    - get_open_orders(symbol) → List[dict]
+    - cancel_order(order_id) → dict
     """
-```
 
-### 8️⃣ app/webapp/server.py — FLASK WEBAPP
-```python
-# Endpoints:
-GET  /                  → webapp.html (Telegram WebApp)
-GET  /api/bot-status    → JSON статус бота
-POST /api/start         → Старт бота с настройками
-POST /api/stop          → Остановка бота
-
-# WebApp функционал:
-# - Настройка API ключей
-# - Выбор монет
-# - Risk management (размер сделки, макс. сделок)
-# - AI настройки (вкл/выкл, min confidence)
-# - Paper/Live режим
-# - Кнопка Запустить/Остановить бота
-```
-
-### 9️⃣ app/webapp/templates/webapp.html — TELEGRAM WEBAPP UI
-```html
-<!-- Структура интерфейса: -->
-
-<div class="control-card">
-    <!-- Статус бота (красный/зелёный индикатор) -->
-    <!-- Баланс, активные сделки -->
-    <!-- Кнопка ЗАПУСТИТЬ/ОСТАНОВИТЬ -->
-</div>
-
-<div class="settings-card">
-    <!-- Выбор монет (чекбоксы) -->
-</div>
-
-<div class="settings-card">
-    <!-- Risk Management -->
-    <!-- Размер сделки (% от баланса) -->
-    <!-- Макс. одновременных сделок -->
-</div>
-
-<div class="settings-card">
-    <!-- AI Settings -->
-    <!-- Включить AI (toggle) -->
-    <!-- Min Confidence (slider) -->
-</div>
-
-<div class="settings-card">
-    <!-- Trading Mode -->
-    <!-- Paper Trading / Live Trading (toggle) -->
-</div>
+# Синглтон:
+bybit_client = BybitClient()
 ```
 
 ---
 
-## 🔑 ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ (.env)
+## 📱 TELEGRAM BOT
 
-```bash
-# Telegram
-TELEGRAM_BOT_TOKEN=xxx          # Токен бота от @BotFather
-ADMIN_CHAT_ID=xxx               # Твой Telegram ID
+### Файл: app/notifications/telegram_bot.py
 
-# Bybit
-BYBIT_API_KEY=xxx               # API ключ Bybit
-BYBIT_API_SECRET=xxx            # API секрет Bybit
-BYBIT_TESTNET=true              # true = тестнет, false = реальный
+```python
+class TelegramBot:
+    """
+    Telegram бот с Reply Keyboard
+    
+    Атрибуты:
+    - bot: aiogram.Bot
+    - dp: aiogram.Dispatcher
+    - admin_id: int (из settings)
+    - _monitor: MarketMonitor
+    - _trade_manager: TradeManager
+    """
+```
 
-# AI (OpenRouter)
-OPENROUTER_API_KEY=xxx          # Ключ OpenRouter для AI
+### КОМАНДЫ:
 
-# News APIs
-CRYPTOCOMPARE_API_KEY=xxx       # CryptoCompare API
-COINGECKO_API_KEY=xxx           # CoinGecko API (опционально)
+| Команда | Описание | Функция |
+|---------|----------|---------|
+| `/start` | Главное меню | `cmd_start()` |
+| `/help` | Помощь | `cmd_help()` |
+| `/debug` | Диагностика | `cmd_debug()` |
+| `/whale` | Whale AI | `cmd_whale()` |
+| `/director` | Director AI | `cmd_director()` |
+| `/market` | Полный рынок | `cmd_market()` |
+| `/ai` | Статус AI системы | `cmd_ai_status()` |
 
-# WebApp
-WEBAPP_URL=https://app.cryptoden.ru  # URL Flask WebApp
+### REPLY KEYBOARD КНОПКИ:
+
+| Кнопка | Действие | Функция |
+|--------|----------|---------|
+| 🎛 Панель управления | Открывает WebApp | `WebAppInfo(url=...)` |
+| 📊 Статус | Статус бота | `btn_status()` |
+| 📈 Сделки | Активные сделки | `btn_trades()` |
+| 📰 Новости | Новости рынка | `btn_news()` |
+| 📋 История | Закрытые сделки | `btn_history()` |
+| ❓ Помощь | Инструкция | `btn_help()` |
+
+### WEBAPP DATA HANDLER:
+
+```python
+@self.dp.message(F.web_app_data)
+async def handle_webapp_data(message):
+    data = json.loads(message.web_app_data.data)
+    action = data.get('action')
+    
+    if action == 'start_bot':
+        settings_data = data.get('settings', {})
+        self._apply_settings(settings_data)
+        await self.monitor.start()
+    
+    elif action == 'stop_bot':
+        await self.monitor.stop()
+    
+    elif action == 'update_settings':
+        self._apply_settings(data.get('settings', {}))
+```
+
+### УВЕДОМЛЕНИЯ:
+
+```python
+# Методы отправки:
+await telegram_bot.send_message(text)
+await telegram_bot.notify_signal(signal)
+await telegram_bot.notify_trade_opened(trade)
+await telegram_bot.notify_trade_closed(trade)
+await telegram_bot.notify_ai_decision(decision)
+await telegram_bot.notify_error(error)
+```
+
+---
+
+## 🌐 WEBAPP
+
+### URL: https://app.cryptoden.ru
+
+### Файл: app/webapp/server.py
+
+```python
+# Flask приложение
+app = Flask(__name__)
+
+# Endpoints:
+@app.route('/')  # GET → webapp.html
+@app.route('/api/bot-status')  # GET → JSON статус
+@app.route('/api/start', methods=['POST'])  # Запуск бота
+@app.route('/api/stop', methods=['POST'])  # Остановка бота
+@app.route('/api/settings')  # GET → текущие настройки
+```
+
+### Файл: app/webapp/templates/webapp.html
+
+### СТРУКТУРА UI:
+
+```
+┌─────────────────────────────────────────┐
+│              🤖 CryptoDen               │
+│      Professional AI Trading Bot        │
+├─────────────────────────────────────────┤
+│   ┌─────────────────────────────────┐   │
+│   │  🔴/🟢 БОТ ОСТАНОВЛЕН/РАБОТАЕТ  │   │
+│   │  💰 $1,000 | 📊 0 сделок        │   │
+│   │                                 │   │
+│   │  [🚀 ЗАПУСТИТЬ / 🛑 ОСТАНОВИТЬ] │   │
+│   └─────────────────────────────────┘   │
+├─────────────────────────────────────────┤
+│ 📂 API Ключи (▼ раскрыть)               │
+│   • API Key: [____________]             │
+│   • Secret: [____________]              │
+│   • [🧪 Testnet] [💰 Mainnet]           │
+├─────────────────────────────────────────┤
+│ 📂 Монеты (▼)                           │
+│   [BTC ✓] [ETH ✓] [BNB ✓]               │
+│   [SOL ✓] [XRP ✓] [ADA ✓]               │
+│   [DOGE✓] [LINK—] [AVAX—]               │
+├─────────────────────────────────────────┤
+│ 📂 Управление рисками (▼)               │
+│   Размер сделки: [====●====] 15%        │
+│   Макс. сделок:  [====●====] 6          │
+├─────────────────────────────────────────┤
+│ 📂 AI Настройки (▼)                     │
+│   [✅ AI Включён] [❌ Без AI]           │
+│   Мин. уверенность: [===●===] 60%       │
+├─────────────────────────────────────────┤
+│ 📂 Режим торговли (▼)                   │
+│   [📝 Paper ✓] [💰 Live]                │
+│   ⚠️ LIVE режим торгует реальными $!    │
+└─────────────────────────────────────────┘
+```
+
+### JS ФУНКЦИИ:
+
+```javascript
+// Проверка статуса бота
+async function checkBotStatus() {
+    const resp = await fetch('/api/bot-status');
+    const data = await resp.json();
+    botRunning = data.running;
+    updateControlCard();
+}
+
+// Обновление UI
+function updateControlCard() {
+    if (botRunning) {
+        // Зелёный индикатор
+        // Кнопка "ОСТАНОВИТЬ" (красная)
+        // Скрыть настройки
+    } else {
+        // Красный индикатор
+        // Кнопка "ЗАПУСТИТЬ" (зелёная)
+        // Показать настройки
+    }
+}
+
+// Запуск/остановка
+async function handleMainAction() {
+    if (botRunning) {
+        await fetch('/api/stop', { method: 'POST' });
+    } else {
+        await fetch('/api/start', {
+            method: 'POST',
+            body: JSON.stringify(settings)
+        });
+    }
+    tg.close();
+}
+```
+
+---
+
+## 🤖 AI СИСТЕМА
+
+### Иерархия AI агентов:
+
+```
+┌─────────────────────────────────────────┐
+│           DIRECTOR AI (Директор)        │
+│           🎩 Стратегические решения     │
+│                                         │
+│   Входные данные:                       │
+│   - Whale AI метрики                    │
+│   - News AI контекст                    │
+│   - Открытые позиции                    │
+│                                         │
+│   Выходные команды:                     │
+│   - CONTINUE (продолжать)               │
+│   - CLOSE_ALL (закрыть всё)             │
+│   - CLOSE_LONGS (закрыть лонги)         │
+│   - CLOSE_SHORTS (закрыть шорты)        │
+│   - PAUSE_NEW (не открывать новые)      │
+│   - TAKE_CONTROL (ручное управление)    │
+├─────────────────────────────────────────┤
+│           WHALE AI (Друг)               │
+│           🐋 Рыночная разведка          │
+│                                         │
+│   Метрики:                              │
+│   - Open Interest (OI)                  │
+│   - Funding Rate                        │
+│   - Long/Short Ratio                    │
+│   - Fear & Greed Index                  │
+│   - Ликвидации                          │
+│                                         │
+│   Источники:                            │
+│   - Bybit API                           │
+│   - Coinglass (fallback)                │
+│   - Alternative.me (F&G)                │
+├─────────────────────────────────────────┤
+│           TECH AI (Работник)            │
+│           📊 Технический анализ         │
+│                                         │
+│   - StrategyChecker                     │
+│   - RSI, EMA, MACD, Stoch               │
+│   - Генерация сигналов                  │
+├─────────────────────────────────────────┤
+│           TRADING AI (Brain)            │
+│           🧠 Финальное решение          │
+│                                         │
+│   Модель: Claude Sonnet 4               │
+│   Действия:                             │
+│   - OPEN_LONG                           │
+│   - OPEN_SHORT                          │
+│   - CLOSE                               │
+│   - ADJUST_SL                           │
+│   - ADJUST_TP                           │
+│   - WAIT                                │
+└─────────────────────────────────────────┘
+```
+
+### app/ai/whale_ai.py
+
+```python
+class WhaleAI:
+    """
+    Мониторинг китов и рыночных метрик
+    
+    Методы:
+    - get_market_metrics(symbol) → MarketMetrics
+    - analyze(metrics) → WhaleAlert
+    - get_status_text() → str (для Telegram)
+    - get_trading_bias() → "BULLISH" | "BEARISH" | "NEUTRAL"
+    
+    AlertLevel:
+    - CALM (спокойно)
+    - ATTENTION (внимание)
+    - WARNING (предупреждение)
+    - CRITICAL (критично)
+    """
+
+# Синглтон:
+whale_ai = WhaleAI()
+```
+
+### app/ai/director_ai.py
+
+```python
+class DirectorAI:
+    """
+    Стратегические решения
+    
+    TradingMode:
+    - AUTO (полный автомат)
+    - SUPERVISED (требует подтверждения)
+    - MANUAL (только уведомления)
+    - PAUSED (пауза)
+    
+    DirectorDecision:
+    - CONTINUE
+    - CLOSE_ALL
+    - CLOSE_LONGS
+    - CLOSE_SHORTS
+    - PAUSE_NEW
+    - TAKE_CONTROL
+    - AGGRESSIVE_LONG
+    - AGGRESSIVE_SHORT
+    
+    Методы:
+    - analyze_situation() → MarketSituation
+    - make_decision() → DirectorCommand
+    - get_status_text() → str
+    """
+
+# Синглтон:
+director_ai = DirectorAI()
+```
+
+### app/ai/trading_coordinator.py
+
+```python
+class TradingCoordinator:
+    """
+    Координация всех AI агентов
+    
+    Атрибуты:
+    - signals_generated: int
+    - actions_executed: int
+    - director_interventions: int
+    
+    Методы:
+    - run_cycle() → List[TradingAction]
+    - filter_signal(signal, guidance) → (bool, reason)
+    - check_for_close_orders(guidance) → List[TradingAction]
+    - execute_close_action(action) → bool
+    """
+
+# Синглтон:
+trading_coordinator = TradingCoordinator()
+```
+
+### app/brain/trading_ai.py
+
+```python
+class TradingAI:
+    """
+    Финальные торговые решения через Claude
+    
+    Модель: anthropic/claude-sonnet-4
+    Через: OpenRouter API
+    
+    Методы:
+    - analyze(symbol, market_context, strategy_signal,
+              current_position, price_data, current_price) → AIDecision
+    - should_adjust_position(symbol, position, 
+                            market_context, current_price) → AIDecision
+    
+    AIAction:
+    - OPEN_LONG
+    - OPEN_SHORT
+    - CLOSE
+    - ADJUST_SL
+    - ADJUST_TP
+    - WAIT
+    
+    AIDecision:
+    - action: AIAction
+    - direction: str
+    - confidence: int (0-100)
+    - reason: str
+    - stop_loss: Optional[float]
+    - take_profit: Optional[float]
+    - size_multiplier: float
+    """
+
+# Синглтон:
+trading_ai = TradingAI()
 ```
 
 ---
 
 ## 📊 СТРАТЕГИИ
 
-### LONG стратегии (покупка):
+### LONG стратегии:
+
 | Монета | Условия | Win Rate |
 |--------|---------|----------|
 | BTC | RSI(14) < 30 + Price > EMA(21) | 65.7% |
 | ETH | RSI(14) < 35 + Price > EMA(50) | 63.4% |
-| BNB | RSI < 30 + Price > EMA50 + Volume Spike | 74.4% |
-| SOL | RSI(21) > 80 (SHORT) | 66.2% |
-| XRP | RSI(14) > 80 (SHORT) | 64.1% |
+| BNB | RSI < 30 + Price > EMA50 + Volume | 74.4% |
 | ADA | RSI(14) < 30 + Price > EMA(21) | 73.2% |
 | DOGE | Stoch(14) < 25 + MACD Cross Up | 70.0% |
 | LINK | RSI(14) < 30 + Price > EMA(50) | 68.3% |
 | AVAX | RSI(14) < 30 + Price > EMA(21) | 73.7% |
 
-### SHORT стратегии (продажа):
+### SHORT стратегии (SOL, XRP):
+
+| Монета | Условия | Win Rate |
+|--------|---------|----------|
+| SOL | RSI(21) > 80 | 66.2% |
+| XRP | RSI(14) > 80 | 64.1% |
+
+### Дополнительные SHORT:
+
 | ID | Условия |
 |----|---------|
-| STOCH_REVERSAL_SHORT | Stoch K > 80 + Stoch crossing down |
-| STOCH_EMA_RSI_SHORT | Stoch > 75 + Price < EMA50 + RSI > 65 |
-| STOCH_MACD_SHORT | Stoch > 80 + MACD histogram < 0 |
+| STOCH_REVERSAL | Stoch K > 80 + crossing down |
+| STOCH_EMA_RSI | Stoch > 75 + Price < EMA50 + RSI > 65 |
+| STOCH_MACD | Stoch > 80 + MACD hist < 0 |
+
+---
+
+## 💰 ТОРГОВЛЯ
+
+### Правила:
+
+```
+✅ Размер сделки = 15% от баланса
+✅ Максимум 6 открытых сделок
+✅ 1 сделка на символ
+✅ Paper mode по умолчанию
+
+📊 Trailing Stop:
+├── Активация: после +0.3% прибыли
+├── Дистанция: 0.2%
+└── Двигается только в сторону прибыли
+
+📊 SL/TP:
+├── Stop Loss: 0.5%
+└── Take Profit: 0.5%
+```
+
+### Комиссии Bybit (для бэктеста):
+
+```
+├── Taker Fee: 0.055%
+├── Maker Fee: 0.02%
+├── Funding Rate: 0.01% каждые 8ч
+└── При плече комиссии × leverage!
+```
+
+---
+
+## 🔑 ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ
+
+### Файл: /root/crypto-bot/.env
+
+```bash
+# === TELEGRAM ===
+TELEGRAM_BOT_TOKEN=7xxx:AAHxxx
+ADMIN_CHAT_ID=123456789
+
+# === BYBIT ===
+BYBIT_API_KEY=xxxxxx
+BYBIT_API_SECRET=xxxxxx
+BYBIT_TESTNET=true
+
+# === AI (OpenRouter) ===
+OPENROUTER_API_KEY=sk-or-xxx
+
+# === NEWS ===
+CRYPTOCOMPARE_API_KEY=xxxxx
+COINGECKO_API_KEY=xxxxx  # опционально
+
+# === WEBAPP ===
+WEBAPP_URL=https://app.cryptoden.ru
+```
+
+### Файл: app/core/config.py
+
+```python
+class Settings(BaseSettings):
+    telegram_bot_token: str
+    admin_chat_id: int
+    bybit_api_key: str
+    bybit_api_secret: str
+    bybit_testnet: bool = True
+    openrouter_api_key: str
+    cryptocompare_api_key: str
+    coingecko_api_key: str = ""
+    webapp_url: str
+    ai_model: str = "anthropic/claude-sonnet-4"
+    
+    class Config:
+        env_file = ".env"
+
+settings = Settings()
+```
 
 ---
 
 ## 🛠️ КОМАНДЫ УПРАВЛЕНИЯ
 
-### Supervisor (процесс-менеджер):
+### Supervisor:
+
 ```bash
-supervisorctl status              # Статус всех процессов
-supervisorctl start crypto-bot    # Запустить бота
-supervisorctl stop crypto-bot     # Остановить бота
-supervisorctl restart crypto-bot  # Перезапустить
-supervisorctl tail -f crypto-bot stderr  # Логи в реальном времени
+supervisorctl status              # Статус
+supervisorctl start crypto-bot    # Старт
+supervisorctl stop crypto-bot     # Стоп
+supervisorctl restart crypto-bot  # Рестарт
+supervisorctl tail -f crypto-bot stderr  # Логи
 ```
 
-### Или через утилиту `bot`:
+### Утилита `bot`:
+
 ```bash
 bot status    # Статус
-bot start     # Запуск
-bot stop      # Остановка
-bot restart   # Перезапуск
-bot logs      # Последние логи
-bot follow    # Логи в реальном времени
+bot start     # Старт
+bot stop      # Стоп
+bot restart   # Рестарт
+bot logs      # Логи
+bot follow    # Логи в реалтайме
+bot errors    # Только ошибки
 ```
 
 ### Ручной запуск:
+
 ```bash
 cd /root/crypto-bot
 source venv/bin/activate
@@ -421,11 +965,12 @@ python -m app.main
 ```
 
 ### Бэктестинг:
+
 ```bash
-# Обычный бэктест
+# Обычный
 python scripts/run_backtest.py --all
 
-# Бэктест с плечами и комиссиями
+# С плечами и комиссиями
 python -m app.backtesting.leverage_backtest
 
 # SHORT стратегии
@@ -434,160 +979,129 @@ python -m app.backtest.combo_short_backtest
 ```
 
 ### Диагностика:
+
 ```bash
-python -m app.debug.diagnose      # Полная диагностика
-python -m app.debug.test_parsers  # Тест парсеров
+python -m app.debug.diagnose      # Полная
+python -m app.debug.test_parsers  # Парсеры
+```
+
+### Git:
+
+```bash
+git add -A
+git commit -m "описание"
+git push origin main
 ```
 
 ---
 
-## 🔄 ПОТОК ДАННЫХ
+## 🔧 TROUBLESHOOTING
+
+### Проблема: TelegramConflictError
 
 ```
-                    ┌─────────────────┐
-                    │   Telegram Bot  │
-                    │   (commands)    │
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │     WebApp      │
-                    │  (settings UI)  │
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │  MarketMonitor  │◄─────── Bybit API (prices)
-                    │  (main loop)    │◄─────── News APIs
-                    └────────┬────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-     ┌────────▼────────┐ ┌───▼───┐ ┌───────▼───────┐
-     │   DirectorAI    │ │WhaleAI│ │ StrategyChecker│
-     │ (risk decisions)│ │(market│ │ (tech signals) │
-     └────────┬────────┘ │intel) │ └───────┬───────┘
-              │          └───┬───┘         │
-              └──────────────┼─────────────┘
-                             │
-                    ┌────────▼────────┐
-                    │TradingCoordinator│
-                    │ (orchestration) │
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │  TradeManager   │
-                    │ (execute trades)│
-                    └────────┬────────┘
-                             │
-                    ┌────────▼────────┐
-                    │  BybitClient    │
-                    │ (API execution) │
-                    └─────────────────┘
+Telegram server says - Conflict: terminated by other getUpdates
 ```
 
----
+**Решение:**
+```bash
+# Остановить все процессы
+pkill -f python
+supervisorctl stop all
 
-## ⚠️ ИЗВЕСТНЫЕ ПРОБЛЕМЫ
+# Проверить systemd
+systemctl stop crypto-bot
+systemctl disable crypto-bot
 
-1. **Twitter Parser (Nitter) не работает** — все Nitter инстансы заблокированы
-2. **Стратегии слишком строгие** — RSI < 30 / Stoch > 80 редко срабатывают
-3. **Комиссии съедают прибыль** — при частой торговле комиссии > профита
-4. **Win Rate ~43-45%** на бэктесте с комиссиями — нужна оптимизация
+# Перезапустить
+supervisorctl start crypto-bot
+```
+
+### Проблема: Нет сигналов
+
+**Причина:** Стратегии требуют экстремальных условий (RSI < 30, Stoch > 80)
+
+**Диагностика:**
+```bash
+python -m app.debug.diagnose
+```
+
+**Проверка индикаторов:**
+```python
+# RSI должен быть < 30 для LONG
+# Stoch должен быть > 80 для SHORT
+# Сейчас рынок в нейтральной зоне
+```
+
+### Проблема: Nitter не работает
+
+**Причина:** Все Nitter инстансы заблокированы Twitter
+
+**Решение:** Это нормально, RSS и CryptoCompare работают
+
+### Проблема: Комиссии съедают прибыль
+
+**Причина:** При частой торговле комиссии > профита
+
+**Решение:**
+- Увеличить TP до 1-2%
+- Снизить количество сделок
+- Использовать лимитные ордера (0.02% vs 0.055%)
 
 ---
 
 ## 📝 ПРАВИЛА ДЛЯ AI АГЕНТА
 
-### При работе с проектом:
+### При работе с кодом:
 
-1. **Структура файлов** — не создавай новые директории без необходимости
-2. **Импорты** — используй абсолютные импорты: `from app.module.file import ...`
-3. **Логирование** — используй `from app.core.logger import logger`
-4. **Конфиг** — настройки в `app/core/config.py`, ключи в `.env`
-5. **Стратегии** — добавляй в `app/strategies/config.py`
-6. **Telegram** — обработчики в `app/notifications/telegram_bot.py`
+1. **Импорты** — абсолютные: `from app.module.file import ...`
+2. **Логирование** — `from app.core.logger import logger`
+3. **Конфиг** — `from app.core.config import settings`
+4. **Стратегии** — добавлять в `app/strategies/config.py`
+5. **Telegram** — обработчики в `app/notifications/telegram_bot.py`
 
 ### После изменений:
 
-1. **Проверь синтаксис:**
-   ```bash
-   python -c "from app.main import *"
-   ```
-
-2. **Перезапусти бота:**
-   ```bash
-   supervisorctl restart crypto-bot
-   ```
-
-3. **Проверь логи:**
-   ```bash
-   supervisorctl tail -f crypto-bot stderr
-   ```
-
-4. **Сохрани в Git:**
-   ```bash
-   git add -A
-   git commit -m "описание изменений"
-   git push origin main
-   ```
-
-### Автоматическое сохранение в GitHub:
-После каждого изменения кода выполняй:
 ```bash
-cd /root/crypto-bot && git add -A && git commit -m "Update: краткое описание" && git push origin main
+# 1. Проверить синтаксис
+python -c "from app.main import *"
+
+# 2. Перезапустить
+supervisorctl restart crypto-bot
+
+# 3. Проверить логи
+supervisorctl tail -f crypto-bot stderr
+
+# 4. Сохранить в Git
+git add -A && git commit -m "Update: описание" && git push origin main
+```
+
+### Быстрая диагностика:
+
+```bash
+# Статус бота
+supervisorctl status
+cat /root/crypto-bot/data/bot_status.json
+
+# Логи
+tail -50 /var/log/supervisor/crypto-bot-stderr.log
+
+# Стратегии
+python -c "from app.strategies.config import get_all_strategies; print(len(get_all_strategies()))"
+
+# Индикаторы
+python -m app.debug.diagnose
 ```
 
 ---
 
-## 🚀 БЫСТРЫЙ СТАРТ ДЛЯ НОВОГО АГЕНТА
-
-1. **Понять текущий статус:**
-   ```bash
-   supervisorctl status
-   cat /root/crypto-bot/data/bot_status.json
-   ```
-
-2. **Посмотреть логи:**
-   ```bash
-   tail -50 /var/log/supervisor/crypto-bot-stderr.log
-   ```
-
-3. **Проверить стратегии:**
-   ```bash
-   python -c "from app.strategies.config import get_all_strategies; print(len(get_all_strategies()))"
-   ```
-
-4. **Запустить диагностику:**
-   ```bash
-   python -m app.debug.diagnose
-   ```
-
-5. **Проверить индикаторы:**
-   ```bash
-   python -c "
-   import asyncio
-   from app.strategies.checker import strategy_checker
-   print(strategy_checker.get_status())
-   "
-   ```
-
----
-
-## 📞 КОНТАКТЫ И ССЫЛКИ
+## 📞 ССЫЛКИ
 
 - **GitHub:** https://github.com/Deniskript/CryptoDen-v1.0
 - **WebApp:** https://app.cryptoden.ru
-- **Telegram Bot:** @CryptoDenBot (или твой бот)
-- **Bybit API Docs:** https://bybit-exchange.github.io/docs/v5/intro
+- **Bybit API:** https://bybit-exchange.github.io/docs/v5/intro
+- **OpenRouter:** https://openrouter.ai/docs
 
 ---
 
-## 📅 ПОСЛЕДНЕЕ ОБНОВЛЕНИЕ
-
-**Дата:** 2026-01-27
-**Версия:** 1.0
-**Изменения:**
-- Добавлен бэктест с плечами и комиссиями
-- Добавлены SHORT стратегии
-- Интегрированы AI агенты (Whale, Director, Coordinator)
-- Добавлены парсеры (RSS, Coinglass)
-- Создан полный .cursorrules файл
+**Последнее обновление:** 2026-01-27 05:00 UTC
