@@ -86,6 +86,7 @@ class TelegramBot:
     async def _set_commands(self):
         commands = [
             BotCommand(command="start", description="🔄 Главное меню"),
+            BotCommand(command="director", description="🎩 Решения Директора"),
             BotCommand(command="whale", description="🐋 Анализ китов"),
             BotCommand(command="debug", description="🔍 Диагностика"),
             BotCommand(command="help", description="❓ Помощь")
@@ -413,6 +414,7 @@ _{mode_desc}_
 • AI анализирует каждый сигнал
 
 *Команды:*
+/director — решения Директора AI
 /whale — анализ китов и метрик
 /debug — диагностика
 """
@@ -556,6 +558,29 @@ _{mode_desc}_
                 
             except Exception as e:
                 logger.error(f"Whale AI error: {e}")
+                await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("director"))
+        async def cmd_director(message: types.Message):
+            """🎩 Director AI — стратегические решения"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            loading = await message.answer("🎩 *Анализирую ситуацию...*", parse_mode=ParseMode.MARKDOWN)
+            
+            try:
+                from app.ai.director_ai import director_ai, get_director_decision
+                
+                # Получаем решение
+                command = await get_director_decision()
+                
+                # Статус
+                text = director_ai.get_status_text()
+                
+                await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Director AI error: {e}")
                 await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
     
     # === УВЕДОМЛЕНИЯ ===
