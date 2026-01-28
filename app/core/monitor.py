@@ -31,6 +31,7 @@ from app.modules.grid_bot import grid_bot
 from app.modules.funding_scalper import funding_scalper
 from app.modules.arbitrage import arbitrage_scanner
 from app.modules.listing_hunter import listing_hunter
+from app.core.live_updates import live_updates, UpdateType
 
 
 class MarketMonitor:
@@ -177,6 +178,17 @@ class MarketMonitor:
         self.running = True
         self._update_status_file()
         
+        # Включаем live updates
+        live_updates.enabled = True
+        
+        # Отправляем сообщение о запуске
+        mode = "Сигналы" if not self.has_api_keys else "Авто"
+        startup_msg = await live_updates.generate_startup_message(
+            coins_count=len(self.symbols),
+            mode=mode
+        )
+        await live_updates.send_update(startup_msg)
+        
         # Если symbols пустой, берём из стратегий
         if not self.symbols:
             self.symbols = list(get_enabled_strategies().keys())
@@ -218,6 +230,9 @@ class MarketMonitor:
         self.running = False
         self._update_status_file()
         
+        # Выключаем live updates
+        live_updates.enabled = False
+        
         # НЕ отправляем сообщение здесь - telegram_bot сам отправит статус
         logger.info("🛑 Monitor stopped")
     
@@ -226,6 +241,9 @@ class MarketMonitor:
         
         self.last_check = datetime.now(timezone.utc)
         self.check_count += 1
+        
+        # Увеличиваем счётчик циклов для live updates
+        live_updates.stats['cycles'] += 1
         
         logger.info(f"\n⏰ Cycle #{self.check_count} at {self.last_check.strftime('%H:%M:%S')}")
         
@@ -266,6 +284,25 @@ class MarketMonitor:
         
         # 6. Ищем новые сигналы (Director TAKE_CONTROL)
         await self._check_for_signals(prices)
+        
+        # 7. Отправляем живые обновления
+        try:
+            indicators = {
+                "BTC_rsi": await self._get_rsi("BTC"),
+                "ETH_rsi": await self._get_rsi("ETH"),
+                "SOL_rsi": await self._get_rsi("SOL"),
+                "fear_greed": whale_ai.last_metrics.fear_greed_index if whale_ai.last_metrics else 50,
+                "funding_rates": await self._get_funding_rates(),
+                "minutes_to_funding": self._get_minutes_to_funding(),
+                "price_changes_1h": await self._get_price_changes(),
+            }
+            await self._send_live_updates(prices, indicators)
+            
+            # Обрабатываем новости с объяснениями
+            news_list = self.market_context.get("news", [])
+            await self._process_news_with_explanation(news_list)
+        except Exception as e:
+            logger.error(f"Live updates cycle error: {e}")
         
         # Логируем статус
         active = trade_manager.get_active_trades()
@@ -1109,79 +1146,37 @@ _Для авто-режима включите 🤖 Auto_
             logger.error(f"Arbitrage executed notification error: {e}")
     
     async def _notify_listing_signal(self, signal, listing):
-        """🆕 Listing — уведомление (signal mode)"""
+        """Отправить информацию о листинге через live_updates"""
         try:
+            # Определяем риск/потенциал
+            risk_score = 3  # По умолчанию средний
+            potential = "+30-80%"
+            
+            # Анализируем листинг
+            if listing.exchange == "Binance":
+                risk_score = 4
+                potential = "+50-150%"
+            elif listing.exchange == "Bybit":
+                risk_score = 3
+                potential = "+30-100%"
+            
             from app.modules.listing_hunter import ListingType
+            is_tradeable = listing.listing_type == ListingType.LISTING_SCALP
             
-            if listing.listing_type == ListingType.PRE_LISTING:
-                bybit_status = "✅ Есть" if listing.is_on_bybit else "❌ Нет"
-                text = f"""
-🆕 *ЛИСТИНГ — АНОНС*
-
-🔥 *{listing.name}* ({listing.symbol})
-🏦 Биржа: {listing.exchange}
-
-━━━━━━━━━━━━━━━━━━━━
-📊 На Bybit: {bybit_status}
-━━━━━━━━━━━━━━━━━━━━
-
-💡 *Рекомендация:*
-{'Купите на Bybit!' if listing.is_on_bybit else 'Купите на другой бирже до листинга'}
-
-🎯 Потенциал: +50-200%
-⚠️ Риск: HIGH
-
-⏰ {self._get_time()}
-"""
-            elif listing.listing_type == ListingType.LISTING_SCALP:
-                text = f"""
-⚡ *ЛИСТИНГ — ТОРГОВЛЯ НАЧАЛАСЬ*
-
-🔥 *{listing.name}* ({listing.symbol})
-
-━━━━━━━━━━━━━━━━━━━━
-⚡ МОЖНО ТОРГОВАТЬ!
-━━━━━━━━━━━━━━━━━━━━
-
-💡 *Стратегия скальпинга:*
-├── Купить СЕЙЧАС
-├── TP: +20%
-├── SL: -5%
-└── Держать: 5-30 мин
-
-⚠️ _Для авто-торговли включите 🤖 Auto_
-
-⏰ {self._get_time()}
-"""
-            elif listing.listing_type == ListingType.LAUNCHPAD:
-                text = f"""
-🚀 *LAUNCHPAD*
-
-🔥 *{listing.name}* ({listing.symbol})
-🏦 {listing.exchange}
-
-━━━━━━━━━━━━━━━━━━━━
-📋 *Как участвовать:*
-1️⃣ Зайдите на {listing.exchange}
-2️⃣ Найдите Launchpad
-3️⃣ Застейкайте токены
-4️⃣ Получите {listing.symbol}!
-━━━━━━━━━━━━━━━━━━━━
-
-⏰ {self._get_time()}
-"""
-            else:
-                text = f"""
-🆕 *НОВЫЙ ЛИСТИНГ*
-
-🔥 *{listing.symbol}* на {listing.exchange}
-
-⏰ {self._get_time()}
-"""
+            update = await live_updates.generate_listing(
+                name=listing.name,
+                symbol=listing.symbol,
+                exchange=listing.exchange,
+                is_tradeable=is_tradeable,
+                risk_score=risk_score,
+                potential=potential
+            )
             
-            await telegram_bot.send_message(text.strip())
+            if update:
+                await live_updates.send_update(update)
+                
         except Exception as e:
-            logger.error(f"Listing signal notification error: {e}")
+            logger.error(f"Listing notification error: {e}")
     
     async def _notify_listing_executed(self, signal, listing):
         """🆕 Listing — куплено (auto mode)"""
@@ -1315,6 +1310,190 @@ _Рекомендуем открыть позицию вручную_
     async def _execute_listing_trade(self, signal, listing):
         """Исполнить Listing сделку (auto mode)"""
         logger.info(f"🆕 Listing trade executed: {listing.symbol}")
+    
+    # ==========================================
+    # 📢 LIVE UPDATES
+    # ==========================================
+    
+    async def _send_live_updates(self, prices: Dict, indicators: Dict):
+        """Отправить живые обновления в чат"""
+        if not live_updates.enabled:
+            return
+        
+        try:
+            # 1. Скан рынка (каждые 15 мин)
+            update = await live_updates.generate_market_scan(prices, indicators)
+            if update:
+                await live_updates.send_update(update)
+            
+            # 2. Director thinking (почему не входим)
+            btc_rsi = indicators.get("BTC_rsi", 50)
+            fear_greed = indicators.get("fear_greed", 50)
+            
+            if 30 <= btc_rsi <= 70:  # Нейтральная зона
+                reason = self._get_no_entry_reason(btc_rsi, fear_greed)
+                update = await live_updates.generate_director_thinking(
+                    prices, btc_rsi, fear_greed, reason
+                )
+                if update:
+                    await live_updates.send_update(update)
+            
+            # 3. Grid уровни (каждые 30 мин)
+            btc_price = prices.get("BTC", 0)
+            if btc_price > 0:
+                support = btc_price * 0.995  # -0.5%
+                resistance = btc_price * 1.005  # +0.5%
+                update = await live_updates.generate_grid_levels(
+                    "BTC", btc_price, support, resistance
+                )
+                if update:
+                    await live_updates.send_update(update)
+            
+            # 4. Funding info (каждые 30 мин)
+            funding_rates = indicators.get("funding_rates", {})
+            minutes_to = indicators.get("minutes_to_funding", 60)
+            if funding_rates:
+                update = await live_updates.generate_funding_info(
+                    funding_rates, minutes_to
+                )
+                if update:
+                    await live_updates.send_update(update)
+            
+            # 5. Часовой отчёт
+            price_changes = indicators.get("price_changes_1h", {})
+            update = await live_updates.generate_hourly_report(prices, price_changes)
+            if update:
+                await live_updates.send_update(update)
+            
+        except Exception as e:
+            logger.error(f"Live updates error: {e}")
+    
+    def _get_no_entry_reason(self, rsi: float, fear_greed: int) -> str:
+        """Сформировать причину почему не входим"""
+        reasons = []
+        
+        if 40 <= rsi <= 60:
+            reasons.append(f"• RSI в нейтральной зоне ({rsi:.0f})")
+        elif rsi > 60:
+            reasons.append(f"• RSI высоковат ({rsi:.0f}), жду откат")
+        else:
+            reasons.append(f"• RSI пока не достиг зоны покупки ({rsi:.0f})")
+        
+        if 40 <= fear_greed <= 60:
+            reasons.append(f"• Fear & Greed нейтральный ({fear_greed})")
+        elif fear_greed > 70:
+            reasons.append(f"• Много жадности ({fear_greed}), опасно входить")
+        
+        if not reasons:
+            reasons.append("• Жду более чёткий сигнал")
+        
+        return "\n".join(reasons)
+    
+    async def _get_rsi(self, symbol: str) -> float:
+        """Получить RSI для символа"""
+        try:
+            from app.strategies.indicators import TechnicalIndicators
+            
+            df = self.data_loader.load_from_cache(symbol, '5m')
+            
+            if df is None or len(df) < 20:
+                return 50
+            
+            ind = TechnicalIndicators()
+            return ind.rsi(df['close'].tail(50), 14)
+        except:
+            return 50
+    
+    async def _get_funding_rates(self) -> Dict[str, float]:
+        """Получить funding rates"""
+        try:
+            status = await funding_scalper.get_status()
+            rates = {}
+            for item in status.get("top_funding_rates", []):
+                symbol = item.get("symbol", "").replace("USDT", "")
+                rates[symbol] = item.get("rate", 0)
+            return rates
+        except:
+            return {}
+    
+    def _get_minutes_to_funding(self) -> int:
+        """Минут до следующего funding"""
+        now = datetime.utcnow()
+        # Funding в 00:00, 08:00, 16:00 UTC
+        funding_hours = [0, 8, 16]
+        
+        for h in funding_hours:
+            if now.hour < h:
+                return (h - now.hour) * 60 - now.minute
+        
+        # Следующий в 00:00
+        return (24 - now.hour) * 60 - now.minute
+    
+    async def _get_price_changes(self) -> Dict[str, float]:
+        """Получить изменения цен за час"""
+        try:
+            changes = {}
+            
+            for symbol in ["BTC", "ETH", "SOL"]:
+                df = self.data_loader.load_from_cache(symbol, '1h')
+                if df is not None and len(df) >= 2:
+                    current = df['close'].iloc[-1]
+                    prev = df['close'].iloc[-2]
+                    changes[symbol] = ((current - prev) / prev) * 100
+            
+            return changes
+        except:
+            return {}
+    
+    async def _process_news_with_explanation(self, news_list: List[Dict]):
+        """Обработать новости и отправить с объяснением"""
+        if not news_list:
+            return
+        
+        live_updates.stats['news_processed'] += len(news_list)
+        
+        # Отправляем только важные новости
+        for news in news_list[:2]:  # Макс 2 новости за раз
+            importance = news.get('importance', 'LOW')
+            if importance not in ['HIGH', 'MEDIUM']:
+                continue
+            
+            title = news.get('title', '')
+            sentiment = news.get('sentiment', 0)
+            
+            # Определяем влияние
+            if 'fed' in title.lower() or 'rate' in title.lower():
+                impact = "Решения ФРС влияют на ликвидность. Может вызвать волатильность."
+            elif 'etf' in title.lower():
+                impact = "ETF новости влияют на институциональный спрос."
+            elif 'hack' in title.lower() or 'exploit' in title.lower():
+                impact = "Негатив для рынка. Возможна коррекция."
+            elif 'regulation' in title.lower() or 'sec' in title.lower():
+                impact = "Регуляторные новости могут вызвать неопределённость."
+            else:
+                if sentiment > 0.3:
+                    impact = "Позитивно для рынка. Возможен рост."
+                elif sentiment < -0.3:
+                    impact = "Негативно. Возможна коррекция."
+                else:
+                    impact = "Нейтрально. Слежу за реакцией рынка."
+            
+            # Определяем sentiment text
+            if sentiment > 0.2:
+                sent_text = "bullish"
+            elif sentiment < -0.2:
+                sent_text = "bearish"
+            else:
+                sent_text = "neutral"
+            
+            update = await live_updates.generate_news_impact(
+                title=title,
+                impact=impact,
+                sentiment=sent_text
+            )
+            
+            if update:
+                await live_updates.send_update(update)
     
     async def _execute_signal(self, signal: Signal, value: float = None):
         """Выполнить сигнал — открыть сделку"""
