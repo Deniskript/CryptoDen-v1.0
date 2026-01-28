@@ -27,6 +27,7 @@ from app.backtesting.data_loader import BybitDataLoader
 from app.ai.trading_coordinator import trading_coordinator, get_director_guidance
 from app.ai.director_ai import director_trader
 from app.ai.whale_ai import whale_ai
+from app.ai.master_strategist import master_strategist
 from app.modules.grid_bot import grid_bot
 from app.modules.funding_scalper import funding_scalper
 from app.modules.arbitrage import arbitrage_scanner
@@ -409,14 +410,15 @@ class MarketMonitor:
         """
         🔍 Поиск торговых сигналов
         
-        НОВАЯ ЛОГИКА:
-        1. Director проверяет нужен ли TAKE_CONTROL (события)
-        2. Если да - Director торгует, Worker отдыхает
-        3. Если нет - Worker ищет сигналы по стратегиям
+        ЛОГИКА:
+        1. Master Strategist анализирует рынок (каждые 30 мин)
+        2. Director проверяет нужен ли TAKE_CONTROL (события)
+        3. Если да - Director торгует, Worker отдыхает
+        4. Если нет - Worker ищет сигналы по стратегиям
         """
         
         # ========================================
-        # 🐋 ШАГ 0: Собираем данные для Director
+        # 🐋 ШАГ 0.1: Собираем данные для AI
         # ========================================
         whale_metrics = {}
         if whale_ai.last_metrics:
@@ -432,6 +434,43 @@ class MarketMonitor:
                 "liq_short": m.liq_short,
             }
             logger.debug(f"🐋 Whale: F&G={m.fear_greed_index}, L/S={m.long_ratio:.0f}%, Funding={m.funding_rate:+.4f}%")
+        
+        # ========================================
+        # 👑 ШАГ 0.2: Master Strategist (каждые 30 мин)
+        # ========================================
+        master_grid_settings = {"enabled": True, "mode": "balanced"}
+        master_funding_settings = {"enabled": True}
+        master_technical_settings = {"enabled": True}
+        
+        if master_strategist.should_analyze():
+            try:
+                market_data = {
+                    "prices": prices,
+                    "whale_metrics": whale_metrics,
+                    "news": self.market_context.get("news", []),
+                }
+                
+                strategy = await master_strategist.analyze_market(market_data)
+                
+                # Уведомить в Telegram
+                notification = master_strategist.format_notification()
+                if notification:
+                    await smart_notifications.queue_message(
+                        module=ModuleType.DIRECTOR,
+                        text=notification,
+                        priority=2,
+                        need_ai=False  # Уже AI анализ
+                    )
+                
+                logger.info(f"👑 Master: {strategy.market_condition}, Grid: {strategy.grid.mode}, confidence: {strategy.confidence}%")
+                
+            except Exception as e:
+                logger.error(f"👑 Master Strategist error: {e}")
+        
+        # Получаем настройки от Master
+        master_grid_settings = master_strategist.get_module_settings("grid")
+        master_funding_settings = master_strategist.get_module_settings("funding")
+        master_technical_settings = master_strategist.get_module_settings("technical")
         
         # Собираем контекст новостей
         news_context = {"sentiment": "neutral", "critical_count": 0}
@@ -501,30 +540,41 @@ class MarketMonitor:
             return
         
         # ========================================
-        # 📊 ШАГ 3: Grid Bot
+        # 📊 ШАГ 3: Grid Bot (с учётом Master Strategist)
         # ========================================
-        if self.is_module_enabled('grid'):
+        grid_enabled_by_master = master_grid_settings.get("enabled", True)
+        grid_mode_by_master = master_grid_settings.get("mode", "balanced")
+        
+        if self.is_module_enabled('grid') and grid_enabled_by_master:
             try:
-                grid_signals = await grid_bot.get_signals({"prices": prices})
-                
-                for signal in grid_signals:
-                    if self.can_auto_trade('grid'):
-                        # AUTO режим — исполняем сделку
-                        logger.info(f"📊 Grid AUTO: {signal.direction} {signal.symbol}")
-                        await self._execute_grid_trade(signal)
-                        await self._notify_grid_executed(signal)
-                    else:
-                        # SIGNAL режим — только уведомление
-                        logger.info(f"📊 Grid SIGNAL: {signal.direction} {signal.symbol}")
-                        await self._notify_grid_signal(signal)
+                # Применяем режим от Master
+                grid_config = master_strategist.get_grid_config()
+                if grid_config.get("enabled", True):
+                    grid_signals = await grid_bot.get_signals({"prices": prices})
                     
+                    for signal in grid_signals:
+                        if self.can_auto_trade('grid'):
+                            # AUTO режим — исполняем сделку
+                            logger.info(f"📊 Grid AUTO ({grid_mode_by_master}): {signal.direction} {signal.symbol}")
+                            await self._execute_grid_trade(signal)
+                            await self._notify_grid_executed(signal)
+                        else:
+                            # SIGNAL режим — только уведомление
+                            logger.info(f"📊 Grid SIGNAL ({grid_mode_by_master}): {signal.direction} {signal.symbol}")
+                            await self._notify_grid_signal(signal)
+                else:
+                    logger.debug(f"📊 Grid OFF by Master Strategist")
             except Exception as e:
                 logger.error(f"Grid Bot error: {e}")
+        elif not grid_enabled_by_master:
+            logger.debug(f"📊 Grid disabled by Master Strategist")
         
         # ========================================
-        # 💰 ШАГ 3.5: Funding Scalper
+        # 💰 ШАГ 3.5: Funding Scalper (с учётом Master Strategist)
         # ========================================
-        if self.is_module_enabled('funding'):
+        funding_enabled_by_master = master_funding_settings.get("enabled", True)
+        
+        if self.is_module_enabled('funding') and funding_enabled_by_master:
             try:
                 funding_signals = await funding_scalper.get_signals({"prices": prices})
                 
@@ -538,9 +588,10 @@ class MarketMonitor:
                         # SIGNAL режим — только уведомление
                         logger.info(f"💰 Funding SIGNAL: {signal.direction} {signal.symbol}")
                         await self._notify_funding_signal(signal)
-                    
             except Exception as e:
                 logger.error(f"Funding Scalper error: {e}")
+        elif not funding_enabled_by_master:
+            logger.debug(f"💰 Funding disabled by Master Strategist")
         
         # ========================================
         # 🔄 ШАГ 3.7: Arbitrage Scanner

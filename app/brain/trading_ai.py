@@ -84,7 +84,7 @@ class TradingAI:
     """
     
     OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-    MODEL = "anthropic/claude-sonnet-4"  # Sonnet 4.5
+    MODEL = "anthropic/claude-sonnet-4-5-20250514"  # Claude Sonnet 4.5
     
     def __init__(self):
         self.api_key = settings.openrouter_api_key

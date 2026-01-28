@@ -2,8 +2,9 @@
 🧠 AI Module — Иерархия AI для торгового бота
 
 Архитектура:
+  👑 Master Strategist — главный стратег (управляет модулями)
   🎯 Trading Coordinator — связывает всех
-  🎩 Director AI (Директор) — принимает решения
+  🎩 Director AI (Директор) — принимает решения (независимый)
   🐋 Whale AI (Друг) — разведка рынка
   👷 Tech AI (Работник) — выполняет стратегии
 """
@@ -29,8 +30,23 @@ from app.ai.trading_coordinator import (
     filter_signal_through_director,
     process_signal_with_coordinator,
 )
+from app.ai.master_strategist import (
+    MasterStrategist,
+    master_strategist,
+    MasterStrategy,
+    ModuleStrategy,
+    MarketCondition,
+    GridMode,
+)
 
 __all__ = [
+    # Master Strategist
+    'MasterStrategist',
+    'master_strategist',
+    'MasterStrategy',
+    'ModuleStrategy',
+    'MarketCondition',
+    'GridMode',
     # Whale AI
     'WhaleAI',
     'whale_ai',
