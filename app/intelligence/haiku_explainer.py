@@ -194,6 +194,14 @@ class HaikuExplainer:
         """Форматировать user prompt"""
         data = request.data
         
+        # Если передан кастомный промпт — используем его
+        if 'prompt' in data:
+            prompt = data.get('prompt', '')
+            context = data.get('context', '')
+            if context:
+                return f"{prompt}\n\nКонтекст:\n{context}"
+            return prompt
+        
         if request.type == "news":
             return f"""Новость: "{data.get('title', '')}"
 Источник: {data.get('source', 'Unknown')}
@@ -224,17 +232,23 @@ Fear & Greed: {data.get('fear_greed', 50)}
 Направление: {data.get('direction', 'unknown')}"""
         
         elif request.type == "market_status":
-            return f"""BTC: ${data.get('btc_price', 0):,.0f} (RSI {data.get('btc_rsi', 50):.0f})
+            # Поддержка и нового формата и старого
+            if 'btc_price' in data:
+                return f"""BTC: ${data.get('btc_price', 0):,.0f} (RSI {data.get('btc_rsi', 50):.0f})
 ETH: ${data.get('eth_price', 0):,.0f} (RSI {data.get('eth_rsi', 50):.0f})
 Fear & Greed: {data.get('fear_greed', 50)}
 Доминация BTC: {data.get('btc_dominance', 50):.1f}%"""
+            else:
+                return data.get('context', str(data))
         
         elif request.type == "funding":
             rates = data.get('rates', {})
-            rates_str = "\n".join([f"{k}: {v*100:+.3f}%" for k, v in rates.items()])
-            return f"""Funding rates:
+            if isinstance(rates, dict):
+                rates_str = "\n".join([f"{k}: {v*100:+.3f}%" for k, v in rates.items()])
+                return f"""Funding rates:
 {rates_str}
 До начисления: {data.get('minutes', 60)} мин"""
+            return str(data)
         
         return str(data)
     

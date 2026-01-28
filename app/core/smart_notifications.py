@@ -1,6 +1,6 @@
 """
 Smart Notifications — Умная система уведомлений
-Координирует ВСЕ сообщения бота, знает контекст, не спамит
+Координирует ВСЕ сообщения бота с AI анализом
 """
 import asyncio
 from datetime import datetime, timedelta
@@ -10,16 +10,16 @@ from enum import Enum
 from collections import deque
 
 from app.core.logger import logger
-from app.intelligence.haiku_explainer import haiku_explainer, ExplainRequest
+from app.core.market_data_provider import market_data, MarketSnapshot
 
 
 class MessagePriority(Enum):
     """Приоритеты сообщений"""
-    CRITICAL = 10    # Сигнал, срочный листинг
-    HIGH = 8         # Важная новость, whale
-    MEDIUM = 5       # Статус модуля, funding
-    LOW = 3          # Периодический отчёт
-    INFO = 1         # Фоновая информация
+    CRITICAL = 10
+    HIGH = 8
+    MEDIUM = 5
+    LOW = 3
+    INFO = 1
 
 
 class ModuleType(Enum):
@@ -40,52 +40,35 @@ class QueuedMessage:
     module: ModuleType
     priority: MessagePriority
     text: str
-    needs_ai: bool = False
-    ai_type: str = None
-    ai_data: Dict = None
+    ai_prompt: str = None  # Промпт для AI
+    ai_context: str = None  # Контекст для AI
     created_at: datetime = field(default_factory=datetime.now)
     
     def __lt__(self, other):
-        """Для сортировки по приоритету"""
         return self.priority.value > other.priority.value
 
 
 class BotContext:
-    """Контекст бота — что происходило"""
+    """Контекст бота"""
     
     def __init__(self):
-        # Последние сигналы
         self.last_signal_time: Optional[datetime] = None
         self.last_signal_symbol: Optional[str] = None
-        self.last_signal_direction: Optional[str] = None
-        
-        # Активные позиции
-        self.active_positions: List[str] = []
-        
-        # История сообщений (последние 20)
         self.message_history: deque = deque(maxlen=20)
-        
-        # Когда модули последний раз отчитывались
         self.module_last_report: Dict[str, datetime] = {}
-        
-        # Флаги состояния
-        self.is_startup = True  # Первые 10 минут после запуска
         self.startup_time: Optional[datetime] = None
+        self.is_startup = True
     
     def record_signal(self, symbol: str, direction: str):
-        """Записать что был сигнал"""
         self.last_signal_time = datetime.now()
         self.last_signal_symbol = symbol
-        self.last_signal_direction = direction
     
     def had_recent_signal(self, minutes: int = 30) -> bool:
-        """Был ли сигнал недавно"""
         if not self.last_signal_time:
             return False
         return datetime.now() - self.last_signal_time < timedelta(minutes=minutes)
     
     def record_message(self, module: ModuleType, text: str):
-        """Записать отправленное сообщение"""
         self.message_history.append({
             "module": module,
             "text": text[:100],
@@ -94,34 +77,22 @@ class BotContext:
         self.module_last_report[module.value] = datetime.now()
     
     def time_since_module_report(self, module: ModuleType) -> timedelta:
-        """Сколько времени с последнего отчёта модуля"""
         last = self.module_last_report.get(module.value)
         if not last:
-            return timedelta(hours=24)  # Давно не отчитывался
+            return timedelta(hours=24)
         return datetime.now() - last
     
     def is_startup_phase(self) -> bool:
-        """Находимся ли в фазе запуска (первые 10 мин)"""
         if not self.startup_time:
             return False
         return datetime.now() - self.startup_time < timedelta(minutes=10)
 
 
 class SmartNotifications:
-    """
-    Умный координатор уведомлений
+    """Умный координатор уведомлений с AI"""
     
-    - Единая очередь сообщений
-    - Знает контекст (не противоречит себе)
-    - Распределяет по времени
-    - Приоритеты
-    - AI объяснения через Haiku
-    """
+    MIN_INTERVAL = timedelta(seconds=90)
     
-    # Минимальный интервал между сообщениями
-    MIN_INTERVAL = timedelta(seconds=90)  # 1.5 минуты
-    
-    # Интервалы для модулей (когда могут отчитываться)
     MODULE_INTERVALS = {
         ModuleType.DIRECTOR: timedelta(minutes=15),
         ModuleType.GRID: timedelta(minutes=20),
@@ -129,54 +100,29 @@ class SmartNotifications:
         ModuleType.LISTING: timedelta(minutes=30),
         ModuleType.WHALE: timedelta(minutes=10),
         ModuleType.NEWS: timedelta(minutes=5),
-        ModuleType.WORKER: timedelta(minutes=15),
     }
-    
-    # Порядок презентации при запуске
-    STARTUP_ORDER = [
-        ModuleType.DIRECTOR,
-        ModuleType.GRID,
-        ModuleType.FUNDING,
-        ModuleType.LISTING,
-        ModuleType.WHALE,
-    ]
     
     def __init__(self):
         self.enabled = False
         self.context = BotContext()
-        
-        # Очередь сообщений
         self.queue: List[QueuedMessage] = []
-        
-        # Последнее отправленное сообщение
         self.last_sent_time: Optional[datetime] = None
-        
-        # Callback для отправки
         self._send_callback: Optional[Callable] = None
-        
-        # Задача обработки очереди
         self._queue_task: Optional[asyncio.Task] = None
-        
-        # Счётчик для startup
-        self._startup_index = 0
         
         logger.info("📢 SmartNotifications initialized")
     
     def set_send_callback(self, callback: Callable):
-        """Установить функцию отправки сообщений"""
         self._send_callback = callback
     
     async def start(self):
-        """Запустить систему уведомлений"""
+        """Запустить систему"""
         self.enabled = True
         self.context.startup_time = datetime.now()
         self.context.is_startup = True
-        self._startup_index = 0
         
-        # Запускаем обработку очереди
         self._queue_task = asyncio.create_task(self._process_queue())
         
-        # Отправляем приветствие
         await self._send_startup_message()
         
         logger.info("📢 SmartNotifications started")
@@ -184,7 +130,6 @@ class SmartNotifications:
     async def stop(self):
         """Остановить систему"""
         self.enabled = False
-        self.context.is_startup = False
         
         if self._queue_task:
             self._queue_task.cancel()
@@ -193,29 +138,50 @@ class SmartNotifications:
             except asyncio.CancelledError:
                 pass
         
-        # Очищаем очередь
         self.queue.clear()
-        
         logger.info("📢 SmartNotifications stopped")
     
     async def _send_startup_message(self):
-        """Отправить сообщение о запуске"""
+        """Приветственное сообщение"""
         text = """
 🚀 *БОТ ЗАПУЩЕН*
 
 - - - - -
 
 ✅ Все модули активированы
-🔍 Начинаю анализ рынка
+🔍 Загружаю данные рынка...
 
 - - - - -
 
-⏳ Через минуту каждый модуль
-   расскажет о своей работе
+⏳ Через минуту начну
+   отчёт о состоянии рынка
 
 🔔 Буду сообщать обо всём важном!
 """
         await self._send_now(text.strip(), ModuleType.SYSTEM)
+    
+    # ==========================================
+    # 🧠 AI АНАЛИЗ
+    # ==========================================
+    
+    async def _get_ai_analysis(self, prompt: str, context: str) -> Optional[str]:
+        """Получить AI анализ через Haiku"""
+        try:
+            from app.intelligence.haiku_explainer import haiku_explainer, ExplainRequest
+            
+            # Формируем запрос
+            result = await haiku_explainer.explain(
+                ExplainRequest(
+                    type="market_status",
+                    data={"prompt": prompt, "context": context}
+                )
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"AI analysis error: {e}")
+            return None
     
     # ==========================================
     # 📤 МЕТОДЫ ДОБАВЛЕНИЯ В ОЧЕРЕДЬ
@@ -223,90 +189,72 @@ class SmartNotifications:
     
     async def queue_director_status(
         self,
-        symbol: str,
-        price: float,
-        rsi: float,
-        fear_greed: int,
+        snapshot: MarketSnapshot = None,
         has_signal: bool = False
     ):
-        """Добавить статус Директора в очередь"""
+        """Статус Директора с реальными данными"""
         
-        # Если недавно был сигнал — не пишем "нет сигнала"
         if self.context.had_recent_signal(30) and not has_signal:
             return
         
-        # Проверяем интервал
         if not self._can_module_report(ModuleType.DIRECTOR):
             return
         
-        if has_signal:
-            return  # Сигналы идут через queue_signal
+        # Получаем реальные данные если не переданы
+        if not snapshot:
+            snapshot = await market_data.get_snapshot()
         
-        # Определяем состояние RSI
-        if rsi < 30:
-            rsi_status = "🟢 перепродан"
-            rsi_hint = "Близко к зоне покупки!"
-        elif rsi < 40:
-            rsi_status = "🟡 низкий"
-            rsi_hint = "Слежу за возможностью LONG"
-        elif rsi > 70:
-            rsi_status = "🔴 перекуплен"
-            rsi_hint = "Возможен разворот вниз"
-        elif rsi > 60:
-            rsi_status = "🟡 высокий"
-            rsi_hint = "Слежу за возможностью SHORT"
-        else:
-            rsi_status = "⚪ нейтрально"
-            rsi_hint = "Жду более чёткий сигнал"
+        # RSI статус
+        rsi_emoji, rsi_text = market_data.get_rsi_status(snapshot.btc_rsi)
+        fg_emoji = market_data.get_fg_emoji(snapshot.fear_greed)
         
-        # Определяем Fear & Greed
-        if fear_greed < 25:
-            fg_emoji = "😨"
-            fg_text = "Страх"
-        elif fear_greed < 45:
-            fg_emoji = "😟"
-            fg_text = "Осторожность"
-        elif fear_greed > 75:
-            fg_emoji = "🤑"
-            fg_text = "Жадность"
-        elif fear_greed > 55:
-            fg_emoji = "😊"
-            fg_text = "Оптимизм"
+        # Определяем что видит директор
+        if snapshot.btc_rsi < 35:
+            outlook = "📈 Близко к зоне покупки!"
+            outlook_detail = "RSI в зоне перепроданности"
+        elif snapshot.btc_rsi > 65:
+            outlook = "📉 Близко к зоне продажи!"
+            outlook_detail = "RSI в зоне перекупленности"
         else:
-            fg_emoji = "😐"
-            fg_text = "Нейтрально"
+            outlook = "⏳ Жду лучшую точку входа"
+            outlook_detail = "RSI в нейтральной зоне"
         
         text = f"""
 🎩 *ДИРЕКТОР*
 
 - - - - -
 
-📊 *Анализ рынка:*
+📊 *Состояние рынка:*
 
-💰 {symbol}: *${price:,.0f}*
-📈 RSI: *{rsi:.0f}* {rsi_status}
-{fg_emoji} Настроение: *{fear_greed}* ({fg_text})
+💰 BTC: *${snapshot.btc_price:,.0f}*
+📈 RSI: *{snapshot.btc_rsi:.0f}* {rsi_emoji} {rsi_text}
+{fg_emoji} Настроение: *{snapshot.fear_greed}* ({snapshot.fear_greed_text})
 
 - - - - -
 
-🧠 *Мой вывод:*
+🔍 *Что я вижу:*
 
-{rsi_hint}
+• {outlook_detail}
+• Слежу за BTC, ETH, SOL, BNB...
+• {outlook}
 """
+        
+        # AI контекст
+        ai_context = f"""
+BTC цена: ${snapshot.btc_price:,.0f}
+RSI(14): {snapshot.btc_rsi:.0f}
+Fear & Greed: {snapshot.fear_greed} ({snapshot.fear_greed_text})
+Изменение 24ч: {snapshot.btc_change_24h:+.1f}%
+"""
+        
+        ai_prompt = "Дай краткий анализ рынка (2-3 предложения). Что ожидать? Когда может быть сигнал?"
         
         msg = QueuedMessage(
             module=ModuleType.DIRECTOR,
             priority=MessagePriority.MEDIUM,
             text=text.strip(),
-            needs_ai=True,
-            ai_type="no_signal",
-            ai_data={
-                "symbol": symbol,
-                "price": price,
-                "rsi": rsi,
-                "fear_greed": fear_greed,
-                "trend": "нейтральный" if 40 < rsi < 60 else ("бычий" if rsi < 40 else "медвежий")
-            }
+            ai_prompt=ai_prompt,
+            ai_context=ai_context
         )
         
         self._add_to_queue(msg)
@@ -322,12 +270,9 @@ class SmartNotifications:
         strategy: str,
         win_rate: float
     ):
-        """Добавить СИГНАЛ в очередь (высший приоритет)"""
+        """СИГНАЛ — высший приоритет"""
         
-        # Записываем в контекст
         self.context.record_signal(symbol, direction)
-        
-        # Очищаем очередь от низкоприоритетных
         self._clear_low_priority()
         
         if direction == "LONG":
@@ -360,24 +305,153 @@ class SmartNotifications:
 
 - - - - -
 
-💡 *Рекомендация:*
-Откройте позицию вручную на бирже
+⚠️ Откройте позицию вручную!
 """
+        
+        ai_context = f"""
+Сигнал: {direction} {symbol}
+Цена входа: ${entry:,.2f}
+RSI: {rsi:.0f}
+Стратегия: {strategy}
+Win Rate: {win_rate:.0f}%
+"""
+        
+        ai_prompt = "Объясни почему сейчас хороший момент для входа (2-3 предложения). Какие риски?"
         
         msg = QueuedMessage(
             module=ModuleType.DIRECTOR,
             priority=MessagePriority.CRITICAL,
             text=text.strip(),
-            needs_ai=True,
-            ai_type="signal",
-            ai_data={
-                "symbol": symbol,
-                "direction": direction,
-                "entry": entry,
-                "rsi": rsi,
-                "strategy": strategy,
-                "win_rate": win_rate
-            }
+            ai_prompt=ai_prompt,
+            ai_context=ai_context
+        )
+        
+        self._add_to_queue(msg)
+    
+    async def queue_news(
+        self,
+        title: str,
+        source: str,
+        sentiment: float,
+        importance: str
+    ):
+        """Новость с AI анализом"""
+        
+        if importance not in ["HIGH", "MEDIUM"]:
+            return
+        
+        if not self._can_module_report(ModuleType.NEWS):
+            return
+        
+        # Определяем тон
+        if sentiment > 0.2:
+            sent_emoji = "🟢"
+            sent_text = "Позитивная"
+        elif sentiment < -0.2:
+            sent_emoji = "🔴"
+            sent_text = "Негативная"
+        else:
+            sent_emoji = "⚪"
+            sent_text = "Нейтральная"
+        
+        importance_ru = "🔥 ВАЖНАЯ" if importance == "HIGH" else "📌 Средняя"
+        
+        # НЕ обрезаем заголовок сильно
+        short_title = title[:100] + "..." if len(title) > 100 else title
+        
+        text = f"""
+📰 *НОВОСТЬ*
+
+- - - - -
+
+📢 *"{short_title}"*
+
+{sent_emoji} Тон: {sent_text}
+{importance_ru}
+
+- - - - -
+
+🔍 *Источник:* {source}
+"""
+        
+        ai_context = f"""
+Заголовок: {title}
+Источник: {source}
+Sentiment Score: {sentiment}
+"""
+        
+        ai_prompt = """
+Объясни эту новость простым языком (3-4 предложения на русском):
+1. Что произошло
+2. Как это повлияет на Биткоин и крипторынок
+3. Что делать трейдеру
+"""
+        
+        msg = QueuedMessage(
+            module=ModuleType.NEWS,
+            priority=MessagePriority.HIGH if importance == "HIGH" else MessagePriority.MEDIUM,
+            text=text.strip(),
+            ai_prompt=ai_prompt,
+            ai_context=ai_context
+        )
+        
+        self._add_to_queue(msg)
+    
+    async def queue_listing(
+        self,
+        name: str,
+        symbol: str,
+        exchange: str,
+        listing_type: str,
+        is_tradeable: bool
+    ):
+        """Листинг с AI анализом"""
+        
+        priority = MessagePriority.CRITICAL if is_tradeable else MessagePriority.HIGH
+        
+        if is_tradeable:
+            status = "⚡ *ТОРГИ НАЧАЛИСЬ!*"
+            action = "🚀 Можно покупать!"
+        else:
+            status = "⏳ *Ожидается листинг*"
+            action = "🔔 Сообщу когда начнутся торги"
+        
+        text = f"""
+🆕 *ЛИСТИНГ*
+
+- - - - -
+
+🔥 *{name}* ({symbol})
+🏦 Биржа: *{exchange}*
+
+{status}
+
+- - - - -
+
+💡 {action}
+"""
+        
+        ai_context = f"""
+Листинг: {name} ({symbol})
+Биржа: {exchange}
+Тип: {listing_type}
+Торги начались: {'Да' if is_tradeable else 'Нет'}
+"""
+        
+        ai_prompt = """
+Оцени этот листинг (3-4 предложения на русском):
+1. Что это за проект (если знаешь)
+2. Какой потенциал роста в первые часы
+3. Какие риски и когда лучше входить
+4. Общая оценка: стоит ли покупать
+"""
+        
+        msg = QueuedMessage(
+            module=ModuleType.LISTING,
+            priority=priority,
+            text=text.strip(),
+            ai_prompt=ai_prompt,
+            ai_context=ai_context
         )
         
         self._add_to_queue(msg)
@@ -389,7 +463,7 @@ class SmartNotifications:
         support: float,
         resistance: float
     ):
-        """Добавить статус Grid Bot"""
+        """Статус Grid Bot"""
         
         if not self._can_module_report(ModuleType.GRID):
             return
@@ -423,7 +497,8 @@ class SmartNotifications:
             module=ModuleType.GRID,
             priority=MessagePriority.LOW,
             text=text.strip(),
-            needs_ai=False
+            ai_prompt=None,
+            ai_context=None
         )
         
         self._add_to_queue(msg)
@@ -433,7 +508,7 @@ class SmartNotifications:
         rates: Dict[str, float],
         minutes_to_funding: int
     ):
-        """Добавить статус Funding"""
+        """Статус Funding"""
         
         if not self._can_module_report(ModuleType.FUNDING):
             return
@@ -483,130 +558,15 @@ class SmartNotifications:
 {hint}
 """
         
+        ai_prompt = "Объясни что означают эти ставки финансирования (2-3 предложения). Как заработать?"
+        ai_context = f"Funding rates: {rates}, До начисления: {minutes_to_funding} мин"
+        
         msg = QueuedMessage(
             module=ModuleType.FUNDING,
             priority=MessagePriority.MEDIUM if has_opportunity else MessagePriority.LOW,
             text=text.strip(),
-            needs_ai=has_opportunity,
-            ai_type="funding" if has_opportunity else None,
-            ai_data={"rates": rates, "minutes": minutes_to_funding} if has_opportunity else None
-        )
-        
-        self._add_to_queue(msg)
-    
-    async def queue_news(
-        self,
-        title: str,
-        source: str,
-        sentiment: float,
-        importance: str
-    ):
-        """Добавить новость"""
-        
-        # Только важные новости
-        if importance not in ["HIGH", "MEDIUM"]:
-            return
-        
-        if not self._can_module_report(ModuleType.NEWS):
-            return
-        
-        # Определяем настроение
-        if sentiment > 0.2:
-            sent_emoji = "🟢"
-            sent_text = "Позитивная"
-        elif sentiment < -0.2:
-            sent_emoji = "🔴"
-            sent_text = "Негативная"
-        else:
-            sent_emoji = "⚪"
-            sent_text = "Нейтральная"
-        
-        # Важность на русском
-        importance_ru = "🔥 ВАЖНАЯ" if importance == "HIGH" else "📌 Средняя"
-        
-        # Обрезаем длинный заголовок
-        short_title = title[:80] + "..." if len(title) > 80 else title
-        
-        text = f"""
-📰 *НОВОСТЬ*
-
-- - - - -
-
-📢 *"{short_title}"*
-
-{sent_emoji} Тон: {sent_text}
-{importance_ru}
-
-- - - - -
-"""
-        
-        msg = QueuedMessage(
-            module=ModuleType.NEWS,
-            priority=MessagePriority.HIGH if importance == "HIGH" else MessagePriority.MEDIUM,
-            text=text.strip(),
-            needs_ai=True,
-            ai_type="news",
-            ai_data={
-                "title": title,
-                "source": source,
-                "sentiment": sentiment
-            }
-        )
-        
-        self._add_to_queue(msg)
-    
-    async def queue_listing(
-        self,
-        name: str,
-        symbol: str,
-        exchange: str,
-        listing_type: str,
-        is_tradeable: bool
-    ):
-        """Добавить листинг"""
-        
-        priority = MessagePriority.CRITICAL if is_tradeable else MessagePriority.HIGH
-        
-        if is_tradeable:
-            status = "⚡ *ТОРГИ НАЧАЛИСЬ!*"
-            action = "🚀 Можно покупать прямо сейчас!"
-        else:
-            status = "⏳ *Ожидается листинг*"
-            action = "🔔 Сообщу когда начнутся торги"
-        
-        text = f"""
-🆕 *ЛИСТИНГ*
-
-- - - - -
-
-🔥 *{name}* ({symbol})
-🏦 Биржа: *{exchange}*
-
-{status}
-
-- - - - -
-
-📊 *Оценка:* ⭐⭐⭐⭐ (4/5)
-💰 *Потенциал:* +50-150%
-⚠️ *Риск:* Средний
-
-- - - - -
-
-💡 {action}
-"""
-        
-        msg = QueuedMessage(
-            module=ModuleType.LISTING,
-            priority=priority,
-            text=text.strip(),
-            needs_ai=True,
-            ai_type="listing",
-            ai_data={
-                "name": name,
-                "symbol": symbol,
-                "exchange": exchange,
-                "type": listing_type
-            }
+            ai_prompt=ai_prompt if has_opportunity else None,
+            ai_context=ai_context if has_opportunity else None
         )
         
         self._add_to_queue(msg)
@@ -615,10 +575,10 @@ class SmartNotifications:
         self,
         coin: str,
         amount: float,
-        direction: str,  # "to_exchange", "from_exchange"
+        direction: str,
         whale_type: str
     ):
-        """Добавить движение китов"""
+        """Движение китов"""
         
         if not self._can_module_report(ModuleType.WHALE):
             return
@@ -644,29 +604,32 @@ class SmartNotifications:
 {hint}
 """
         
+        ai_context = f"""
+Движение: {amount:,.0f} {coin}
+Направление: {direction}
+Тип: {whale_type}
+"""
+        
+        ai_prompt = "Объясни что означает это движение китов (2-3 предложения). Как повлияет на цену?"
+        
         msg = QueuedMessage(
             module=ModuleType.WHALE,
             priority=MessagePriority.HIGH,
             text=text.strip(),
-            needs_ai=True,
-            ai_type="whale",
-            ai_data={
-                "coin": coin,
-                "amount": amount,
-                "type": whale_type,
-                "direction": direction
-            }
+            ai_prompt=ai_prompt,
+            ai_context=ai_context
         )
         
         self._add_to_queue(msg)
     
     async def queue_startup_module(self, module: ModuleType, text: str):
-        """Добавить сообщение модуля при запуске"""
+        """Добавить сообщение модуля при запуске (с AI)"""
         msg = QueuedMessage(
             module=module,
             priority=MessagePriority.INFO,
             text=text.strip(),
-            needs_ai=False
+            ai_prompt=None,
+            ai_context=None
         )
         self._add_to_queue(msg)
     
@@ -677,12 +640,10 @@ class SmartNotifications:
     def _add_to_queue(self, msg: QueuedMessage):
         """Добавить сообщение в очередь"""
         self.queue.append(msg)
-        # Сортируем по приоритету
         self.queue.sort()
     
     def _can_module_report(self, module: ModuleType) -> bool:
         """Может ли модуль сейчас отчитаться"""
-        # При запуске — всем можно
         if self.context.is_startup_phase():
             return True
         
@@ -692,7 +653,7 @@ class SmartNotifications:
         return time_since >= interval
     
     def _clear_low_priority(self):
-        """Очистить низкоприоритетные сообщения (когда пришёл сигнал)"""
+        """Очистить низкоприоритетные сообщения"""
         self.queue = [
             msg for msg in self.queue 
             if msg.priority.value >= MessagePriority.HIGH.value
@@ -703,7 +664,7 @@ class SmartNotifications:
         while self.enabled:
             try:
                 await self._process_one()
-                await asyncio.sleep(5)  # Проверяем каждые 5 сек
+                await asyncio.sleep(5)
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -731,16 +692,24 @@ class SmartNotifications:
         # Берём сообщение
         msg = self.queue.pop(0)
         
-        # Добавляем AI объяснение если нужно
+        # Добавляем AI анализ если есть промпт
         final_text = msg.text
         
-        if msg.needs_ai and msg.ai_type and msg.ai_data:
+        if msg.ai_prompt and msg.ai_context:
             try:
+                from app.intelligence.haiku_explainer import haiku_explainer, ExplainRequest
+                
+                # Специальный промпт для AI
+                full_prompt = f"{msg.ai_prompt}\n\nКонтекст:\n{msg.ai_context}"
+                
                 explanation = await haiku_explainer.explain(
-                    ExplainRequest(type=msg.ai_type, data=msg.ai_data)
+                    ExplainRequest(
+                        type="market_status",
+                        data={"prompt": full_prompt, "context": msg.ai_context}
+                    )
                 )
+                
                 if explanation:
-                    # Красиво форматируем AI ответ
                     final_text = msg.text + f"""
 
 - - - - -
@@ -768,44 +737,29 @@ _{explanation}_
         except Exception as e:
             logger.error(f"Send error: {e}")
     
-    async def send_startup_sequence(self, data: Dict):
-        """Отправить последовательность при запуске"""
+    async def send_startup_sequence(self, initial_data: Dict = None):
+        """Отправить последовательность при запуске с реальными данными"""
         
-        btc_price = data.get('btc_price', 0)
-        btc_rsi = data.get('btc_rsi', 50)
-        fear_greed = data.get('fear_greed', 50)
-        coins_count = data.get('coins_count', 7)
-        minutes_to_funding = data.get('minutes_to_funding', 120)
+        # Получаем реальные данные рынка
+        snapshot = await market_data.get_snapshot(force_refresh=True)
         
         # Часы и минуты для funding
+        minutes_to_funding = initial_data.get('minutes_to_funding', 120) if initial_data else 120
         hours = minutes_to_funding // 60
         mins = minutes_to_funding % 60
-        if hours > 0:
-            funding_time = f"{hours}ч {mins}мин"
-        else:
-            funding_time = f"{mins} мин"
+        funding_time = f"{hours}ч {mins}мин" if hours > 0 else f"{mins} мин"
+        
+        coins_count = initial_data.get('coins_count', 7) if initial_data else 7
+        
+        # RSI статус
+        rsi_emoji, rsi_text = market_data.get_rsi_status(snapshot.btc_rsi)
+        fg_emoji = market_data.get_fg_emoji(snapshot.fear_greed)
         
         # Director (через 1.5 мин после запуска)
         await asyncio.sleep(90)
-        await self.queue_startup_module(
-            ModuleType.DIRECTOR,
-            f"""
-🎩 *ДИРЕКТОР*
-
-- - - - -
-
-👋 Привет! Начинаю анализ.
-
-💰 BTC: *${btc_price:,.0f}*
-📈 RSI: *{btc_rsi:.0f}*
-😐 Настроение: *{fear_greed}*
-
-- - - - -
-
-🔍 Ищу точки входа...
-🔔 Сообщу когда найду!
-"""
-        )
+        
+        # Отправляем директора с реальными данными и AI
+        await self.queue_director_status(snapshot=snapshot)
         
         # Grid (ещё через 1.5 мин)
         await asyncio.sleep(90)

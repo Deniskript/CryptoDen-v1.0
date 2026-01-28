@@ -14,9 +14,10 @@ from app.notifications import telegram_bot
 
 
 async def start_smart_notifications():
-    """Запуск умных уведомлений"""
+    """Запуск умных уведомлений с реальными данными рынка"""
     try:
         from app.core.smart_notifications import smart_notifications
+        from app.core.market_data_provider import market_data
         
         # Устанавливаем callback для отправки
         smart_notifications.set_send_callback(telegram_bot.send_message)
@@ -24,11 +25,15 @@ async def start_smart_notifications():
         # Запускаем
         await smart_notifications.start()
         
-        # Данные для startup sequence
+        # Получаем реальные данные рынка
+        snapshot = await market_data.get_snapshot(force_refresh=True)
+        logger.info(f"📊 Market: BTC=${snapshot.btc_price:,.0f}, RSI={snapshot.btc_rsi:.0f}, F&G={snapshot.fear_greed}")
+        
+        # Данные для startup sequence (с реальными значениями)
         startup_data = {
-            "btc_price": 102000,  # Будет обновлено из API
-            "btc_rsi": 50,
-            "fear_greed": 50,
+            "btc_price": snapshot.btc_price,
+            "btc_rsi": snapshot.btc_rsi,
+            "fear_greed": snapshot.fear_greed,
             "coins_count": 7,
             "minutes_to_funding": 120,
         }
@@ -36,9 +41,11 @@ async def start_smart_notifications():
         # Запускаем последовательность приветствия
         asyncio.create_task(smart_notifications.send_startup_sequence(startup_data))
         
-        logger.info("✅ Smart Notifications started")
+        logger.info("✅ Smart Notifications started with real market data")
     except Exception as e:
         logger.error(f"❌ Smart Notifications error: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 async def main():
