@@ -188,13 +188,7 @@ class MarketMonitor:
         # Включаем live updates
         live_updates.enabled = True
         
-        # Отправляем сообщение о запуске
-        mode = "Сигналы" if not self.has_api_keys else "Авто"
-        startup_msg = await live_updates.generate_startup_message(
-            coins_count=len(self.symbols),
-            mode=mode
-        )
-        await live_updates.send_update(startup_msg)
+        # НЕ отправляем сообщение здесь - smart_notifications.send_startup_sequence отправит ОДНО сообщение
         
         # Если symbols пустой, берём из стратегий
         if not self.symbols:
