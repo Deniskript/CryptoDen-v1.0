@@ -114,8 +114,11 @@ class NewsParser:
             await self.session.close()
     
     async def _ensure_session(self):
-        if self.session is None:
-            self.session = aiohttp.ClientSession()
+        """Гарантировать что сессия активна"""
+        if self.session is None or self.session.closed:
+            self.session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=15)
+            )
     
     async def fetch_cryptocompare_news(self, limit: int = 20) -> List[NewsItem]:
         """Получить новости из CryptoCompare"""

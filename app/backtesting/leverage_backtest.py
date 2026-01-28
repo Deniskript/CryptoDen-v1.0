@@ -106,12 +106,22 @@ class LeverageBacktester:
         self.session: Optional[aiohttp.ClientSession] = None
         
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=30)
+        )
         return self
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.session:
+        if self.session and not self.session.closed:
             await self.session.close()
+            self.session = None
+    
+    async def _ensure_session(self):
+        """Гарантировать что сессия активна"""
+        if self.session is None or self.session.closed:
+            self.session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=30)
+            )
     
     async def _fetch_klines(
         self, 
@@ -122,8 +132,7 @@ class LeverageBacktester:
     ) -> List:
         """Загрузить свечи с Bybit"""
         
-        if not self.session:
-            self.session = aiohttp.ClientSession()
+        await self._ensure_session()
         
         url = f"{self.BYBIT_BASE_URL}/v5/market/kline"
         params = {

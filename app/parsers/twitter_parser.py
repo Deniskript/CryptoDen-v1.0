@@ -59,10 +59,15 @@ class TwitterParser:
     🐦 Парсер Twitter через Nitter
     
     Nitter — бесплатное зеркало Twitter без API
+    
+    ⚠️ СТАТУС: ОТКЛЮЧЁН — Nitter инстансы недоступны
     """
     
     def __init__(self):
-        # Список Nitter инстансов (некоторые могут не работать)
+        # ⚠️ ОТКЛЮЧЁН — Nitter не работает
+        self.enabled = False
+        
+        # Список Nitter инстансов (большинство не работают)
         self.nitter_instances = [
             "https://nitter.privacydev.net",
             "https://nitter.poast.org",
@@ -74,6 +79,9 @@ class TwitterParser:
             "https://nitter.unixfox.eu",
         ]
         self.working_instance = None
+        
+        if not self.enabled:
+            logger.warning("⚠️ Twitter Parser ОТКЛЮЧЁН — Nitter недоступен")
         
         # Аккаунты для парсинга
         self.whale_accounts = [
@@ -108,6 +116,10 @@ class TwitterParser:
     
     async def _find_working_instance(self) -> Optional[str]:
         """Найти работающий Nitter инстанс"""
+        
+        # ⚠️ Парсер отключён
+        if not self.enabled:
+            return None
         
         if self.working_instance:
             # Проверяем что он ещё работает
@@ -370,6 +382,10 @@ class TwitterParser:
     async def get_whale_transactions(self, hours: int = 4) -> List[WhaleTransaction]:
         """Получить транзакции китов за последние N часов"""
         
+        # ⚠️ Парсер отключён
+        if not self.enabled:
+            return []
+        
         transactions = []
         cutoff_time = datetime.now() - timedelta(hours=hours)
         
@@ -395,6 +411,11 @@ class TwitterParser:
     
     async def get_crypto_news(self, hours: int = 2) -> List[TwitterNews]:
         """Получить крипто новости"""
+        
+        # ⚠️ Парсер отключён
+        if not self.enabled:
+            logger.debug("Twitter Parser отключён — возвращаем пустой список")
+            return []
         
         news = []
         cutoff_time = datetime.now() - timedelta(hours=hours)
@@ -432,6 +453,19 @@ class TwitterParser:
     
     async def get_whale_summary(self) -> Dict:
         """Сводка по китам для Whale AI"""
+        
+        # ⚠️ Парсер отключён — возвращаем пустую сводку
+        if not self.enabled:
+            return {
+                "total_volume_usd": 0,
+                "exchange_inflow": 0,
+                "exchange_outflow": 0,
+                "net_flow": 0,
+                "sentiment": "neutral",
+                "top_transactions": [],
+                "by_coin": {},
+                "status": "disabled"
+            }
         
         transactions = await self.get_whale_transactions(hours=4)
         

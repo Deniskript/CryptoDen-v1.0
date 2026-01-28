@@ -44,12 +44,22 @@ class BybitDataLoader:
         self.session: Optional[aiohttp.ClientSession] = None
     
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=30)
+        )
         return self
     
     async def __aexit__(self, *args):
-        if self.session:
+        if self.session and not self.session.closed:
             await self.session.close()
+            self.session = None
+    
+    async def _ensure_session(self):
+        """Гарантировать что сессия активна"""
+        if self.session is None or self.session.closed:
+            self.session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=30)
+            )
     
     def _get_cache_path(self, symbol: str, timeframe: str, start_year: int, end_year: int) -> Path:
         """Путь к кэш-файлу"""
@@ -75,8 +85,11 @@ class BybitDataLoader:
             "limit": limit
         }
         
+        # Убедиться что сессия активна
+        await self._ensure_session()
+        
         try:
-            async with self.session.get(url, params=params, timeout=30) as resp:
+            async with self.session.get(url, params=params) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     if data.get("retCode") == 0:
