@@ -592,6 +592,16 @@ class ListingHunter(BaseModule):
     async def process_listing(self, listing: ListingEvent) -> Optional[ModuleSignal]:
         """Обработать обнаруженный листинг"""
         
+        # Проверяем не обработан ли уже этот листинг
+        if listing.id in self.listings:
+            return None  # Уже обработан
+        
+        # Проверяем по символу - не было ли уже такого листинга недавно
+        for existing in self.history[-50:]:  # Проверяем последние 50
+            if existing.symbol == listing.symbol and existing.exchange == listing.exchange:
+                # Листинг с таким символом уже есть
+                return None
+        
         # Сохраняем
         self.listings[listing.id] = listing
         self.history.append(listing)

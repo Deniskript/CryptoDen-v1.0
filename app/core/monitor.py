@@ -94,6 +94,10 @@ class MarketMonitor:
         self.bybit = BybitClient(testnet=False)
         self.data_loader = BybitDataLoader()
         
+        # Отслеживание отправленных уведомлений (чтобы не спамить)
+        self.notified_listings: set = set()  # {symbol_exchange}
+        self.notified_grid_signals: set = set()  # {symbol_direction_price}
+        
         logger.info("MarketMonitor initialized with AI")
         
         # Обновляем статус при инициализации
@@ -711,6 +715,14 @@ class MarketMonitor:
                     
                     if not listing:
                         continue
+                    
+                    # Проверяем не отправляли ли уже уведомление
+                    listing_key = f"{listing.symbol}_{listing.exchange}"
+                    if listing_key in self.notified_listings:
+                        continue  # Уже отправляли
+                    
+                    # Отмечаем как отправленное
+                    self.notified_listings.add(listing_key)
                     
                     # Listing Scalp можно автоматизировать
                     if listing.listing_type == ListingType.LISTING_SCALP:
