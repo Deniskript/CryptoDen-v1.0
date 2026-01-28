@@ -3,6 +3,7 @@
 
 Архитектура:
   👑 Master Strategist — главный стратег (управляет модулями)
+  🧠 Director Brain — AI анализ рынка как профи-трейдер
   🎯 Trading Coordinator — связывает всех
   🎩 Director AI (Директор) — принимает решения (независимый)
   🐋 Whale AI (Друг) — разведка рынка
@@ -10,6 +11,13 @@
 """
 
 from app.ai.whale_ai import WhaleAI, whale_ai, WhaleAlert, MarketMetrics, AlertLevel
+from app.ai.director_brain import (
+    DirectorBrain,
+    director_brain,
+    BrainDecision,
+    MarketPhase,
+    ManipulationType,
+)
 from app.ai.director_ai import (
     DirectorAI, 
     director_ai, 
@@ -47,6 +55,12 @@ __all__ = [
     'ModuleStrategy',
     'MarketCondition',
     'GridMode',
+    # Director Brain (AI анализ рынка)
+    'DirectorBrain',
+    'director_brain',
+    'BrainDecision',
+    'MarketPhase',
+    'ManipulationType',
     # Whale AI
     'WhaleAI',
     'whale_ai',

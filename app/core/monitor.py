@@ -28,6 +28,7 @@ from app.ai.trading_coordinator import trading_coordinator, get_director_guidanc
 from app.ai.director_ai import director_trader
 from app.ai.whale_ai import whale_ai
 from app.ai.master_strategist import master_strategist
+from app.ai.director_brain import director_brain
 from app.modules.grid_bot import grid_bot
 from app.modules.funding_scalper import funding_scalper
 from app.modules.arbitrage import arbitrage_scanner
@@ -485,6 +486,65 @@ class MarketMonitor:
             elif bullish > bearish:
                 news_context["sentiment"] = "bullish"
             news_context["critical_count"] = critical
+        
+        # ========================================
+        # 🧠 ШАГ 0.3: DirectorBrain — AI анализ рынка
+        # ========================================
+        if self.ai_enabled and self.is_module_enabled('director'):
+            try:
+                # Получаем лучшую возможность
+                best_opportunity = await director_brain.get_best_opportunity()
+                
+                if best_opportunity and best_opportunity.action in ["LONG", "SHORT"]:
+                    logger.info(f"🧠 DirectorBrain signal: {best_opportunity.action} {best_opportunity.symbol} "
+                               f"(confidence: {best_opportunity.confidence}%)")
+                    
+                    # Проверяем можем ли открыть сделку
+                    if len(trade_manager.get_active_trades()) < self.max_positions:
+                        if self.can_auto_trade('director'):
+                            # AUTO режим — открываем сделку
+                            from app.strategies import Signal
+                            
+                            # Создаём сигнал
+                            signal = Signal(
+                                symbol=best_opportunity.symbol,
+                                direction=best_opportunity.action,
+                                entry=best_opportunity.entry_price or prices.get(best_opportunity.symbol, 0),
+                                stop_loss=best_opportunity.stop_loss,
+                                take_profit=best_opportunity.take_profit,
+                                confidence=best_opportunity.confidence,
+                                reason=f"🧠 DirectorBrain: {best_opportunity.reasoning[:200]}"
+                            )
+                            
+                            # Открываем сделку
+                            trade = await trade_manager.open_trade(signal, size_usd=self.get_trade_size())
+                            
+                            if trade:
+                                # Уведомление
+                                notification = director_brain.format_decision_notification(best_opportunity)
+                                if notification:
+                                    await smart_notifications.queue_message(
+                                        module=ModuleType.DIRECTOR,
+                                        text=notification,
+                                        priority=1,
+                                        need_ai=False  # Уже AI анализ
+                                    )
+                                logger.info(f"🧠 DirectorBrain opened: {trade.symbol} {trade.direction}")
+                        else:
+                            # SIGNAL режим — только уведомление
+                            notification = director_brain.format_decision_notification(best_opportunity)
+                            if notification:
+                                await smart_notifications.queue_message(
+                                    module=ModuleType.DIRECTOR,
+                                    text=notification,
+                                    priority=2,
+                                    need_ai=False
+                                )
+                    else:
+                        logger.debug(f"🧠 DirectorBrain: max positions reached, skipping signal")
+                        
+            except Exception as e:
+                logger.error(f"🧠 DirectorBrain error: {e}")
         
         # ========================================
         # 🎩 ШАГ 1: Director AI

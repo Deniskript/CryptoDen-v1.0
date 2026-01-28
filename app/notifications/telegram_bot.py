@@ -88,6 +88,8 @@ class TelegramBot:
         commands = [
             BotCommand(command="start", description="🔄 Главное меню"),
             BotCommand(command="ai", description="🧠 Статус AI системы"),
+            BotCommand(command="brain", description="🧠 DirectorBrain статус"),
+            BotCommand(command="analyze", description="🧠 Анализ монеты (напр. /analyze BTC)"),
             BotCommand(command="director", description="🎩 Решения Директора"),
             BotCommand(command="director_trades", description="🎩 Сделки Директора"),
             BotCommand(command="whale", description="🐋 Анализ китов"),
@@ -641,6 +643,73 @@ _{mode_desc}_
             except Exception as e:
                 logger.error(f"Whale AI error: {e}")
                 await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("brain"))
+        async def cmd_brain(message: types.Message):
+            """🧠 DirectorBrain — статус AI анализа рынка"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            try:
+                from app.ai.director_brain import director_brain
+                text = director_brain.get_status_text()
+                await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+            except Exception as e:
+                logger.error(f"DirectorBrain status error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("analyze"))
+        async def cmd_analyze(message: types.Message):
+            """🧠 DirectorBrain — принудительный анализ"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            # Получаем символ из аргументов
+            args = message.text.split()
+            symbol = args[1].upper() if len(args) > 1 else "BTC"
+            
+            loading = await message.answer(f"🧠 *Анализирую {symbol}...*", parse_mode=ParseMode.MARKDOWN)
+            
+            try:
+                from app.ai.director_brain import director_brain
+                
+                # Принудительный анализ
+                decision = await director_brain.analyze_symbol(symbol, force=True)
+                
+                emoji = "🟢" if decision.action == "LONG" else "🔴" if decision.action == "SHORT" else "⏸"
+                manip_text = f"⚠️ {decision.manipulation_type.value}" if decision.manipulation_detected else "❌ Нет"
+                
+                entry_text = f"${decision.entry_price:,.2f}" if decision.entry_price else "N/A"
+                sl_text = f"${decision.stop_loss:,.2f}" if decision.stop_loss else "N/A"
+                tp_text = f"${decision.take_profit:,.2f}" if decision.take_profit else "N/A"
+                
+                text = f"""
+🧠 *Анализ {symbol}*
+
+{emoji} *Решение: {decision.action}*
+📊 Уверенность: {decision.confidence}%
+
+*Фаза рынка:* {decision.market_phase.value}
+*Направление 1h:* {decision.direction_1h}
+*Манипуляция:* {manip_text}
+
+*Entry:* {entry_text}
+*Stop Loss:* {sl_text}
+*Take Profit:* {tp_text}
+
+*Анализ:*
+_{decision.reasoning[:400]}{'...' if len(decision.reasoning) > 400 else ''}_
+
+*Ключевые факторы:*
+"""
+                for factor in decision.key_factors[:5]:
+                    text += f"• {factor}\n"
+                
+                await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"DirectorBrain analyze error: {e}")
+                await loading.edit_text(f"❌ *Ошибка анализа:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(Command("grid"))
         async def cmd_grid(message: types.Message):

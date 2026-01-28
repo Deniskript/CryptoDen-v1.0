@@ -455,6 +455,163 @@ class BybitClient:
         
         return resp
 
+    # === MARKET DATA METHODS (для DirectorBrain) ===
+    
+    async def get_orderbook(self, symbol: str, limit: int = 50) -> Dict:
+        """
+        Получить стакан ордеров
+        https://bybit-exchange.github.io/docs/v5/market/orderbook
+        
+        Returns:
+            {
+                "bids": [[price, qty], ...],  # Покупки
+                "asks": [[price, qty], ...],  # Продажи
+            }
+        """
+        # Нормализуем symbol
+        if not symbol.endswith("USDT"):
+            symbol = f"{symbol}USDT"
+        
+        resp = await self._request("GET", "/v5/market/orderbook", {
+            "category": "spot",
+            "symbol": symbol,
+            "limit": limit
+        })
+        
+        result = resp.get("result", {})
+        return {
+            "bids": [[float(b[0]), float(b[1])] for b in result.get("b", [])],
+            "asks": [[float(a[0]), float(a[1])] for a in result.get("a", [])]
+        }
+
+    async def get_recent_trades(self, symbol: str, limit: int = 100) -> List[Dict]:
+        """
+        Получить последние сделки
+        https://bybit-exchange.github.io/docs/v5/market/recent-trade
+        
+        Returns:
+            [{"price": float, "qty": float, "side": "Buy"/"Sell", "time": int}, ...]
+        """
+        # Нормализуем symbol
+        if not symbol.endswith("USDT"):
+            symbol = f"{symbol}USDT"
+        
+        resp = await self._request("GET", "/v5/market/recent-trade", {
+            "category": "spot",
+            "symbol": symbol,
+            "limit": limit
+        })
+        
+        trades = resp.get("result", {}).get("list", [])
+        return [
+            {
+                "price": float(t["price"]),
+                "qty": float(t["size"]),
+                "side": t["side"],
+                "time": int(t["time"])
+            }
+            for t in trades
+        ]
+
+    async def get_klines(self, symbol: str, interval: str = "60", limit: int = 100) -> List:
+        """
+        Получить свечи (OHLCV)
+        https://bybit-exchange.github.io/docs/v5/market/kline
+        
+        Args:
+            symbol: BTCUSDT или BTC
+            interval: 1, 3, 5, 15, 30, 60, 120, 240, 360, 720, D, W, M
+            limit: количество свечей (макс 1000)
+        
+        Returns:
+            [[timestamp, open, high, low, close, volume, turnover], ...]
+        """
+        # Нормализуем symbol
+        if not symbol.endswith("USDT"):
+            symbol = f"{symbol}USDT"
+        
+        resp = await self._request("GET", "/v5/market/kline", {
+            "category": "spot",
+            "symbol": symbol,
+            "interval": interval,
+            "limit": limit
+        })
+        
+        klines = resp.get("result", {}).get("list", [])
+        
+        # Bybit возвращает в обратном порядке (новые первые), разворачиваем
+        return [
+            {
+                "timestamp": int(k[0]),
+                "open": float(k[1]),
+                "high": float(k[2]),
+                "low": float(k[3]),
+                "close": float(k[4]),
+                "volume": float(k[5]),
+                "turnover": float(k[6])
+            }
+            for k in reversed(klines)
+        ]
+
+    async def get_klines_multi_timeframe(self, symbol: str) -> Dict:
+        """
+        Получить свечи с нескольких таймфреймов
+        
+        Returns:
+            {
+                "5m": [...],
+                "15m": [...],
+                "1h": [...],
+                "4h": [...]
+            }
+        """
+        result = {}
+        timeframes = [("5", 50, "5m"), ("15", 30, "15m"), ("60", 24, "1h"), ("240", 20, "4h")]
+        
+        for interval, limit, tf_name in timeframes:
+            try:
+                klines = await self.get_klines(symbol, interval, limit)
+                result[tf_name] = klines
+            except Exception as e:
+                logger.warning(f"Failed to get {interval} klines for {symbol}: {e}")
+                result[tf_name] = []
+        
+        return result
+
+    async def get_ticker_24h(self, symbol: str) -> Dict:
+        """
+        Получить 24h статистику
+        
+        Returns:
+            {
+                "price": float,
+                "change_24h": float,  # %
+                "high_24h": float,
+                "low_24h": float,
+                "volume_24h": float,
+                "turnover_24h": float
+            }
+        """
+        # Нормализуем symbol
+        if not symbol.endswith("USDT"):
+            symbol = f"{symbol}USDT"
+        
+        resp = await self._request("GET", "/v5/market/tickers", {
+            "category": "spot",
+            "symbol": symbol
+        })
+        
+        result = resp.get("result", {}).get("list", [{}])[0]
+        
+        return {
+            "price": float(result.get("lastPrice", 0)),
+            "change_24h": float(result.get("price24hPcnt", 0)) * 100,
+            "high_24h": float(result.get("highPrice24h", 0)),
+            "low_24h": float(result.get("lowPrice24h", 0)),
+            "volume_24h": float(result.get("volume24h", 0)),
+            "turnover_24h": float(result.get("turnover24h", 0))
+        }
+
 
 # Глобальный экземпляр
 bybit_client = BybitClient()
