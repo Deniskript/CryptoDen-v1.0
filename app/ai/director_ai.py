@@ -584,6 +584,7 @@ class DirectorAI:
             risk_emoji = {"normal": "🟢", "elevated": "🟡", "high": "🟠", "extreme": "🔴"}
             
             text += f"""
+━━━━━━━━━━━━━━━━━━━━━━
 *Риск:* {risk_emoji.get(s.risk_level, '⚪')} {s.risk_level.upper()} ({s.risk_score}/100)
 
 *Метрики:*
@@ -597,6 +598,7 @@ class DirectorAI:
 """
         
         text += f"""
+━━━━━━━━━━━━━━━━━━━━━━
 *Разрешения:*
 • LONG: {'✅' if self.allow_new_longs else '🚫'}
 • SHORT: {'✅' if self.allow_new_shorts else '🚫'}
@@ -1316,7 +1318,8 @@ class DirectorTrader:
         else:
             text += "📭 Нет активных сделок Director\n"
         
-        text += f"\n📊 *Статистика:*\n"
+        text += f"\n━━━━━━━━━━━━━━━━━━━━━━\n"
+        text += f"📊 *Статистика:*\n"
         text += f"   Всего сделок: {status['stats']['total_trades']}\n"
         text += f"   Выигрышных: {status['stats']['winning_trades']}\n"
         text += f"   Общий PnL: {status['stats']['total_pnl_percent']:+.2f}%\n"
@@ -1327,7 +1330,8 @@ class DirectorTrader:
         
         # История режимов
         if status.get('mode_history'):
-            text += f"\n📜 *Последние события:*\n"
+            text += f"\n━━━━━━━━━━━━━━━━━━━━━━\n"
+            text += f"📜 *Последние события:*\n"
             for event in status['mode_history'][-5:]:
                 time_str = event['time'][11:16]  # HH:MM
                 if event['event'] == 'TAKE_CONTROL':
