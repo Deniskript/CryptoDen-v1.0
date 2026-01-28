@@ -549,13 +549,31 @@ class MarketMonitor:
             try:
                 # Применяем режим от Master
                 grid_config = master_strategist.get_grid_config()
+                
+                # Устанавливаем режим торговли Grid Bot
+                # Real trading только если:
+                # - Модуль в AUTO режиме
+                # - Есть API ключи
+                # - Paper trading выключен
+                can_real_trade = (
+                    self.can_auto_trade('grid') 
+                    and self.has_api_keys 
+                    and not self.paper_trading
+                )
+                
+                grid_bot.set_trading_mode(
+                    paper_trading=not can_real_trade,
+                    bybit_client=self.bybit if can_real_trade else None
+                )
+                
                 if grid_config.get("enabled", True):
                     grid_signals = await grid_bot.get_signals({"prices": prices})
                     
                     for signal in grid_signals:
                         if self.can_auto_trade('grid'):
                             # AUTO режим — исполняем сделку
-                            logger.info(f"📊 Grid AUTO ({grid_mode_by_master}): {signal.direction} {signal.symbol}")
+                            mode_str = "REAL" if can_real_trade else "PAPER"
+                            logger.info(f"📊 Grid {mode_str} ({grid_mode_by_master}): {signal.direction} {signal.symbol}")
                             await self._execute_grid_trade(signal)
                             await self._notify_grid_executed(signal)
                         else:

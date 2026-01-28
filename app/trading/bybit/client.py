@@ -261,12 +261,148 @@ class BybitClient:
         
         return resp
     
+    # === LIMIT ORDERS (для Grid Bot) ===
+    
+    async def limit_buy(
+        self, 
+        symbol: str, 
+        price: float, 
+        qty: float,
+        time_in_force: str = "GTC"
+    ) -> Optional[Dict]:
+        """
+        Лимитный ордер на покупку
+        
+        Args:
+            symbol: Торговая пара (например "BTCUSDT" или "BTC")
+            price: Цена покупки
+            qty: Количество базовой валюты
+            time_in_force: GTC (до отмены), IOC (немедленно или отмена), FOK (всё или ничего)
+        
+        Returns:
+            {"orderId": "xxx", "orderLinkId": "xxx"} или None
+        """
+        try:
+            # Нормализуем symbol
+            if not symbol.endswith("USDT"):
+                symbol = f"{symbol}USDT"
+            
+            params = {
+                "category": "spot",
+                "symbol": symbol,
+                "side": "Buy",
+                "orderType": "Limit",
+                "qty": str(qty),
+                "price": str(price),
+                "timeInForce": time_in_force,
+            }
+            
+            resp = await self._request("POST", "/v5/order/create", params, private=True)
+            
+            if resp and resp.get("retCode") == 0:
+                order_info = resp.get("result", {})
+                logger.info(f"📗 Limit BUY: {symbol} @ ${price}, qty={qty}, orderId={order_info.get('orderId')}")
+                return order_info
+            else:
+                logger.error(f"❌ Limit BUY failed: {resp}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Limit BUY error: {e}")
+            return None
+
+    async def limit_sell(
+        self, 
+        symbol: str, 
+        price: float, 
+        qty: float,
+        time_in_force: str = "GTC"
+    ) -> Optional[Dict]:
+        """
+        Лимитный ордер на продажу
+        
+        Args:
+            symbol: Торговая пара (например "BTCUSDT" или "BTC")
+            price: Цена продажи
+            qty: Количество базовой валюты
+            time_in_force: GTC, IOC, FOK
+        
+        Returns:
+            {"orderId": "xxx", "orderLinkId": "xxx"} или None
+        """
+        try:
+            # Нормализуем symbol
+            if not symbol.endswith("USDT"):
+                symbol = f"{symbol}USDT"
+            
+            params = {
+                "category": "spot",
+                "symbol": symbol,
+                "side": "Sell",
+                "orderType": "Limit",
+                "qty": str(qty),
+                "price": str(price),
+                "timeInForce": time_in_force,
+            }
+            
+            resp = await self._request("POST", "/v5/order/create", params, private=True)
+            
+            if resp and resp.get("retCode") == 0:
+                order_info = resp.get("result", {})
+                logger.info(f"📕 Limit SELL: {symbol} @ ${price}, qty={qty}, orderId={order_info.get('orderId')}")
+                return order_info
+            else:
+                logger.error(f"❌ Limit SELL failed: {resp}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Limit SELL error: {e}")
+            return None
+
+    async def get_order_status(self, symbol: str, order_id: str) -> Optional[str]:
+        """
+        Получить статус ордера
+        
+        Args:
+            symbol: Торговая пара (например "BTCUSDT" или "BTC")
+            order_id: ID ордера
+        
+        Returns:
+            "New", "PartiallyFilled", "Filled", "Cancelled", "Rejected" или None
+        """
+        try:
+            # Нормализуем symbol
+            if not symbol.endswith("USDT"):
+                symbol = f"{symbol}USDT"
+            
+            params = {
+                "category": "spot",
+                "symbol": symbol,
+                "orderId": order_id,
+            }
+            
+            resp = await self._request("GET", "/v5/order/realtime", params, private=True)
+            
+            if resp and resp.get("retCode") == 0:
+                orders = resp.get("result", {}).get("list", [])
+                if orders:
+                    return orders[0].get("orderStatus")
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Get order status error: {e}")
+            return None
+
     async def get_order(self, symbol: str, order_id: str) -> dict:
         """Получить информацию об ордере"""
         
+        # Нормализуем symbol
+        if not symbol.endswith("USDT"):
+            symbol = f"{symbol}USDT"
+        
         return await self._request('GET', '/v5/order/realtime', {
             'category': 'spot',
-            'symbol': f"{symbol}USDT",
+            'symbol': symbol,
             'orderId': order_id,
         }, private=True)
     
