@@ -13,6 +13,34 @@ from app.core.logger import logger
 from app.notifications import telegram_bot
 
 
+async def start_smart_notifications():
+    """Запуск умных уведомлений"""
+    try:
+        from app.core.smart_notifications import smart_notifications
+        
+        # Устанавливаем callback для отправки
+        smart_notifications.set_send_callback(telegram_bot.send_message)
+        
+        # Запускаем
+        await smart_notifications.start()
+        
+        # Данные для startup sequence
+        startup_data = {
+            "btc_price": 102000,  # Будет обновлено из API
+            "btc_rsi": 50,
+            "fear_greed": 50,
+            "coins_count": 7,
+            "minutes_to_funding": 120,
+        }
+        
+        # Запускаем последовательность приветствия
+        asyncio.create_task(smart_notifications.send_startup_sequence(startup_data))
+        
+        logger.info("✅ Smart Notifications started")
+    except Exception as e:
+        logger.error(f"❌ Smart Notifications error: {e}")
+
+
 async def main():
     """Главная функция — только Telegram polling"""
     
@@ -32,7 +60,10 @@ async def main():
     logger.info("💰 AI works only when bot is running!")
     logger.info("=" * 60)
     
-    # Только слушаем Telegram команды
+    # Запускаем умные уведомления
+    asyncio.create_task(start_smart_notifications())
+    
+    # Слушаем Telegram команды
     # Управление через WebApp
     await telegram_bot.start_polling()
 

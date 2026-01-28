@@ -203,11 +203,17 @@ class SmartNotifications:
         text = """
 🚀 *БОТ ЗАПУЩЕН*
 
-Начинаю анализ рынка...
-Все модули активируются.
+- - - - -
 
-Через минуту каждый модуль
-расскажет о своей работе.
+✅ Все модули активированы
+🔍 Начинаю анализ рынка
+
+- - - - -
+
+⏳ Через минуту каждый модуль
+   расскажет о своей работе
+
+🔔 Буду сообщать обо всём важном!
 """
         await self._send_now(text.strip(), ModuleType.SYSTEM)
     
@@ -223,7 +229,7 @@ class SmartNotifications:
         fear_greed: int,
         has_signal: bool = False
     ):
-        """Добавить статус Director в очередь"""
+        """Добавить статус Директора в очередь"""
         
         # Если недавно был сигнал — не пишем "нет сигнала"
         if self.context.had_recent_signal(30) and not has_signal:
@@ -234,27 +240,60 @@ class SmartNotifications:
             return
         
         if has_signal:
-            # Это сигнал — высокий приоритет, без "нет сигнала"
             return  # Сигналы идут через queue_signal
         
-        # Формируем сообщение
-        if rsi < 35:
-            status = "Близко к зоне покупки!"
-        elif rsi > 65:
-            status = "Близко к зоне продажи"
+        # Определяем состояние RSI
+        if rsi < 30:
+            rsi_status = "🟢 перепродан"
+            rsi_hint = "Близко к зоне покупки!"
+        elif rsi < 40:
+            rsi_status = "🟡 низкий"
+            rsi_hint = "Слежу за возможностью LONG"
+        elif rsi > 70:
+            rsi_status = "🔴 перекуплен"
+            rsi_hint = "Возможен разворот вниз"
+        elif rsi > 60:
+            rsi_status = "🟡 высокий"
+            rsi_hint = "Слежу за возможностью SHORT"
         else:
-            status = "Жду лучшую точку"
+            rsi_status = "⚪ нейтрально"
+            rsi_hint = "Жду более чёткий сигнал"
+        
+        # Определяем Fear & Greed
+        if fear_greed < 25:
+            fg_emoji = "😨"
+            fg_text = "Страх"
+        elif fear_greed < 45:
+            fg_emoji = "😟"
+            fg_text = "Осторожность"
+        elif fear_greed > 75:
+            fg_emoji = "🤑"
+            fg_text = "Жадность"
+        elif fear_greed > 55:
+            fg_emoji = "😊"
+            fg_text = "Оптимизм"
+        else:
+            fg_emoji = "😐"
+            fg_text = "Нейтрально"
         
         text = f"""
-🎩 *DIRECTOR*
+🎩 *ДИРЕКТОР*
 
-{symbol} ${price:,.0f}
-RSI: {rsi:.0f} • F&G: {fear_greed}
+- - - - -
 
-{status}
+📊 *Анализ рынка:*
+
+💰 {symbol}: *${price:,.0f}*
+📈 RSI: *{rsi:.0f}* {rsi_status}
+{fg_emoji} Настроение: *{fear_greed}* ({fg_text})
+
+- - - - -
+
+🧠 *Мой вывод:*
+
+{rsi_hint}
 """
         
-        # Добавляем AI объяснение
         msg = QueuedMessage(
             module=ModuleType.DIRECTOR,
             priority=MessagePriority.MEDIUM,
@@ -291,20 +330,38 @@ RSI: {rsi:.0f} • F&G: {fear_greed}
         # Очищаем очередь от низкоприоритетных
         self._clear_low_priority()
         
-        dir_emoji = "🟢" if direction == "LONG" else "🔴"
+        if direction == "LONG":
+            dir_emoji = "🟢"
+            dir_text = "ПОКУПКА"
+        else:
+            dir_emoji = "🔴"
+            dir_text = "ПРОДАЖА"
+        
         tp_pct = abs((tp - entry) / entry * 100)
         sl_pct = abs((sl - entry) / entry * 100)
         
         text = f"""
 🔔 *СИГНАЛ*
 
-{dir_emoji} *{direction} {symbol}*
+- - - - -
 
-💰 Вход: ${entry:,.2f}
-🎯 Цель: ${tp:,.2f} (+{tp_pct:.1f}%)
-🛑 Стоп: ${sl:,.2f} (-{sl_pct:.1f}%)
+{dir_emoji} *{dir_text} {symbol}*
 
-📊 {strategy} • WR {win_rate:.0f}%
+- - - - -
+
+💰 *Вход:* ${entry:,.2f}
+🎯 *Цель:* ${tp:,.2f} (+{tp_pct:.1f}%)
+🛑 *Стоп:* ${sl:,.2f} (-{sl_pct:.1f}%)
+
+- - - - -
+
+📊 Стратегия: {strategy}
+🎯 Успешность: {win_rate:.0f}%
+
+- - - - -
+
+💡 *Рекомендация:*
+Откройте позицию вручную на бирже
 """
         
         msg = QueuedMessage(
@@ -337,16 +394,29 @@ RSI: {rsi:.0f} • F&G: {fear_greed}
         if not self._can_module_report(ModuleType.GRID):
             return
         
+        distance_to_support = ((price - support) / price) * 100
+        distance_to_resistance = ((resistance - price) / price) * 100
+        
+        if distance_to_support < 0.3:
+            hint = "🟢 Близко к покупке!"
+        elif distance_to_resistance < 0.3:
+            hint = "🔴 Близко к продаже!"
+        else:
+            hint = "⏳ Жду подхода к уровням"
+        
         text = f"""
-📊 *GRID BOT*
+📊 *СЕТКА*
 
-{symbol} ${price:,.0f}
+- - - - -
 
-Уровни:
-💚 ${support:,.0f} (покупка)
-❤️ ${resistance:,.0f} (продажа)
+💰 {symbol}: *${price:,.0f}*
 
-Жду касания уровней...
+📉 Покупка: ${support:,.0f} (-{distance_to_support:.1f}%)
+📈 Продажа: ${resistance:,.0f} (+{distance_to_resistance:.1f}%)
+
+- - - - -
+
+{hint}
 """
         
         msg = QueuedMessage(
@@ -373,23 +443,44 @@ RSI: {rsi:.0f} • F&G: {fear_greed}
         
         lines = []
         has_opportunity = False
+        
         for symbol, rate in sorted_rates:
             pct = rate * 100
-            emoji = "⚠️" if abs(pct) >= 0.05 else "✅"
+            
             if abs(pct) >= 0.05:
+                emoji = "⚠️"
                 has_opportunity = True
-            lines.append(f"{symbol}: {pct:+.3f}% {emoji}")
+            else:
+                emoji = "✅"
+            
+            lines.append(f"{emoji} {symbol}: *{pct:+.3f}%*")
         
-        status = "Есть возможность!" if has_opportunity else "Всё в норме"
+        if has_opportunity:
+            hint = "🔥 Есть возможность заработать!"
+        else:
+            hint = "✅ Всё спокойно, ставки в норме"
+        
+        # Часы и минуты
+        hours = minutes_to_funding // 60
+        mins = minutes_to_funding % 60
+        
+        if hours > 0:
+            time_text = f"{hours}ч {mins}мин"
+        else:
+            time_text = f"{mins} мин"
         
         text = f"""
-💰 *FUNDING*
+💰 *ФАНДИНГ*
 
-До начисления: {minutes_to_funding} мин
+- - - - -
+
+⏰ До начисления: *{time_text}*
 
 {chr(10).join(lines)}
 
-{status}
+- - - - -
+
+{hint}
 """
         
         msg = QueuedMessage(
@@ -419,17 +510,34 @@ RSI: {rsi:.0f} • F&G: {fear_greed}
         if not self._can_module_report(ModuleType.NEWS):
             return
         
-        sent_emoji = "🟢" if sentiment > 0.2 else ("🔴" if sentiment < -0.2 else "⚪")
+        # Определяем настроение
+        if sentiment > 0.2:
+            sent_emoji = "🟢"
+            sent_text = "Позитивная"
+        elif sentiment < -0.2:
+            sent_emoji = "🔴"
+            sent_text = "Негативная"
+        else:
+            sent_emoji = "⚪"
+            sent_text = "Нейтральная"
+        
+        # Важность на русском
+        importance_ru = "🔥 ВАЖНАЯ" if importance == "HIGH" else "📌 Средняя"
         
         # Обрезаем длинный заголовок
-        short_title = title[:70] + "..." if len(title) > 70 else title
+        short_title = title[:80] + "..." if len(title) > 80 else title
         
         text = f"""
 📰 *НОВОСТЬ*
 
-"{short_title}"
+- - - - -
 
-{sent_emoji} Важность: {importance}
+📢 *"{short_title}"*
+
+{sent_emoji} Тон: {sent_text}
+{importance_ru}
+
+- - - - -
 """
         
         msg = QueuedMessage(
@@ -460,17 +568,31 @@ RSI: {rsi:.0f} • F&G: {fear_greed}
         priority = MessagePriority.CRITICAL if is_tradeable else MessagePriority.HIGH
         
         if is_tradeable:
-            status = "⚡ ТОРГИ НАЧАЛИСЬ!"
+            status = "⚡ *ТОРГИ НАЧАЛИСЬ!*"
+            action = "🚀 Можно покупать прямо сейчас!"
         else:
-            status = "⏳ Ожидается листинг"
+            status = "⏳ *Ожидается листинг*"
+            action = "🔔 Сообщу когда начнутся торги"
         
         text = f"""
 🆕 *ЛИСТИНГ*
 
+- - - - -
+
 🔥 *{name}* ({symbol})
-🏦 {exchange}
+🏦 Биржа: *{exchange}*
 
 {status}
+
+- - - - -
+
+📊 *Оценка:* ⭐⭐⭐⭐ (4/5)
+💰 *Потенциал:* +50-150%
+⚠️ *Риск:* Средний
+
+- - - - -
+
+💡 {action}
 """
         
         msg = QueuedMessage(
@@ -503,19 +625,23 @@ RSI: {rsi:.0f} • F&G: {fear_greed}
         
         if direction == "to_exchange":
             emoji = "🔴"
-            action = "→ НА биржу"
-            hint = "Возможна продажа"
+            action = "перевели НА биржу"
+            hint = "⚠️ Возможна крупная продажа"
         else:
             emoji = "🟢"
-            action = "← С биржи"
-            hint = "Накопление"
+            action = "вывели С биржи"
+            hint = "💎 Накапливают, не продают"
         
         text = f"""
 🐋 *КИТЫ*
 
-{emoji} {amount:,.0f} {coin} {action}
+- - - - -
 
-💡 {hint}
+{emoji} *{amount:,.0f} {coin}* {action}
+
+- - - - -
+
+{hint}
 """
         
         msg = QueuedMessage(
@@ -593,7 +719,6 @@ RSI: {rsi:.0f} • F&G: {fear_greed}
         if self.last_sent_time:
             elapsed = datetime.now() - self.last_sent_time
             
-            # Для критических — меньше ждём
             next_msg = self.queue[0]
             if next_msg.priority == MessagePriority.CRITICAL:
                 min_wait = timedelta(seconds=30)
@@ -608,12 +733,23 @@ RSI: {rsi:.0f} • F&G: {fear_greed}
         
         # Добавляем AI объяснение если нужно
         final_text = msg.text
+        
         if msg.needs_ai and msg.ai_type and msg.ai_data:
-            explanation = await haiku_explainer.explain(
-                ExplainRequest(type=msg.ai_type, data=msg.ai_data)
-            )
-            if explanation:
-                final_text = msg.text + f"\n\n🧠 _{explanation}_"
+            try:
+                explanation = await haiku_explainer.explain(
+                    ExplainRequest(type=msg.ai_type, data=msg.ai_data)
+                )
+                if explanation:
+                    # Красиво форматируем AI ответ
+                    final_text = msg.text + f"""
+
+- - - - -
+
+🧠 *Анализ:*
+_{explanation}_
+"""
+            except Exception as e:
+                logger.error(f"AI explain error: {e}")
         
         # Отправляем
         await self._send_now(final_text, msg.module)
@@ -635,82 +771,127 @@ RSI: {rsi:.0f} • F&G: {fear_greed}
     async def send_startup_sequence(self, data: Dict):
         """Отправить последовательность при запуске"""
         
-        # Director
-        await asyncio.sleep(90)  # 1.5 мин после запуска
+        btc_price = data.get('btc_price', 0)
+        btc_rsi = data.get('btc_rsi', 50)
+        fear_greed = data.get('fear_greed', 50)
+        coins_count = data.get('coins_count', 7)
+        minutes_to_funding = data.get('minutes_to_funding', 120)
+        
+        # Часы и минуты для funding
+        hours = minutes_to_funding // 60
+        mins = minutes_to_funding % 60
+        if hours > 0:
+            funding_time = f"{hours}ч {mins}мин"
+        else:
+            funding_time = f"{mins} мин"
+        
+        # Director (через 1.5 мин после запуска)
+        await asyncio.sleep(90)
         await self.queue_startup_module(
             ModuleType.DIRECTOR,
             f"""
-🎩 *DIRECTOR AI*
+🎩 *ДИРЕКТОР*
 
-Начинаю анализ рынка...
+- - - - -
 
-BTC ${data.get('btc_price', 0):,.0f} • RSI {data.get('btc_rsi', 50):.0f}
-Fear & Greed: {data.get('fear_greed', 50)}
+👋 Привет! Начинаю анализ.
 
-Ищу точки входа...
+💰 BTC: *${btc_price:,.0f}*
+📈 RSI: *{btc_rsi:.0f}*
+😐 Настроение: *{fear_greed}*
+
+- - - - -
+
+🔍 Ищу точки входа...
+🔔 Сообщу когда найду!
 """
         )
         
-        # Grid
+        # Grid (ещё через 1.5 мин)
         await asyncio.sleep(90)
         await self.queue_startup_module(
             ModuleType.GRID,
             f"""
-📊 *GRID BOT*
+📊 *СЕТКА*
 
-Строю сетки для {data.get('coins_count', 7)} монет...
+- - - - -
 
-Определяю уровни поддержки
-и сопротивления.
+🔧 Строю сетку для *{coins_count}* монет
+
+📉 Ищу уровни покупки
+📈 Ищу уровни продажи
+
+- - - - -
+
+⏳ Жду касания уровней...
 """
         )
         
-        # Funding
+        # Funding (ещё через 1.5 мин)
         await asyncio.sleep(90)
         await self.queue_startup_module(
             ModuleType.FUNDING,
             f"""
-💰 *FUNDING SCALPER*
+💰 *ФАНДИНГ*
 
-До начисления: {data.get('minutes_to_funding', 120)} мин
+- - - - -
 
-Мониторю ставки.
-Сообщу о возможностях.
+⏰ До начисления: *{funding_time}*
+
+🔍 Проверяю ставки...
+💡 Сообщу если будет возможность
+
+- - - - -
+
+✅ Мониторинг активен
 """
         )
         
-        # Listing
+        # Listing (ещё через 1.5 мин)
         await asyncio.sleep(90)
         await self.queue_startup_module(
             ModuleType.LISTING,
             """
-🆕 *LISTING HUNTER*
+🆕 *ЛИСТИНГИ*
 
-Слежу за анонсами на:
+- - - - -
+
+🔍 Слежу за анонсами:
+
 • Binance
-• Bybit  
+• Bybit
 • OKX
 
-Сообщу о новых листингах.
+- - - - -
+
+🔔 Сообщу о новых монетах!
 """
         )
         
-        # Whale
+        # Whale (ещё через 1.5 мин)
         await asyncio.sleep(90)
         await self.queue_startup_module(
             ModuleType.WHALE,
             """
-🐋 *WHALE TRACKER*
+🐋 *КИТЫ*
 
-Слежу за крупными кошельками.
+- - - - -
 
-Уведомлю о значимых
-движениях китов.
+👀 Слежу за крупными игроками
+
+💰 Отслеживаю переводы
+📊 Анализирую движения
+
+- - - - -
+
+⚠️ Предупрежу о важном!
 """
         )
         
         # Конец startup фазы
         self.context.is_startup = False
+        
+        logger.info("✅ Startup sequence completed")
 
 
 # Синглтон
