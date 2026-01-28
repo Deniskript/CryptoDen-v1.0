@@ -2,7 +2,19 @@
 
 **Дата анализа:** 28 января 2026  
 **Версия:** 2.0.0  
-**Статус:** РАБОЧИЙ (с критическими багами)
+**Статус:** ✅ РАБОЧИЙ (критические баги исправлены)
+
+---
+
+## ✅ ИСПРАВЛЕННЫЕ БАГИ (28.01.2026)
+
+| # | Баг | Файлы | Статус |
+|---|-----|-------|--------|
+| 1 | Неверная модель Claude | config.py, master_strategist.py, trading_ai.py | ✅ Исправлено |
+| 2 | queue_director_status() API | monitor.py | ✅ Исправлено |
+| 3 | Unclosed aiohttp sessions | news_parser.py, data_loader.py, leverage_backtest.py | ✅ Исправлено |
+| 4 | CoinGecko Session Closed | news_parser.py | ✅ Исправлено |
+| 5 | Twitter Parser Nitter | twitter_parser.py | ✅ Отключён |
 
 ---
 
