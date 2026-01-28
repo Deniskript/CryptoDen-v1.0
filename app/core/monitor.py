@@ -32,6 +32,7 @@ from app.modules.funding_scalper import funding_scalper
 from app.modules.arbitrage import arbitrage_scanner
 from app.modules.listing_hunter import listing_hunter
 from app.core.live_updates import live_updates, UpdateType
+from app.core.smart_notifications import smart_notifications, ModuleType
 
 
 class MarketMonitor:
@@ -684,8 +685,17 @@ class MarketMonitor:
                     logger.info(f"⛔ Signal blocked: {filter_reason}")
                     continue
                 
-                # Уведомляем о сигнале
-                await telegram_bot.notify_signal(signal)
+                # Уведомляем о сигнале через smart_notifications
+                await smart_notifications.queue_signal(
+                    symbol=signal.symbol,
+                    direction=signal.direction,
+                    entry=signal.entry_price,
+                    tp=signal.take_profit,
+                    sl=signal.stop_loss,
+                    rsi=signal.indicators.get('rsi', 50),
+                    strategy=signal.strategy_name,
+                    win_rate=signal.win_rate
+                )
                 
                 # Если AI выключен — торгуем напрямую
                 if not self.ai_enabled:
@@ -1316,54 +1326,43 @@ _Рекомендуем открыть позицию вручную_
     # ==========================================
     
     async def _send_live_updates(self, prices: Dict, indicators: Dict):
-        """Отправить живые обновления в чат"""
-        if not live_updates.enabled:
+        """Отправить живые обновления через smart_notifications"""
+        if not smart_notifications.enabled:
             return
         
         try:
-            # 1. Скан рынка (каждые 15 мин)
-            update = await live_updates.generate_market_scan(prices, indicators)
-            if update:
-                await live_updates.send_update(update)
-            
-            # 2. Director thinking (почему не входим)
+            btc_price = prices.get("BTC", 0)
             btc_rsi = indicators.get("BTC_rsi", 50)
             fear_greed = indicators.get("fear_greed", 50)
             
-            if 30 <= btc_rsi <= 70:  # Нейтральная зона
-                reason = self._get_no_entry_reason(btc_rsi, fear_greed)
-                update = await live_updates.generate_director_thinking(
-                    prices, btc_rsi, fear_greed, reason
-                )
-                if update:
-                    await live_updates.send_update(update)
+            # Director status
+            await smart_notifications.queue_director_status(
+                symbol="BTC",
+                price=btc_price,
+                rsi=btc_rsi,
+                fear_greed=fear_greed,
+                has_signal=False
+            )
             
-            # 3. Grid уровни (каждые 30 мин)
-            btc_price = prices.get("BTC", 0)
+            # Grid status
             if btc_price > 0:
-                support = btc_price * 0.995  # -0.5%
-                resistance = btc_price * 1.005  # +0.5%
-                update = await live_updates.generate_grid_levels(
-                    "BTC", btc_price, support, resistance
+                support = btc_price * 0.995
+                resistance = btc_price * 1.005
+                await smart_notifications.queue_grid_status(
+                    symbol="BTC",
+                    price=btc_price,
+                    support=support,
+                    resistance=resistance
                 )
-                if update:
-                    await live_updates.send_update(update)
             
-            # 4. Funding info (каждые 30 мин)
+            # Funding status
             funding_rates = indicators.get("funding_rates", {})
             minutes_to = indicators.get("minutes_to_funding", 60)
             if funding_rates:
-                update = await live_updates.generate_funding_info(
-                    funding_rates, minutes_to
+                await smart_notifications.queue_funding_status(
+                    rates=funding_rates,
+                    minutes_to_funding=minutes_to
                 )
-                if update:
-                    await live_updates.send_update(update)
-            
-            # 5. Часовой отчёт
-            price_changes = indicators.get("price_changes_1h", {})
-            update = await live_updates.generate_hourly_report(prices, price_changes)
-            if update:
-                await live_updates.send_update(update)
             
         except Exception as e:
             logger.error(f"Live updates error: {e}")
@@ -1446,54 +1445,26 @@ _Рекомендуем открыть позицию вручную_
             return {}
     
     async def _process_news_with_explanation(self, news_list: List[Dict]):
-        """Обработать новости и отправить с объяснением"""
+        """Обработать новости и отправить через smart_notifications"""
         if not news_list:
             return
         
-        live_updates.stats['news_processed'] += len(news_list)
-        
-        # Отправляем только важные новости
+        # Отправляем через smart_notifications
         for news in news_list[:2]:  # Макс 2 новости за раз
             importance = news.get('importance', 'LOW')
             if importance not in ['HIGH', 'MEDIUM']:
                 continue
             
             title = news.get('title', '')
+            source = news.get('source', 'Unknown')
             sentiment = news.get('sentiment', 0)
             
-            # Определяем влияние
-            if 'fed' in title.lower() or 'rate' in title.lower():
-                impact = "Решения ФРС влияют на ликвидность. Может вызвать волатильность."
-            elif 'etf' in title.lower():
-                impact = "ETF новости влияют на институциональный спрос."
-            elif 'hack' in title.lower() or 'exploit' in title.lower():
-                impact = "Негатив для рынка. Возможна коррекция."
-            elif 'regulation' in title.lower() or 'sec' in title.lower():
-                impact = "Регуляторные новости могут вызвать неопределённость."
-            else:
-                if sentiment > 0.3:
-                    impact = "Позитивно для рынка. Возможен рост."
-                elif sentiment < -0.3:
-                    impact = "Негативно. Возможна коррекция."
-                else:
-                    impact = "Нейтрально. Слежу за реакцией рынка."
-            
-            # Определяем sentiment text
-            if sentiment > 0.2:
-                sent_text = "bullish"
-            elif sentiment < -0.2:
-                sent_text = "bearish"
-            else:
-                sent_text = "neutral"
-            
-            update = await live_updates.generate_news_impact(
+            await smart_notifications.queue_news(
                 title=title,
-                impact=impact,
-                sentiment=sent_text
+                source=source,
+                sentiment=sentiment,
+                importance=importance
             )
-            
-            if update:
-                await live_updates.send_update(update)
     
     async def _execute_signal(self, signal: Signal, value: float = None):
         """Выполнить сигнал — открыть сделку"""

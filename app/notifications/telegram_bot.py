@@ -15,6 +15,7 @@ from aiogram.types import BotCommand
 from app.core.config import settings
 from app.core.logger import logger
 from app.bot.keyboards import get_main_keyboard
+from app.core.smart_notifications import smart_notifications
 
 # Файлы данных
 SETTINGS_FILE = "/root/crypto-bot/data/webapp_settings.json"
@@ -290,6 +291,9 @@ _🎛 Панель управления — настройки_
                     await message.answer(text, parse_mode=ParseMode.MARKDOWN)
                 
                 elif action == 'stop_bot':
+                    # Останавливаем smart notifications
+                    await smart_notifications.stop()
+                    
                     await self.monitor.stop()
                     text = "🛑 *Бот остановлен*\n\n" + self._get_status_text()
                     await message.answer(text, parse_mode=ParseMode.MARKDOWN)
@@ -985,6 +989,9 @@ Confidence: {decision.confidence}%
             return
         await self._set_commands()
         
+        # Настраиваем smart notifications
+        smart_notifications.set_send_callback(self.send_message)
+        
         # Инициализируем файл статуса (бот остановлен)
         update_bot_status_file(running=False)
         
@@ -1013,6 +1020,9 @@ Confidence: {decision.confidence}%
                     os.remove(STOP_REQUESTED_FILE)
                     
                     if self.monitor.running:
+                        # Останавливаем smart notifications
+                        await smart_notifications.stop()
+                        
                         await self.monitor.stop()
                         
                         # Обновляем статус для WebApp
@@ -1037,6 +1047,19 @@ Confidence: {decision.confidence}%
             
             # Уведомляем
             await self.send_message("🚀 *Запускаю бота из WebApp...*")
+            
+            # Запускаем smart notifications
+            await smart_notifications.start()
+            
+            # Запускаем последовательность презентации модулей
+            startup_data = {
+                "btc_price": self.monitor.current_balance,  # Временно
+                "btc_rsi": 50,
+                "fear_greed": 50,
+                "coins_count": len(self.monitor.symbols),
+                "minutes_to_funding": 120,
+            }
+            asyncio.create_task(smart_notifications.send_startup_sequence(startup_data))
             
             # Запускаем
             asyncio.create_task(self.monitor.start())
