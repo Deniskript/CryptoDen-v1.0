@@ -1108,26 +1108,21 @@ Confidence: {decision.confidence}%
             
             logger.info(f"📱 WebApp settings applied: {len(self.monitor.symbols)} coins")
             
-            # Уведомляем
-            await self.send_message("🚀 *Запускаю бота из WebApp...*")
-            
             # Запускаем smart notifications
             await smart_notifications.start()
             
-            # Запускаем последовательность презентации модулей
+            # Запускаем монитор
+            asyncio.create_task(self.monitor.start())
+            
+            # ОДНО сообщение при старте
             startup_data = {
-                "btc_price": self.monitor.current_balance,  # Временно
+                "btc_price": 0,
                 "btc_rsi": 50,
                 "fear_greed": 50,
                 "coins_count": len(self.monitor.symbols),
                 "minutes_to_funding": 120,
             }
-            asyncio.create_task(smart_notifications.send_startup_sequence(startup_data))
-            
-            # Запускаем
-            asyncio.create_task(self.monitor.start())
-            
-            await asyncio.sleep(3)
+            await smart_notifications.send_startup_sequence(startup_data)
             
             # Обновляем статус для WebApp
             update_bot_status_file(
@@ -1137,10 +1132,6 @@ Confidence: {decision.confidence}%
                 paper_trading=self.monitor.paper_trading,
                 ai_enabled=self.monitor.ai_enabled
             )
-            
-            # Отправляем статус
-            text = self._get_status_text()
-            await self.bot.send_message(self.admin_id, text, parse_mode=ParseMode.MARKDOWN)
             
         except Exception as e:
             logger.error(f"Apply settings error: {e}")

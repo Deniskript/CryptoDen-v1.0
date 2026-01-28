@@ -109,6 +109,7 @@ class SmartNotifications:
         self.last_sent_time: Optional[datetime] = None
         self._send_callback: Optional[Callable] = None
         self._queue_task: Optional[asyncio.Task] = None
+        self._startup_sent = False  # Флаг чтобы отправить только ОДНО сообщение при старте
         
         logger.info("📢 SmartNotifications initialized")
     
@@ -123,7 +124,7 @@ class SmartNotifications:
         
         self._queue_task = asyncio.create_task(self._process_queue())
         
-        await self._send_startup_message()
+        # НЕ отправляем сообщение здесь - send_startup_sequence отправит одно сообщение
         
         logger.info("📢 SmartNotifications started")
     
@@ -140,25 +141,6 @@ class SmartNotifications:
         
         self.queue.clear()
         logger.info("📢 SmartNotifications stopped")
-    
-    async def _send_startup_message(self):
-        """Приветственное сообщение"""
-        text = """
-🚀 *БОТ ЗАПУЩЕН*
-
-- - - - -
-
-✅ Все модули активированы
-🔍 Загружаю данные рынка...
-
-- - - - -
-
-⏳ Через минуту начну
-   отчёт о состоянии рынка
-
-🔔 Буду сообщать обо всём важном!
-"""
-        await self._send_now(text.strip(), ModuleType.SYSTEM)
     
     # ==========================================
     # 🧠 AI АНАЛИЗ
@@ -739,6 +721,12 @@ _{explanation}_
     
     async def send_startup_sequence(self, initial_data: Dict = None):
         """Отправить ОДНО сообщение при запуске с реальными данными"""
+        
+        # Только ОДНО сообщение при старте!
+        if self._startup_sent:
+            logger.debug("Startup message already sent, skipping")
+            return
+        self._startup_sent = True
         
         # Получаем реальные данные рынка
         snapshot = await market_data.get_snapshot(force_refresh=True)
