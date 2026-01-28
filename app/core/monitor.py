@@ -1404,12 +1404,17 @@ _Рекомендуем открыть позицию вручную_
             btc_rsi = indicators.get("BTC_rsi", 50)
             fear_greed = indicators.get("fear_greed", 50)
             
-            # Director status
-            await smart_notifications.queue_director_status(
-                symbol="BTC",
-                price=btc_price,
-                rsi=btc_rsi,
+            # Director status - создаём snapshot с реальными данными
+            from app.core.market_data_provider import MarketSnapshot
+            snapshot = MarketSnapshot(
+                btc_price=btc_price,
+                btc_rsi=btc_rsi,
                 fear_greed=fear_greed,
+                eth_price=prices.get("ETH", 0),
+                sol_price=prices.get("SOL", 0),
+            )
+            await smart_notifications.queue_director_status(
+                snapshot=snapshot,
                 has_signal=False
             )
             

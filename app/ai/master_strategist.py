@@ -106,7 +106,7 @@ class MasterStrategist:
     НЕ трогает Director AI — он независимый!
     """
     
-    MODEL = "anthropic/claude-sonnet-4-5-20250514"  # Sonnet 4.5!
+    MODEL = "anthropic/claude-sonnet-4.5"  # Sonnet 4.5!
     STRATEGY_FILE = Path("data/master_strategy.json")
     ANALYSIS_INTERVAL = 30 * 60  # 30 минут
     
