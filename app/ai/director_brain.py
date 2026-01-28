@@ -217,7 +217,6 @@ class DirectorBrain:
         # 5. Whale AI метрики
         try:
             from app.ai.whale_ai import whale_ai
-            await whale_ai.update_metrics()
             metrics = whale_ai.last_metrics
             data["whale_metrics"] = {
                 "funding_rate": metrics.funding_rate if metrics else 0,

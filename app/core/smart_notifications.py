@@ -738,7 +738,7 @@ _{explanation}_
             logger.error(f"Send error: {e}")
     
     async def send_startup_sequence(self, initial_data: Dict = None):
-        """Отправить последовательность при запуске с реальными данными"""
+        """Отправить ОДНО сообщение при запуске с реальными данными"""
         
         # Получаем реальные данные рынка
         snapshot = await market_data.get_snapshot(force_refresh=True)
@@ -750,102 +750,44 @@ _{explanation}_
         funding_time = f"{hours}ч {mins}мин" if hours > 0 else f"{mins} мин"
         
         coins_count = initial_data.get('coins_count', 7) if initial_data else 7
+        coins_list = initial_data.get('coins', ['BTC', 'ETH', 'SOL']) if initial_data else ['BTC', 'ETH', 'SOL']
         
         # RSI статус
         rsi_emoji, rsi_text = market_data.get_rsi_status(snapshot.btc_rsi)
         fg_emoji = market_data.get_fg_emoji(snapshot.fear_greed)
         
-        # Director (через 1.5 мин после запуска)
-        await asyncio.sleep(90)
+        # Ждём 30 сек после запуска
+        await asyncio.sleep(30)
         
-        # Отправляем директора с реальными данными и AI
-        await self.queue_director_status(snapshot=snapshot)
-        
-        # Grid (ещё через 1.5 мин)
-        await asyncio.sleep(90)
-        await self.queue_startup_module(
-            ModuleType.GRID,
-            f"""
-📊 *СЕТКА*
+        # ОДНО сообщение с полной информацией
+        startup_text = f"""
+🚀 *CryptoDen запущен*
 
-- - - - -
+📊 *Рынок сейчас:*
+• BTC: *${snapshot.btc_price:,.0f}*
+• RSI: {rsi_emoji} {snapshot.btc_rsi:.0f} ({rsi_text})
+• Страх/Жадность: {fg_emoji} {snapshot.fear_greed}
 
-🔧 Строю сетку для *{coins_count}* монет
+🎯 *Активные модули:*
 
-📉 Ищу уровни покупки
-📈 Ищу уровни продажи
+📊 *Сетка* — отслеживаю {coins_count} монет
+   {', '.join(coins_list[:5])}
 
-- - - - -
+💰 *Фандинг* — до начисления {funding_time}
 
-⏳ Жду касания уровней...
+🆕 *Листинги* — слежу за Binance, Bybit, OKX
+
+🐋 *Киты* — мониторю крупные движения
+
+✅ *Все системы работают*
 """
-        )
         
-        # Funding (ещё через 1.5 мин)
-        await asyncio.sleep(90)
-        await self.queue_startup_module(
-            ModuleType.FUNDING,
-            f"""
-💰 *ФАНДИНГ*
-
-- - - - -
-
-⏰ До начисления: *{funding_time}*
-
-🔍 Проверяю ставки...
-💡 Сообщу если будет возможность
-
-- - - - -
-
-✅ Мониторинг активен
-"""
-        )
-        
-        # Listing (ещё через 1.5 мин)
-        await asyncio.sleep(90)
-        await self.queue_startup_module(
-            ModuleType.LISTING,
-            """
-🆕 *ЛИСТИНГИ*
-
-- - - - -
-
-🔍 Слежу за анонсами:
-
-• Binance
-• Bybit
-• OKX
-
-- - - - -
-
-🔔 Сообщу о новых монетах!
-"""
-        )
-        
-        # Whale (ещё через 1.5 мин)
-        await asyncio.sleep(90)
-        await self.queue_startup_module(
-            ModuleType.WHALE,
-            """
-🐋 *КИТЫ*
-
-- - - - -
-
-👀 Слежу за крупными игроками
-
-💰 Отслеживаю переводы
-📊 Анализирую движения
-
-- - - - -
-
-⚠️ Предупрежу о важном!
-"""
-        )
+        await self.queue_startup_module(ModuleType.DIRECTOR, startup_text)
         
         # Конец startup фазы
         self.context.is_startup = False
         
-        logger.info("✅ Startup sequence completed")
+        logger.info("✅ Startup sequence completed (single message)")
 
 
 # Синглтон

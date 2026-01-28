@@ -500,7 +500,7 @@ class MarketMonitor:
                                f"(confidence: {best_opportunity.confidence}%)")
                     
                     # Проверяем можем ли открыть сделку
-                    if len(trade_manager.get_active_trades()) < self.max_positions:
+                    if len(trade_manager.get_active_trades()) < self.max_open_trades:
                         if self.can_auto_trade('director'):
                             # AUTO режим — открываем сделку
                             from app.strategies import Signal
@@ -905,18 +905,28 @@ class MarketMonitor:
     async def _notify_grid_trade(self, signal):
         """📊 Уведомление о сделке Grid Bot"""
         try:
-            emoji = "🟢" if signal.direction == "BUY" else "🔴"
+            is_buy = signal.direction == "BUY"
+            emoji = "🟢" if is_buy else "🔴"
+            action = "ПОКУПКА" if is_buy else "ПРОДАЖА"
             
             # Получаем статистику
             status = await grid_bot.get_status()
             
+            # Рассчитываем профит на сетке
+            grid_profit_pct = status.get('profit_per_grid', 0.5)
+            
             text = f"""
-📊 *GRID BOT*
+📊 *СЕТКА*
 
-{emoji} *{signal.direction}* {signal.symbol} @ ${signal.entry_price:,.2f}
+{emoji} *{action}* {signal.symbol}
+💰 *Цена:* ${signal.entry_price:,.2f}
 
-📈 *Сегодня:* {status['today_trades']} сделок | ${status['today_profit_usdt']:.2f}
-📊 *Всего:* {status['total_trades']} сделок | ${status['total_profit_usdt']:.2f}
+📈 *Статистика сегодня:*
+• Сделок: {status['today_trades']}
+• Профит: ${status['today_profit_usdt']:.2f}
+
+💡 *Что дальше:*
+{'Жду рост для продажи +' + str(grid_profit_pct) + '%' if is_buy else 'Жду падение для покупки -' + str(grid_profit_pct) + '%'}
 
 ⏰ {signal.timestamp.strftime('%H:%M:%S')}
 """
@@ -931,33 +941,47 @@ class MarketMonitor:
             is_close = signal.direction.startswith("CLOSE")
             
             if is_close:
-                emoji = "✅" if "+" in signal.reason else "❌"
+                is_profit = "+" in signal.reason
+                emoji = "✅" if is_profit else "❌"
+                result = "Прибыль" if is_profit else "Убыток"
+                
                 text = f"""
-💰 *FUNDING SCALPER — ЗАКРЫТИЕ*
+💰 *ФАНДИНГ ЗАКРЫТ*
 
-{emoji} {signal.symbol}
+{emoji} *{signal.symbol}* — {result}
 📊 {signal.reason}
 
 ⏰ {signal.timestamp.strftime('%H:%M:%S')}
 """
             else:
-                emoji = "🟢" if signal.direction == "LONG" else "🔴"
+                is_long = signal.direction == "LONG"
+                emoji = "🟢" if is_long else "🔴"
+                direction = "ЛОНГ" if is_long else "ШОРТ"
                 
                 # Получаем статус
                 status = await funding_scalper.get_status()
                 minutes_to = status.get("minutes_to_funding", 0)
+                hours = minutes_to // 60
+                mins = minutes_to % 60
+                time_str = f"{hours}ч {mins}мин" if hours > 0 else f"{mins} мин"
+                
+                # Рассчитываем потенциал
+                tp_pct = abs((signal.take_profit - signal.entry_price) / signal.entry_price * 100)
+                sl_pct = abs((signal.stop_loss - signal.entry_price) / signal.entry_price * 100)
                 
                 text = f"""
-💰 *FUNDING SCALPER — ВХОД*
+💰 *ФАНДИНГ СКАЛЬП*
 
-{emoji} *{signal.direction}* {signal.symbol}
+{emoji} *{direction} {signal.symbol}*
 
-💵 *Вход:* ${signal.entry_price:,.2f}
-🎯 *TP:* ${signal.take_profit:,.2f}
-🛑 *SL:* ${signal.stop_loss:,.2f}
+📊 *Детали сделки:*
+• Вход: ${signal.entry_price:,.2f}
+• Цель: ${signal.take_profit:,.2f} (+{tp_pct:.1f}%)
+• Стоп: ${signal.stop_loss:,.2f} (-{sl_pct:.1f}%)
 
-📊 *Причина:* {signal.reason}
-⏰ *До Funding:* {minutes_to} мин
+⏰ *До начисления:* {time_str}
+
+💡 *Логика:* {signal.reason}
 
 ⏰ {signal.timestamp.strftime('%H:%M:%S')}
 """
@@ -1122,7 +1146,7 @@ class MarketMonitor:
         try:
             is_buy = signal.direction == "BUY"
             emoji = "🟢" if is_buy else "🔴"
-            action = "КУПИТЬ" if is_buy else "ПРОДАТЬ"
+            action = "ПОКУПКА" if is_buy else "ПРОДАЖА"
             
             # Расчёт цели
             target_pct = 0.3  # Grid step
@@ -1132,17 +1156,16 @@ class MarketMonitor:
                 target = signal.entry_price * (1 - target_pct / 100)
             
             text = f"""
-📊 *GRID BOT — СИГНАЛ*
+📊 *СЕТКА — СИГНАЛ*
 
-{emoji} Рекомендация: *{action} {signal.symbol}*
+{emoji} *{action} {signal.symbol}*
 
-━━━━━━━━━━━━━━━━━━━━
-💰 Цена: ${signal.entry_price:,.2f}
-🎯 Цель: ${target:,.2f} ({'+' if is_buy else '-'}{target_pct}%)
-━━━━━━━━━━━━━━━━━━━━
+📊 *Детали:*
+• Цена входа: ${signal.entry_price:,.2f}
+• Цель: ${target:,.2f} (+{target_pct}%)
 
-💡 _Сетка показывает хорошую точку._
-_Рекомендуем {'купить' if is_buy else 'продать'} вручную._
+💡 Хорошая точка для {'покупки' if is_buy else 'продажи'}
+Рекомендуем открыть вручную
 
 ⏰ {self._get_time()}
 """
@@ -1160,16 +1183,14 @@ _Рекомендуем {'купить' if is_buy else 'продать'} вру�
             status = await grid_bot.get_status()
             
             text = f"""
-📊 *GRID BOT — СДЕЛКА*
+📊 *СЕТКА*
 
-{emoji} *{action}* {signal.symbol}
-
-━━━━━━━━━━━━━━━━━━━━
+{emoji} *{action} {signal.symbol}*
 💰 Цена: ${signal.entry_price:,.2f}
-━━━━━━━━━━━━━━━━━━━━
 
-📈 Сегодня: {status.get('today_trades', 0)} сделок
-💰 Профит: ${status.get('today_profit_usdt', 0):.2f}
+📈 *Сегодня:*
+• Сделок: {status.get('today_trades', 0)}
+• Профит: ${status.get('today_profit_usdt', 0):.2f}
 
 ⏰ {self._get_time()}
 """
@@ -1180,10 +1201,15 @@ _Рекомендуем {'купить' if is_buy else 'продать'} вру�
     async def _notify_funding_signal(self, signal):
         """💰 Funding Scalper — рекомендация (signal mode)"""
         try:
-            dir_emoji = "🟢" if signal.direction == "LONG" else "🔴"
+            is_long = signal.direction == "LONG"
+            dir_emoji = "🟢" if is_long else "🔴"
+            direction = "ЛОНГ" if is_long else "ШОРТ"
             
             status = await funding_scalper.get_status()
             minutes_to = status.get("minutes_to_funding", 0)
+            hours = minutes_to // 60
+            mins = minutes_to % 60
+            time_str = f"{hours}ч {mins}мин" if hours > 0 else f"{mins} мин"
             
             # Funding rate
             funding_rate = 0
@@ -1192,29 +1218,29 @@ _Рекомендуем {'купить' if is_buy else 'продать'} вру�
                     funding_rate = rate_info.get("rate", 0)
                     break
             
-            explain = ""
-            if signal.direction == "LONG":
-                explain = f"📉 Funding {funding_rate:+.3f}% (отриц.)\n_Шорты платят лонгам_"
+            if is_long:
+                logic = f"Funding {funding_rate:+.3f}% — шорты платят лонгам"
             else:
-                explain = f"📈 Funding {funding_rate:+.3f}% (полож.)\n_Лонги платят шортам_"
+                logic = f"Funding {funding_rate:+.3f}% — лонги платят шортам"
+            
+            tp_pct = abs((signal.take_profit - signal.entry_price) / signal.entry_price * 100)
+            sl_pct = abs((signal.stop_loss - signal.entry_price) / signal.entry_price * 100)
             
             text = f"""
-💰 *FUNDING — СИГНАЛ*
+💰 *ФАНДИНГ — СИГНАЛ*
 
-{dir_emoji} Рекомендация: *{signal.direction} {signal.symbol}*
+{dir_emoji} *{direction} {signal.symbol}*
 
-━━━━━━━━━━━━━━━━━━━━
-💰 Вход: ${signal.entry_price:,.2f}
-🎯 TP: ${signal.take_profit:,.2f}
-🛑 SL: ${signal.stop_loss:,.2f}
-━━━━━━━━━━━━━━━━━━━━
+📊 *Параметры:*
+• Вход: ${signal.entry_price:,.2f}
+• Цель: ${signal.take_profit:,.2f} (+{tp_pct:.1f}%)
+• Стоп: ${signal.stop_loss:,.2f} (-{sl_pct:.1f}%)
 
-{explain}
+⏰ *До начисления:* {time_str}
 
-⏰ До Funding: *{minutes_to} мин*
+💡 *Логика:* {logic}
 
-💡 _Откройте позицию вручную_
-_и заработайте на Funding Rate_
+Откройте позицию вручную
 
 ⏰ {self._get_time()}
 """
@@ -1225,21 +1251,25 @@ _и заработайте на Funding Rate_
     async def _notify_funding_executed(self, signal):
         """💰 Funding Scalper — выполнено (auto mode)"""
         try:
-            dir_emoji = "🟢" if signal.direction == "LONG" else "🔴"
+            is_long = signal.direction == "LONG"
+            dir_emoji = "🟢" if is_long else "🔴"
+            direction = "ЛОНГ" if is_long else "ШОРТ"
+            
+            tp_pct = abs((signal.take_profit - signal.entry_price) / signal.entry_price * 100)
+            sl_pct = abs((signal.stop_loss - signal.entry_price) / signal.entry_price * 100)
             
             text = f"""
-💰 *FUNDING — ПОЗИЦИЯ ОТКРЫТА*
+💰 *ФАНДИНГ ОТКРЫТ*
 
-{dir_emoji} *{signal.direction} {signal.symbol}*
+{dir_emoji} *{direction} {signal.symbol}*
 
-━━━━━━━━━━━━━━━━━━━━
-💰 Вход: ${signal.entry_price:,.2f}
-🎯 TP: ${signal.take_profit:,.2f}
-🛑 SL: ${signal.stop_loss:,.2f}
-━━━━━━━━━━━━━━━━━━━━
+📊 *Параметры:*
+• Вход: ${signal.entry_price:,.2f}
+• Цель: ${signal.take_profit:,.2f} (+{tp_pct:.1f}%)
+• Стоп: ${signal.stop_loss:,.2f} (-{sl_pct:.1f}%)
 
-✅ _Позиция открыта автоматически_
-_Ожидаем Funding payment_
+✅ Позиция открыта автоматически
+Ожидаем начисление Funding
 
 ⏰ {self._get_time()}
 """
@@ -1251,16 +1281,15 @@ _Ожидаем Funding payment_
         """🔄 Arbitrage — возможность (signal mode)"""
         try:
             text = f"""
-🔄 *ARBITRAGE — ВОЗМОЖНОСТЬ*
+🔄 *АРБИТРАЖ*
 
 ✨ Найден прибыльный цикл!
 
-━━━━━━━━━━━━━━━━━━━━
-📊 {signal.reason}
-━━━━━━━━━━━━━━━━━━━━
+📊 *Детали:*
+{signal.reason}
 
-⚠️ _Требуется быстрое исполнение!_
-_Для авто-режима включите 🤖 Auto_
+⚠️ Требуется быстрое исполнение!
+Для авто-режима включите Auto
 
 ⏰ {self._get_time()}
 """
@@ -1285,53 +1314,97 @@ _Для авто-режима включите 🤖 Auto_
             logger.error(f"Arbitrage executed notification error: {e}")
     
     async def _notify_listing_signal(self, signal, listing):
-        """Отправить информацию о листинге через live_updates"""
+        """🆕 Уведомление о новом листинге с полным анализом"""
         try:
-            # Определяем риск/потенциал
-            risk_score = 3  # По умолчанию средний
-            potential = "+30-80%"
-            
-            # Анализируем листинг
-            if listing.exchange == "Binance":
-                risk_score = 4
-                potential = "+50-150%"
-            elif listing.exchange == "Bybit":
-                risk_score = 3
-                potential = "+30-100%"
-            
             from app.modules.listing_hunter import ListingType
-            is_tradeable = listing.listing_type == ListingType.LISTING_SCALP
             
-            update = await live_updates.generate_listing(
-                name=listing.name,
-                symbol=listing.symbol,
-                exchange=listing.exchange,
-                is_tradeable=is_tradeable,
-                risk_score=risk_score,
-                potential=potential
+            # Определяем параметры по бирже
+            exchange_info = {
+                "Binance": {"risk": "Низкий", "potential": "+50-150%", "trust": "⭐⭐⭐⭐⭐", "emoji": "🟡"},
+                "Bybit": {"risk": "Низкий", "potential": "+30-100%", "trust": "⭐⭐⭐⭐", "emoji": "🟠"},
+                "OKX": {"risk": "Средний", "potential": "+30-80%", "trust": "⭐⭐⭐⭐", "emoji": "🔵"},
+                "Coinbase": {"risk": "Низкий", "potential": "+20-60%", "trust": "⭐⭐⭐⭐⭐", "emoji": "🔵"},
+            }
+            
+            info = exchange_info.get(listing.exchange, {
+                "risk": "Средний", "potential": "+20-50%", "trust": "⭐⭐⭐", "emoji": "⚪"
+            })
+            
+            # Тип листинга
+            type_info = {
+                ListingType.PRE_LISTING: ("📋", "ПРЕ-ЛИСТИНГ", "Анонс листинга"),
+                ListingType.LISTING_SCALP: ("⚡", "СКАЛЬП", "Торговля началась"),
+                ListingType.LAUNCHPAD: ("🚀", "LAUNCHPAD", "Новый проект"),
+                ListingType.PERPETUAL: ("📊", "ФЬЮЧЕРСЫ", "Добавлены перпы"),
+            }
+            
+            type_emoji, type_name, type_desc = type_info.get(
+                listing.listing_type, 
+                ("🆕", "ЛИСТИНГ", "Новая монета")
             )
             
-            if update:
-                await live_updates.send_update(update)
-                
+            # Рекомендация по действию
+            if listing.listing_type == ListingType.LISTING_SCALP:
+                action_text = f"""
+💡 *Как торговать:*
+• Вход: сразу после анонса
+• Размер: 3-5% от депозита
+• Стоп: -10% от входа
+• Цель: {info['potential']}
+• Важно: высокая волатильность!"""
+            elif listing.listing_type == ListingType.PRE_LISTING:
+                bybit_status = "✅ Доступна" if listing.is_on_bybit else "❌ Пока нет"
+                action_text = f"""
+💡 *Рекомендация:*
+• На Bybit: {bybit_status}
+• Потенциал роста: {info['potential']}
+• {'Купить сейчас на Bybit' if listing.is_on_bybit else 'Ждать листинг или купить на ' + listing.exchange}"""
+            else:
+                action_text = f"""
+💡 *Информация:*
+• Потенциал: {info['potential']}
+• Риск: {info['risk']}"""
+            
+            price_text = f"${listing.current_price:.4f}" if listing.current_price else "Уточняется"
+            
+            text = f"""
+{type_emoji} *{type_name}*
+
+🪙 *Монета:* {listing.name} ({listing.symbol})
+{info['emoji']} *Биржа:* {listing.exchange}
+
+📊 *Анализ:*
+• Доверие: {info['trust']}
+• Риск: {info['risk']}
+• Цена: {price_text}
+{action_text}
+
+⏰ {self._get_time()}
+"""
+            await telegram_bot.send_message(text.strip())
+            
         except Exception as e:
             logger.error(f"Listing notification error: {e}")
     
     async def _notify_listing_executed(self, signal, listing):
         """🆕 Listing — куплено (auto mode)"""
         try:
+            tp_price = signal.entry_price * 1.20  # +20%
+            sl_price = signal.entry_price * 0.95  # -5%
+            
             text = f"""
-🆕 *ЛИСТИНГ — КУПЛЕНО*
+🆕 *ЛИСТИНГ КУПЛЕН*
 
-✅ *{listing.symbol}* куплен автоматически!
+✅ *{listing.name}* ({listing.symbol})
+🏦 Биржа: {listing.exchange}
 
-━━━━━━━━━━━━━━━━━━━━
-💰 Цена: ${signal.entry_price:,.4f}
-🎯 TP: +20%
-🛑 SL: -5%
-━━━━━━━━━━━━━━━━━━━━
+📊 *Параметры сделки:*
+• Вход: ${signal.entry_price:,.4f}
+• Цель: ${tp_price:,.4f} (+20%)
+• Стоп: ${sl_price:,.4f} (-5%)
 
-⏳ _Ожидаем рост..._
+💡 *Стратегия:*
+Скальпинг на листинге. Ожидаем быстрый рост в первые часы.
 
 ⏰ {self._get_time()}
 """
@@ -1342,26 +1415,31 @@ _Для авто-режима включите 🤖 Auto_
     async def _notify_worker_signal(self, signal):
         """👷 Worker — рекомендация (signal mode)"""
         try:
-            dir_emoji = "🟢" if signal.direction == "LONG" else "🔴"
+            is_long = signal.direction == "LONG"
+            dir_emoji = "🟢" if is_long else "🔴"
+            direction = "ЛОНГ" if is_long else "ШОРТ"
             
             tp_pct = abs((signal.take_profit - signal.entry_price) / signal.entry_price * 100)
             sl_pct = abs((signal.stop_loss - signal.entry_price) / signal.entry_price * 100)
+            rr_ratio = tp_pct / sl_pct if sl_pct > 0 else 0
+            
+            strategy_name = signal.strategy_name if hasattr(signal, 'strategy_name') else 'RSI + EMA'
             
             text = f"""
-👷 *RSI STRATEGY — СИГНАЛ*
+📈 *СИГНАЛ*
 
-{dir_emoji} Рекомендация: *{signal.direction} {signal.symbol}*
+{dir_emoji} *{direction} {signal.symbol}*
 
-━━━━━━━━━━━━━━━━━━━━
-💰 Вход: ${signal.entry_price:,.2f}
-🎯 TP: ${signal.take_profit:,.2f} (+{tp_pct:.1f}%)
-🛑 SL: ${signal.stop_loss:,.2f} (-{sl_pct:.1f}%)
-━━━━━━━━━━━━━━━━━━━━
+📊 *Параметры:*
+• Вход: ${signal.entry_price:,.2f}
+• Цель: ${signal.take_profit:,.2f} (+{tp_pct:.1f}%)
+• Стоп: ${signal.stop_loss:,.2f} (-{sl_pct:.1f}%)
+• R/R: {rr_ratio:.1f}
 
-📊 Стратегия: {signal.strategy_name if hasattr(signal, 'strategy_name') else 'RSI + EMA'}
-🎯 Win Rate: {signal.win_rate:.1f}%
+📋 *Стратегия:* {strategy_name}
+🎯 *Win Rate:* {signal.win_rate:.1f}%
 
-💡 _Откройте позицию вручную_
+💡 Откройте позицию вручную
 
 ⏰ {self._get_time()}
 """
@@ -1372,20 +1450,20 @@ _Для авто-режима включите 🤖 Auto_
     async def _notify_director_signal(self, direction: str, reason: str):
         """🎩 Director — рекомендация (signal mode)"""
         try:
-            dir_emoji = "🟢" if direction == "LONG" else "🔴"
+            is_long = direction == "LONG"
+            dir_emoji = "🟢" if is_long else "🔴"
+            dir_text = "ЛОНГ" if is_long else "ШОРТ"
             
             text = f"""
-🎩 *DIRECTOR AI — СИГНАЛ*
+🎩 *ДИРЕКТОР — СИГНАЛ*
 
-{dir_emoji} Рекомендация: *{direction} BTC*
+{dir_emoji} *{dir_text} BTC*
 
-━━━━━━━━━━━━━━━━━━━━
-📊 *Причина:*
-{reason}
-━━━━━━━━━━━━━━━━━━━━
+📊 *Анализ:*
+{reason[:300]}
 
-💡 _Director видит сильную возможность!_
-_Рекомендуем открыть позицию вручную_
+💡 Сильная возможность!
+Рекомендуем открыть вручную
 
 ⏰ {self._get_time()}
 """
@@ -1396,26 +1474,27 @@ _Рекомендуем открыть позицию вручную_
     async def _notify_director_executed(self, trade, reason: str):
         """🎩 Director — выполнено (auto mode)"""
         try:
-            dir_emoji = "🟢" if trade.direction == "LONG" else "🔴"
+            is_long = trade.direction == "LONG"
+            dir_emoji = "🟢" if is_long else "🔴"
+            dir_text = "ЛОНГ" if is_long else "ШОРТ"
             
             tp_pct = abs((trade.take_profit - trade.entry_price) / trade.entry_price * 100)
             sl_pct = abs((trade.stop_loss - trade.entry_price) / trade.entry_price * 100)
             
             text = f"""
-🎩 *DIRECTOR — СДЕЛКА ОТКРЫТА*
+🎩 *ДИРЕКТОР — СДЕЛКА*
 
-{dir_emoji} *{trade.direction} {trade.symbol}*
+{dir_emoji} *{dir_text} {trade.symbol}*
 
-━━━━━━━━━━━━━━━━━━━━
-💰 Вход: ${trade.entry_price:,.2f}
-🎯 TP: ${trade.take_profit:,.2f} (+{tp_pct:.1f}%)
-🛑 SL: ${trade.stop_loss:,.2f} (-{sl_pct:.1f}%)
-━━━━━━━━━━━━━━━━━━━━
+📊 *Параметры:*
+• Вход: ${trade.entry_price:,.2f}
+• Цель: ${trade.take_profit:,.2f} (+{tp_pct:.1f}%)
+• Стоп: ${trade.stop_loss:,.2f} (-{sl_pct:.1f}%)
 
-📊 *Причина:*
-{reason}
+📋 *Анализ:*
+{reason[:200]}
 
-✅ _Director взял управление_
+✅ Director взял управление
 
 ⏰ {self._get_time()}
 """
