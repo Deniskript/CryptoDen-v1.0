@@ -829,6 +829,24 @@ _{mode_desc}_
                 logger.error(f"Adaptive Brain status error: {e}")
                 await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
+        @self.dp.message(Command("stats"))
+        async def cmd_stats(message: types.Message):
+            """📊 Статистика торговли с Win Rate"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            try:
+                from app.core.statistics import trading_statistics
+                
+                # Получить форматированную статистику
+                stats_text = trading_statistics.format_stats_message()
+                
+                await message.answer(stats_text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Stats error: {e}")
+                await message.answer(f"❌ *Ошибка получения статистики:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
         @self.dp.message(Command("analyze"))
         async def cmd_analyze(message: types.Message):
             """🧠 Adaptive Brain — анализ монеты"""

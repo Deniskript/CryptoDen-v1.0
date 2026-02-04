@@ -568,16 +568,44 @@ def get_stats():
     try:
         from app.core.session_tracker import session_tracker
         from app.core.trade_tracker import trade_tracker
+        from app.core.statistics import trading_statistics
+        
+        # Получить общую статистику от нового модуля
+        overall_stats = trading_statistics.get_overall_stats()
+        
+        # Получить последние сделки
+        recent_trades = trading_statistics.get_recent_trades(7)
+        recent_trades_data = [
+            {
+                "id": t.id,
+                "symbol": t.symbol,
+                "direction": t.direction,
+                "source": t.source,
+                "pnl_percent": t.pnl_percent,
+                "pnl_usd": t.pnl_usd,
+                "result": t.result.value,
+                "entry_time": t.entry_time.isoformat(),
+                "confidence": t.confidence
+            }
+            for t in recent_trades[-20:]  # Последние 20
+        ]
         
         return jsonify({
             "success": True,
             "data": {
+                # Старая статистика (session_tracker)
                 "current_session": session_tracker.get_current_session(),
                 "sessions": session_tracker.get_all_sessions(limit=10),
                 "total": session_tracker.get_total_stats(),
+                
+                # Старая статистика (trade_tracker)
                 "active_trades": len(trade_tracker.get_active_trades()),
                 "trade_stats": trade_tracker.get_stats().get("summary", {}),
-                "source_stats": trade_tracker.get_stats_by_source()
+                "source_stats": trade_tracker.get_stats_by_source(),
+                
+                # НОВАЯ статистика (trading_statistics)
+                "overall": overall_stats,
+                "recent_trades": recent_trades_data
             }
         })
     except Exception as e:

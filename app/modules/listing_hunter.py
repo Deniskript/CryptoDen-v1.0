@@ -589,6 +589,15 @@ class ListingHunter(BaseModule):
         
         return prices
     
+    async def _is_tradeable_on_bybit(self, symbol: str) -> bool:
+        """Проверить что монета торгуется на Bybit"""
+        try:
+            from app.trading.bybit.client import bybit_client
+            price = await bybit_client.get_price(f"{symbol}USDT")
+            return price is not None and price > 0
+        except:
+            return False
+    
     async def process_listing(self, listing: ListingEvent) -> Optional[ModuleSignal]:
         """Обработать обнаруженный листинг"""
         

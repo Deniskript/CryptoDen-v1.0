@@ -16,6 +16,7 @@ from dataclasses import dataclass, asdict, field
 import asyncio
 
 from app.core.logger import logger
+from app.core.statistics import trading_statistics
 
 
 # Lazy import для избежания циклической зависимости
@@ -177,6 +178,21 @@ class TradeTracker:
         logger.info(f"🎯 Opened trade: {direction} {symbol} @ ${entry_price:,.2f} "
                    f"(SL: ${stop_loss:,.2f}, TP: ${take_profit:,.2f})")
         
+        # Записать в статистику
+        try:
+            trading_statistics.record_trade_open(
+                trade_id=trade_id,
+                symbol=symbol,
+                direction=direction,
+                source=source,
+                entry_price=entry_price,
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                confidence=confidence
+            )
+        except Exception as e:
+            logger.warning(f"Failed to record trade stats: {e}")
+        
         return trade
     
     def update_trade(self, trade_id: str, current_price: float) -> Optional[dict]:
@@ -286,6 +302,18 @@ class TradeTracker:
         # Если сделка закрыта — перенести в статистику
         if trade.status.startswith("CLOSED"):
             self._save_to_stats(trade)
+            
+            # Записать в новую статистику
+            try:
+                trading_statistics.record_trade_close(
+                    trade_id=trade.id,
+                    exit_price=trade.current_price,
+                    pnl_percent=trade.pnl_percent,
+                    pnl_usd=trade.pnl_usd,
+                    notes=trade.status
+                )
+            except Exception as e:
+                logger.warning(f"Failed to record trade close stats: {e}")
             
             # Обновить сеанс
             try:

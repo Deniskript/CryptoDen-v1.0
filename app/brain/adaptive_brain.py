@@ -93,7 +93,7 @@ class AdaptiveBrain:
     }
     
     def __init__(self):
-        self.model = "anthropic/claude-3.5-haiku-20241022"
+        self.model = "anthropic/claude-3.5-haiku"
         self.api_url = "https://openrouter.ai/api/v1/chat/completions"
         logger.info("🧠 Adaptive Brain v3.0 initialized")
     
@@ -147,25 +147,37 @@ class AdaptiveBrain:
             )
     
     async def get_best_opportunity(self) -> Optional[BrainDecision]:
-        """Найти лучшую возможность"""
-        all_coins = self.COINS_TOP20 + self.dynamic_coins
+        """Найти лучшую возможность среди всех монет"""
+        all_coins = list(set(self.COINS_TOP20 + self.dynamic_coins))
         decisions = []
         
-        for symbol in all_coins[:10]:  # Топ-10 для скорости
+        # Анализируем ВСЕ монеты (до 25 для скорости)
+        coins_to_analyze = all_coins[:25]
+        
+        logger.info(f"🧠 Brain analyzing {len(coins_to_analyze)} coins...")
+        
+        for symbol in coins_to_analyze:
             try:
                 decision = await self.analyze(symbol)
                 if decision.action in [TradeAction.LONG, TradeAction.SHORT]:
                     if decision.confidence >= self.MIN_CONFIDENCE:
                         decisions.append(decision)
+                        logger.debug(f"🧠 {symbol}: {decision.action.value} ({decision.confidence}%)")
             except Exception as e:
                 logger.error(f"Error analyzing {symbol}: {e}")
                 continue
         
         if not decisions:
+            logger.debug("🧠 No actionable opportunities found")
             return None
         
+        # Сортируем по confidence
         decisions.sort(key=lambda x: x.confidence, reverse=True)
-        return decisions[0]
+        
+        best = decisions[0]
+        logger.info(f"🧠 Best opportunity: {best.action.value} {best.symbol} ({best.confidence}%)")
+        
+        return best
     
     def add_dynamic_coin(self, symbol: str):
         if symbol not in self.dynamic_coins and symbol not in self.COINS_TOP20:
@@ -173,13 +185,15 @@ class AdaptiveBrain:
             logger.info(f"🆕 Added {symbol} to dynamic pool")
     
     async def _collect_market_data(self, symbol: str) -> MarketData:
-        """Собрать данные для анализа"""
+        """Собрать ВСЕ данные для анализа включая RSI и EMA"""
         try:
             from app.trading.bybit.client import bybit_client
             from app.ai.whale_ai import whale_ai
             from app.intelligence.news_parser import news_parser
+            from app.backtesting.data_loader import BybitDataLoader
             
             pair = f"{symbol}USDT"
+            data_loader = BybitDataLoader()
             
             # Параллельные запросы
             price_task = bybit_client.get_price(pair)
@@ -195,14 +209,53 @@ class AdaptiveBrain:
             ticker = results[1] if not isinstance(results[1], Exception) else {}
             whale_metrics = results[2] if not isinstance(results[2], Exception) else None
             
+            # ═══════════════════════════════════════════════════════════
+            # НОВОЕ: Рассчитать RSI и EMA из исторических данных
+            # ═══════════════════════════════════════════════════════════
+            rsi_14 = 50.0
+            ema_21 = 0.0
+            ema_50 = 0.0
+            macd_hist = 0.0
+            atr = 0.0
+            
+            try:
+                # Загрузить свечи
+                df = data_loader.load_from_cache(symbol, '5m')
+                
+                if df is not None and len(df) >= 50:
+                    closes = df['close'].values
+                    highs = df['high'].values
+                    lows = df['low'].values
+                    
+                    # RSI 14
+                    rsi_14 = self._calculate_rsi(closes, 14)
+                    
+                    # EMA 21 и 50
+                    ema_21 = self._calculate_ema(closes, 21)
+                    ema_50 = self._calculate_ema(closes, 50)
+                    
+                    # MACD Histogram
+                    macd_hist = self._calculate_macd_histogram(closes)
+                    
+                    # ATR 14
+                    atr = self._calculate_atr(highs, lows, closes, 14)
+                    
+                    logger.debug(f"📊 {symbol} indicators: RSI={rsi_14:.1f}, EMA21={ema_21:.2f}, EMA50={ema_50:.2f}")
+            except Exception as e:
+                logger.warning(f"Failed to calculate indicators for {symbol}: {e}")
+            
+            # ═══════════════════════════════════════════════════════════
             # Получить новости
+            # ═══════════════════════════════════════════════════════════
             try:
                 news_context = await news_parser.get_market_context()
                 news_sentiment = news_context.get('sentiment', 'neutral') if news_context else 'neutral'
             except:
                 news_sentiment = 'neutral'
             
-            # Whale метрики - ИСПРАВЛЕНО!
+            # ═══════════════════════════════════════════════════════════
+            # Whale метрики
+            # ═══════════════════════════════════════════════════════════
             if whale_metrics:
                 funding_rate = getattr(whale_metrics, 'funding_rate', 0) or 0
                 long_ratio = getattr(whale_metrics, 'long_ratio', 50) or 50
@@ -220,6 +273,7 @@ class AdaptiveBrain:
                 liq_long = 0
                 liq_short = 0
             
+            # 24h change
             change_24h = 0
             if ticker and isinstance(ticker, dict):
                 change_24h = float(ticker.get('price24hPcnt', 0) or 0) * 100
@@ -227,6 +281,11 @@ class AdaptiveBrain:
             return MarketData(
                 symbol=symbol,
                 current_price=current_price,
+                rsi_14=rsi_14,
+                ema_21=ema_21,
+                ema_50=ema_50,
+                macd_hist=macd_hist,
+                atr=atr,
                 funding_rate=funding_rate,
                 long_ratio=long_ratio,
                 short_ratio=short_ratio,
@@ -238,8 +297,79 @@ class AdaptiveBrain:
                 change_24h=change_24h,
             )
         except Exception as e:
-            logger.error(f"Collect market data error: {e}")
+            logger.error(f"Collect market data error for {symbol}: {e}")
             return MarketData(symbol=symbol)
+    
+    # ═══════════════════════════════════════════════════════════
+    # МЕТОДЫ РАСЧЁТА ИНДИКАТОРОВ
+    # ═══════════════════════════════════════════════════════════
+    
+    def _calculate_rsi(self, closes: list, period: int = 14) -> float:
+        """Рассчитать RSI"""
+        if len(closes) < period + 1:
+            return 50.0
+        
+        deltas = []
+        for i in range(1, len(closes)):
+            deltas.append(closes[i] - closes[i-1])
+        
+        gains = [d if d > 0 else 0 for d in deltas]
+        losses = [-d if d < 0 else 0 for d in deltas]
+        
+        avg_gain = sum(gains[-period:]) / period
+        avg_loss = sum(losses[-period:]) / period
+        
+        if avg_loss == 0:
+            return 100.0
+        
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        
+        return round(rsi, 2)
+    
+    def _calculate_ema(self, closes: list, period: int) -> float:
+        """Рассчитать EMA"""
+        if len(closes) < period:
+            return closes[-1] if closes else 0
+        
+        multiplier = 2 / (period + 1)
+        ema = sum(closes[:period]) / period  # SMA для начала
+        
+        for price in closes[period:]:
+            ema = (price - ema) * multiplier + ema
+        
+        return round(ema, 4)
+    
+    def _calculate_macd_histogram(self, closes: list) -> float:
+        """Рассчитать MACD Histogram"""
+        if len(closes) < 26:
+            return 0.0
+        
+        ema_12 = self._calculate_ema(closes, 12)
+        ema_26 = self._calculate_ema(closes, 26)
+        macd_line = ema_12 - ema_26
+        
+        # Signal line (EMA 9 от MACD)
+        # Упрощённо: используем текущее значение
+        signal = macd_line * 0.9  # Приблизительно
+        
+        histogram = macd_line - signal
+        return round(histogram, 4)
+    
+    def _calculate_atr(self, highs: list, lows: list, closes: list, period: int = 14) -> float:
+        """Рассчитать ATR"""
+        if len(closes) < period + 1:
+            return 0.0
+        
+        true_ranges = []
+        for i in range(1, len(closes)):
+            high_low = highs[i] - lows[i]
+            high_close = abs(highs[i] - closes[i-1])
+            low_close = abs(lows[i] - closes[i-1])
+            true_ranges.append(max(high_low, high_close, low_close))
+        
+        atr = sum(true_ranges[-period:]) / period
+        return round(atr, 4)
     
     def _detect_regime(self, data: MarketData) -> MarketRegime:
         """Определить режим рынка"""
@@ -310,31 +440,109 @@ class AdaptiveBrain:
             )
     
     def _build_prompt(self, data: MarketData, regime: MarketRegime, restrictions: List[str]) -> str:
+        """Построить промпт для AI с ПОЛНЫМИ данными"""
         restrictions_text = "\n".join([f"  ⛔ {r}" for r in restrictions]) if restrictions else "  ✅ Нет ограничений"
         
-        return f"""Ты — криптотрейдер. Проанализируй и прими решение.
+        # Определяем тренд по EMA
+        if data.ema_21 > 0 and data.ema_50 > 0:
+            if data.ema_21 > data.ema_50:
+                ema_trend = "📈 БЫЧИЙ (EMA21 > EMA50)"
+            elif data.ema_21 < data.ema_50:
+                ema_trend = "📉 МЕДВЕЖИЙ (EMA21 < EMA50)"
+            else:
+                ema_trend = "➡️ Нейтральный"
+        else:
+            ema_trend = "❓ Нет данных"
+        
+        # RSI интерпретация
+        if data.rsi_14 < 30:
+            rsi_signal = "🟢 ПЕРЕПРОДАН — потенциал роста!"
+        elif data.rsi_14 > 70:
+            rsi_signal = "🔴 ПЕРЕКУПЛЕН — риск падения!"
+        elif data.rsi_14 < 40:
+            rsi_signal = "🟡 Близко к перепроданности"
+        elif data.rsi_14 > 60:
+            rsi_signal = "🟡 Близко к перекупленности"
+        else:
+            rsi_signal = "⚪ Нейтральная зона"
+        
+        # MACD интерпретация
+        if data.macd_hist > 0:
+            macd_signal = "📈 Бычий импульс"
+        elif data.macd_hist < 0:
+            macd_signal = "📉 Медвежий импульс"
+        else:
+            macd_signal = "➡️ Нейтрально"
+        
+        return f"""Ты — профессиональный криптотрейдер. Проанализируй данные и прими решение.
 
 ## {data.symbol}USDT
 
-💰 Цена: ${data.current_price:,.2f} ({data.change_24h:+.2f}% 24h)
+═══════════════════════════════════════════════════════════
+📊 ЦЕНА И ИЗМЕНЕНИЕ
+═══════════════════════════════════════════════════════════
+💰 Текущая цена: ${data.current_price:,.4f}
+📈 Изменение 24ч: {data.change_24h:+.2f}%
 
-🐋 Whale метрики:
-• Funding: {data.funding_rate:+.4f}%
-• Long/Short: {data.long_ratio:.0f}% / {data.short_ratio:.0f}%
-• Fear & Greed: {data.fear_greed}
-• OI Change 1h: {data.oi_change_1h:+.2f}%
+═══════════════════════════════════════════════════════════
+📉 ТЕХНИЧЕСКИЕ ИНДИКАТОРЫ
+═══════════════════════════════════════════════════════════
+• RSI (14): {data.rsi_14:.1f} — {rsi_signal}
+• EMA (21): ${data.ema_21:,.4f}
+• EMA (50): ${data.ema_50:,.4f}
+• Тренд EMA: {ema_trend}
+• MACD Histogram: {data.macd_hist:+.4f} — {macd_signal}
+• ATR (14): ${data.atr:,.4f}
 
-📰 Новости: {data.news_sentiment}
-🎯 Режим рынка: {regime.value}
+═══════════════════════════════════════════════════════════
+🐋 WHALE / SMART MONEY ДАННЫЕ
+═══════════════════════════════════════════════════════════
+• Funding Rate: {data.funding_rate:+.4f}%
+• Long/Short Ratio: {data.long_ratio:.0f}% / {data.short_ratio:.0f}%
+• Fear & Greed Index: {data.fear_greed}
+• Open Interest 1h: {data.oi_change_1h:+.2f}%
+• Liquidations Long: ${data.liq_long:,.0f}
+• Liquidations Short: ${data.liq_short:,.0f}
 
-⛔ Ограничения:
+═══════════════════════════════════════════════════════════
+📰 НОВОСТИ И СЕНТИМЕНТ
+═══════════════════════════════════════════════════════════
+• Новостной сентимент: {data.news_sentiment}
+
+═══════════════════════════════════════════════════════════
+🎯 РЕЖИМ РЫНКА: {regime.value.upper()}
+═══════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════
+⛔ ОГРАНИЧЕНИЯ
+═══════════════════════════════════════════════════════════
 {restrictions_text}
 
-{"⚠️ LONG ЗАПРЕЩЁН!" if not self._is_long_allowed(restrictions) else ""}
-{"⚠️ SHORT ЗАПРЕЩЁН!" if not self._is_short_allowed(restrictions) else ""}
+{"🚫 LONG ЗАПРЕЩЁН — не предлагай LONG!" if not self._is_long_allowed(restrictions) else ""}
+{"🚫 SHORT ЗАПРЕЩЁН — не предлагай SHORT!" if not self._is_short_allowed(restrictions) else ""}
 
-Ответь JSON:
-{{"action": "LONG/SHORT/WAIT", "confidence": 0-100, "entry_price": число, "stop_loss": число, "take_profit": число, "reasoning": "причина", "key_factors": ["фактор1", "фактор2"]}}
+═══════════════════════════════════════════════════════════
+📋 ПРАВИЛА ПРИНЯТИЯ РЕШЕНИЯ
+═══════════════════════════════════════════════════════════
+1. RSI < 30 + EMA21 > EMA50 = сильный LONG сигнал
+2. RSI > 70 + EMA21 < EMA50 = сильный SHORT сигнал
+3. Fear & Greed < 25 = хорошо для LONG (страх = возможность)
+4. Fear & Greed > 75 = осторожно с LONG (жадность = риск)
+5. Long Ratio > 70% = НЕ открывать LONG (толпа уже в лонгах)
+6. Short Ratio > 70% = НЕ открывать SHORT (толпа уже в шортах)
+7. ATR используй для расчёта SL/TP
+
+═══════════════════════════════════════════════════════════
+🎯 ТВОЁ РЕШЕНИЕ
+═══════════════════════════════════════════════════════════
+Ответь СТРОГО в формате JSON:
+
+{{"action": "LONG" или "SHORT" или "WAIT", "confidence": число от 0 до 100, "entry_price": число, "stop_loss": число (используй ATR * 1.5 от entry), "take_profit": число (используй ATR * 3 от entry), "reasoning": "краткое объяснение на русском", "key_factors": ["фактор1", "фактор2", "фактор3"]}}
+
+ВАЖНО:
+- Если нет чёткого сигнала — выбирай WAIT
+- Confidence < 65 = автоматически WAIT
+- Не иди против ограничений!
 """
     
     async def _call_ai(self, prompt: str) -> str:

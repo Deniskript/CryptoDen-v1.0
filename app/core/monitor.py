@@ -549,11 +549,24 @@ class MarketMonitor:
                 listing_signals = await listing_hunter.get_signals({"prices": prices})
                 
                 for signal in listing_signals[:2]:  # Макс 2 за раз
-                    # Добавить в динамический пул Brain
-                    adaptive_brain.add_dynamic_coin(signal.symbol)
-                    
-                    # Уведомить
-                    await self._notify_listing(signal)
+                    # ═══════════════════════════════════════════════════════════
+                    # НОВОЕ: Проверка что монета торгуется на Bybit
+                    # ═══════════════════════════════════════════════════════════
+                    try:
+                        pair = f"{signal.symbol}USDT"
+                        price = await self.bybit.get_price(pair)
+                        
+                        if price and price > 0:
+                            # Монета существует на Bybit — добавляем в Brain
+                            adaptive_brain.add_dynamic_coin(signal.symbol)
+                            logger.info(f"🆕 {signal.symbol} verified on Bybit and added to Brain")
+                            
+                            # Уведомить
+                            await self._notify_listing(signal)
+                        else:
+                            logger.warning(f"⚠️ {signal.symbol} not found on Bybit, skipping")
+                    except Exception as e:
+                        logger.warning(f"⚠️ {signal.symbol} not supported on Bybit: {e}")
                     
             except Exception as e:
                 logger.error(f"Listing Hunter error: {e}")
