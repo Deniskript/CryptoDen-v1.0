@@ -355,6 +355,10 @@ class WhaleAI:
                 if resp.status == 200:
                     data = await resp.json()
                     
+                    # Логирование для отладки
+                    if data.get("retCode") != 0:
+                        logger.warning(f"L/S Ratio API error: {data.get('retMsg', 'Unknown')}")
+                    
                     if data.get("retCode") == 0:
                         ratio_list = data.get("result", {}).get("list", [])
                         
@@ -374,15 +378,22 @@ class WhaleAI:
                             else:
                                 sentiment = "neutral"
                             
+                            logger.debug(f"✅ L/S Ratio {symbol}: {buy_ratio:.1f}% Long / {sell_ratio:.1f}% Short")
+                            
                             return {
                                 "long": round(buy_ratio, 1),
                                 "short": round(sell_ratio, 1),
                                 "sentiment": sentiment
                             }
+                        else:
+                            logger.warning(f"L/S Ratio empty list for {symbol}")
+                else:
+                    logger.warning(f"L/S Ratio HTTP {resp.status} for {symbol}")
         
         except Exception as e:
-            logger.debug(f"L/S ratio error: {e}")
+            logger.warning(f"L/S ratio error for {symbol}: {e}")
         
+        logger.debug(f"⚠️ L/S Ratio {symbol}: using fallback 50/50")
         return {"long": 50, "short": 50, "sentiment": "neutral"}
     
     async def _get_fear_greed(self) -> Dict:

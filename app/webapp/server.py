@@ -14,6 +14,17 @@ app = Flask(__name__,
 )
 CORS(app)
 
+
+@app.after_request
+def add_no_cache_headers(response):
+    """Запретить кэширование для Telegram WebApp"""
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
 # Путь к файлу настроек
 SETTINGS_FILE = "/root/crypto-bot/data/webapp_settings.json"
 
@@ -178,8 +189,16 @@ def get_market():
         asyncio.set_event_loop(loop)
         
         try:
+            # Сбрасываем кэш whale_ai для свежих данных
+            whale_ai.last_metrics = None
+            
             # Получаем метрики
             metrics = loop.run_until_complete(whale_ai.get_market_metrics("BTC"))
+            
+            # Логирование для отладки
+            print(f"🐋 DEBUG: metrics.fear_greed_index={metrics.fear_greed_index}")
+            print(f"🐋 DEBUG: metrics.long_ratio={metrics.long_ratio}")
+            print(f"🐋 DEBUG: metrics.short_ratio={metrics.short_ratio}")
             
             # Получаем цену BTC
             btc_price = 0

@@ -179,6 +179,61 @@ class NewsParser:
             logger.error(f"CryptoCompare fetch error: {e}")
             return []
     
+    async def fetch_fallback_news(self, limit: int = 10) -> List[NewsItem]:
+        """Получить новости из резервных источников"""
+        
+        await self._ensure_session()
+        news_items = []
+        
+        # Источник 1: CoinDesk RSS
+        try:
+            url = "https://www.coindesk.com/arc/outboundfeeds/rss/"
+            async with self.session.get(url, timeout=10) as resp:
+                if resp.status == 200:
+                    import feedparser
+                    content = await resp.text()
+                    feed = feedparser.parse(content)
+                    
+                    for entry in feed.entries[:limit]:
+                        try:
+                            published = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc) if entry.get("published_parsed") else datetime.now(timezone.utc)
+                            
+                            news_items.append(NewsItem(
+                                id=str(hash(entry.get("link", ""))),
+                                title=entry.get("title", ""),
+                                source="CoinDesk",
+                                url=entry.get("link", ""),
+                                published_at=published,
+                                raw_text=entry.get("summary", "")[:500]
+                            ))
+                        except Exception as e:
+                            logger.debug(f"Failed to parse CoinDesk entry: {e}")
+                    
+                    if news_items:
+                        logger.info(f"✅ Fetched {len(news_items)} news from CoinDesk RSS")
+                        return news_items
+        except Exception as e:
+            logger.warning(f"CoinDesk RSS error: {e}")
+        
+        # Источник 2: Простые заглушки (на случай полного отказа)
+        if not news_items:
+            logger.warning("All news sources failed, using placeholder")
+            now = datetime.now(timezone.utc)
+            news_items = [
+                NewsItem(
+                    id="placeholder1",
+                    title="🔄 Новости обновляются...",
+                    source="System",
+                    url="#",
+                    published_at=now,
+                    raw_text="Источники новостей временно недоступны. Проверяем CryptoCompare и CoinDesk.",
+                    sentiment=0.0,
+                    importance="LOW"
+                )
+            ]
+        
+        return news_items
+    
     async def fetch_coingecko_trending(self) -> List[str]:
         """Получить trending монеты из CoinGecko"""
         
@@ -231,7 +286,7 @@ class NewsParser:
         Получить и проанализировать новости
         
         Args:
-            with_ai: Использовать AI для анализа
+            with_ai: Использовать AI для анализ
             limit: Количество новостей
         """
         
@@ -242,12 +297,19 @@ class NewsParser:
                 logger.debug("Returning cached news")
                 return cached
         
-        # Получаем новости
+        # Получаем новости из CryptoCompare
         news_items = await self.fetch_cryptocompare_news(limit)
         
+        # Если CryptoCompare не работает - используем fallback
         if not news_items:
-            logger.warning("No news fetched")
+            logger.warning("CryptoCompare failed, trying fallback sources")
+            news_items = await self.fetch_fallback_news(limit)
+        
+        if not news_items:
+            logger.error("❌ No news from any source!")
             return []
+        
+        logger.info(f"✅ Fetched {len(news_items)} news items")
         
         # AI анализ (если включён и есть API ключ)
         if with_ai and settings.openrouter_api_key:

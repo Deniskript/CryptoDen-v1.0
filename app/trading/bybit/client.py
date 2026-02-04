@@ -28,6 +28,14 @@ class BybitClient:
     MAINNET_URL = "https://api.bybit.com"
     TESTNET_URL = "https://api-testnet.bybit.com"
     
+    # Белый список поддерживаемых Bybit Spot символов
+    SUPPORTED_SYMBOLS = {
+        'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
+        'ADAUSDT', 'DOGEUSDT', 'LINKUSDT', 'AVAXUSDT', 'MATICUSDT',
+        'DOTUSDT', 'LTCUSDT', 'UNIUSDT', 'ATOMUSDT', 'NEARUSDT',
+        'SHIBUSDT', 'APTUSDT', 'ARBUSDT', 'OPUSDT', 'SUIUSDT'
+    }
+    
     def __init__(self, testnet: bool = None):
         self.api_key = settings.bybit_api_key or ""
         self.api_secret = settings.bybit_api_secret or ""
@@ -46,6 +54,23 @@ class BybitClient:
     async def __aexit__(self, *args):
         if self.session:
             await self.session.close()
+    
+    def _normalize_symbol(self, symbol: str) -> str:
+        """Нормализовать символ в формат Bybit (добавить USDT если нужно)"""
+        if not symbol:
+            return ""
+        symbol = symbol.upper().strip()
+        if symbol.endswith('USDT'):
+            return symbol
+        return f"{symbol}USDT"
+    
+    def _is_supported(self, symbol: str) -> bool:
+        """Проверить поддерживается ли символ на Bybit Spot"""
+        normalized = self._normalize_symbol(symbol)
+        is_supported = normalized in self.SUPPORTED_SYMBOLS
+        if not is_supported:
+            logger.debug(f"⚠️ Символ {symbol} не поддерживается Bybit Spot")
+        return is_supported
     
     def _generate_signature(self, timestamp: str, params: str = "") -> str:
         """Генерация подписи для V5 API"""
@@ -121,9 +146,14 @@ class BybitClient:
     async def get_price(self, symbol: str) -> Optional[float]:
         """Получить текущую цену"""
         
+        # Валидация символа
+        normalized = self._normalize_symbol(symbol)
+        if not self._is_supported(normalized):
+            return None
+        
         resp = await self._request('GET', '/v5/market/tickers', {
             'category': 'spot',
-            'symbol': f"{symbol}USDT"
+            'symbol': normalized
         })
         
         if resp.get('retCode') == 0:
@@ -526,9 +556,11 @@ class BybitClient:
         Returns:
             [[timestamp, open, high, low, close, volume, turnover], ...]
         """
-        # Нормализуем symbol
-        if not symbol.endswith("USDT"):
-            symbol = f"{symbol}USDT"
+        # Валидация и нормализация символа
+        normalized = self._normalize_symbol(symbol)
+        if not self._is_supported(normalized):
+            return []
+        symbol = normalized
         
         resp = await self._request("GET", "/v5/market/kline", {
             "category": "spot",

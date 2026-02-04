@@ -323,12 +323,30 @@
         tg.expand();
         tg.ready();
         
+        function forceRefresh() {
+            // Очистить Service Worker кэш
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => caches.delete(name));
+                });
+            }
+            // Перезагрузить без кэша
+            window.location.href = window.location.pathname + '?refresh=' + Date.now();
+        }
+        
         let newsSettings = null;
         let showSettings = false;
         
         async function loadNews() {
             try {
-                const response = await fetch('/api/news');
+                const response = await fetch(`/api/news?_t=${Date.now()}`, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store',
+                        'Pragma': 'no-cache'
+                    }
+                });
                 const result = await response.json();
                 
                 if (result.success) {
@@ -345,7 +363,9 @@
         
         async function loadSettings() {
             try {
-                const response = await fetch('/api/news/settings');
+                const response = await fetch(`/api/news/settings?_t=${Date.now()}`, {
+                    cache: 'no-store'
+                });
                 const result = await response.json();
                 if (result.success) {
                     newsSettings = result.settings;

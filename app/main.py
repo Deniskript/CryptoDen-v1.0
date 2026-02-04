@@ -85,9 +85,10 @@ async def main():
     logger.info("💰 AI works only when bot is running!")
     logger.info("=" * 60)
     
-    # Запускаем Flask WebApp
-    await run_flask_server()
-    await asyncio.sleep(2)  # Даём Flask запуститься
+    # Flask WebApp запускается отдельным процессом (run_webapp.py)
+    logger.info("💡 Flask WebApp должен быть запущен отдельно: python run_webapp.py")
+    # await run_flask_server()
+    # await asyncio.sleep(2)
     
     # Запускаем умные уведомления
     asyncio.create_task(start_smart_notifications())
