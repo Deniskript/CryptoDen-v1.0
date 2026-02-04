@@ -1,5 +1,5 @@
 """
-Trading AI — Мозг системы (Sonnet 4.5)
+Trading AI — Мозг системы (Haiku 3.5)
 
 Функции:
 - Анализирует новости + график + стратегию
@@ -74,7 +74,7 @@ class AIDecision:
 
 class TradingAI:
     """
-    Trading AI на Sonnet 4.5
+    Trading AI на Haiku 3.5
     
     Логика:
     1. Получает: новости + календарь + стратегию + график + позицию
@@ -84,7 +84,7 @@ class TradingAI:
     """
     
     OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-    MODEL = "anthropic/claude-sonnet-4.5"  # Claude Sonnet 4.5
+    MODEL = "anthropic/claude-haiku-4"  # Haiku 4 для экономии
     
     def __init__(self):
         self.api_key = settings.openrouter_api_key

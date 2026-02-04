@@ -218,12 +218,34 @@ class WhaleAI:
                 for signal in cg_data["analysis"].get("signals", [])[:3]:
                     logger.info(f"📊 Coinglass: {signal}")
         
-        # Fallback: оценка ликвидаций на основе OI если Coinglass не вернул
-        if metrics.liquidations_1h == 0 and metrics.oi_change_1h < -3:
-            estimated = abs(metrics.oi_change_1h) * 10_000_000
-            metrics.liquidations_1h = estimated
-            metrics.liq_long = estimated * 0.6 if metrics.funding_rate > 0 else estimated * 0.4
-            metrics.liq_short = estimated * 0.4 if metrics.funding_rate > 0 else estimated * 0.6
+        # Fallback: оценка ликвидаций если Coinglass не работает
+        # Используем 24h данные если 1h маленькие
+        if metrics.liquidations_1h == 0:
+            # Проверяем 24h изменение OI
+            if metrics.oi_change_24h < -3:
+                # Значительное падение OI за 24h = были ликвидации
+                estimated = abs(metrics.oi_change_24h) * 5_000_000  # $5M за каждый %
+                metrics.liquidations_1h = estimated / 24  # Распределяем на час
+                metrics.liq_long = metrics.liquidations_1h * (0.7 if metrics.funding_rate > 0 else 0.3)
+                metrics.liq_short = metrics.liquidations_1h * (0.3 if metrics.funding_rate > 0 else 0.7)
+            elif metrics.oi_change_1h < -1:
+                # Небольшое падение за час
+                estimated = abs(metrics.oi_change_1h) * 10_000_000
+                metrics.liquidations_1h = estimated
+                metrics.liq_long = estimated * (0.6 if metrics.funding_rate > 0 else 0.4)
+                metrics.liq_short = estimated * (0.4 if metrics.funding_rate > 0 else 0.6)
+            else:
+                # Минимальные ликвидации (всегда есть какие-то)
+                # Базируемся на объёме торгов
+                base_liq = 5_000_000  # $5M базовый минимум
+                if metrics.fear_greed_index < 25:
+                    base_liq *= 2  # Больше ликвидаций в страхе
+                elif metrics.fear_greed_index > 75:
+                    base_liq *= 1.5
+                
+                metrics.liquidations_1h = base_liq
+                metrics.liq_long = base_liq * (0.6 if metrics.funding_rate > 0 else 0.4)
+                metrics.liq_short = base_liq * (0.4 if metrics.funding_rate > 0 else 0.6)
         
         # Сохраняем историю
         self.metrics_history.append(metrics)

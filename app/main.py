@@ -38,40 +38,61 @@ async def start_smart_notifications():
             "minutes_to_funding": 120,
         }
         
-        # Запускаем последовательность приветствия
-        asyncio.create_task(smart_notifications.send_startup_sequence(startup_data))
+        # Запуск приветствия теперь в telegram_bot.send_animated_startup()
+        # asyncio.create_task(smart_notifications.send_startup_sequence(startup_data))
         
-        logger.info("✅ Smart Notifications started with real market data")
+        logger.info("✅ Smart Notifications started")
     except Exception as e:
         logger.error(f"❌ Smart Notifications error: {e}")
         import traceback
         traceback.print_exc()
 
 
+async def run_flask_server():
+    """Запуск Flask WebApp сервера"""
+    try:
+        from app.webapp.server import app
+        import threading
+        
+        def flask_thread():
+            logger.info("🌐 Starting Flask WebApp on port 5000...")
+            app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+        
+        thread = threading.Thread(target=flask_thread, daemon=True)
+        thread.start()
+        logger.info("✅ Flask WebApp started")
+    except Exception as e:
+        logger.error(f"❌ Flask error: {e}")
+
+
 async def main():
-    """Главная функция — только Telegram polling"""
+    """Главная функция — Telegram + Flask WebApp"""
     
     logger.info("=" * 60)
-    logger.info("🤖 CRYPTODEN BOT READY")
+    logger.info("🤖 CRYPTODEN BOT v3.0 READY")
     logger.info("=" * 60)
     logger.info("")
-    logger.info("📱 Waiting for Telegram commands...")
+    logger.info("📱 Telegram Bot starting...")
+    logger.info("🌐 WebApp: https://app.cryptoden.ru")
     logger.info("")
     logger.info("💡 Control bot via Telegram WebApp:")
-    logger.info("   🎛 Панель управления — Settings & Start/Stop")
-    logger.info("   📊 Статус — Current status")
-    logger.info("   📈 Сделки — Active trades")
-    logger.info("   📰 Новости — Market context")
-    logger.info("   📋 История — Trade history")
+    logger.info("   🦊 CryptoDen — Settings & Control")
+    logger.info("   📊 Статистика — Stats by source")
+    logger.info("   🐋 Рынок — Market overview")
+    logger.info("   📰 Новости — News & events")
+    logger.info("   🔍 Анализ — AI coin analysis")
     logger.info("")
     logger.info("💰 AI works only when bot is running!")
     logger.info("=" * 60)
+    
+    # Запускаем Flask WebApp
+    await run_flask_server()
+    await asyncio.sleep(2)  # Даём Flask запуститься
     
     # Запускаем умные уведомления
     asyncio.create_task(start_smart_notifications())
     
     # Слушаем Telegram команды
-    # Управление через WebApp
     await telegram_bot.start_polling()
 
 

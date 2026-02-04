@@ -1,7 +1,9 @@
-"""
-Brain Module — AI принятие торговых решений
-"""
+"""🧠 Brain Module"""
 
-from app.brain.trading_ai import TradingAI, trading_ai, AIDecision, AIAction
+from app.brain.adaptive_brain import adaptive_brain, AdaptiveBrain, BrainDecision, TradeAction, MarketRegime
+from app.brain.momentum_detector import momentum_detector, MomentumDetector, MomentumAlert
 
-__all__ = ['TradingAI', 'trading_ai', 'AIDecision', 'AIAction']
+__all__ = [
+    'adaptive_brain', 'AdaptiveBrain', 'BrainDecision', 'TradeAction', 'MarketRegime',
+    'momentum_detector', 'MomentumDetector', 'MomentumAlert',
+]

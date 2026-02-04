@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Статистика — CryptoDen</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+        }
+        
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .refresh-btn:active {
+            transform: rotate(180deg);
+        }
+        
+        /* Cards */
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        
+        .card-emoji {
+            font-size: 24px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+            flex: 1;
+        }
+        
+        .card-badge {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+        
+        .badge-active {
+            background: #22c55e33;
+            color: #22c55e;
+        }
+        
+        .badge-closed {
+            background: #6b728033;
+            color: #9ca3af;
+        }
+        
+        /* Current Session */
+        .session-active {
+            border-left: 3px solid #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        
+        .stat-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .stat-value.positive {
+            color: #22c55e;
+        }
+        
+        .stat-value.negative {
+            color: #ef4444;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+        
+        /* Progress Bar */
+        .win-rate-bar {
+            height: 8px;
+            background: #ef4444;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 12px 0;
+        }
+        
+        .win-rate-fill {
+            height: 100%;
+            background: #22c55e;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        /* Sessions List */
+        .sessions-list {
+            margin-top: 16px;
+        }
+        
+        .session-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .session-item:last-child {
+            border-bottom: none;
+        }
+        
+        .session-info {
+            flex: 1;
+        }
+        
+        .session-date {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .session-duration {
+            font-size: 12px;
+            color: #888;
+            margin-top: 2px;
+        }
+        
+        .session-stats {
+            text-align: right;
+        }
+        
+        .session-pnl {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .session-pnl.positive {
+            color: #22c55e;
+        }
+        
+        .session-pnl.negative {
+            color: #ef4444;
+        }
+        
+        .session-winrate {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        /* Total Summary */
+        .total-card {
+            background: linear-gradient(135deg, #8b5cf633 0%, #8b5cf611 100%);
+            border-color: #8b5cf644;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #888;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .update-time {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        /* Source Stats */
+        .source-stats {
+            background: linear-gradient(135deg, #8b5cf633 0%, #8b5cf611 100%);
+            border-color: #8b5cf644;
+        }
+        
+        .source-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        
+        .source-item {
+            text-align: center;
+            padding: 16px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+        }
+        
+        .source-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .source-name {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .source-trades {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        
+        .source-winrate {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .source-winrate.positive {
+            color: #22c55e;
+        }
+        
+        .source-winrate.negative {
+            color: #ef4444;
+        }
+        
+        .source-pnl {
+            font-size: 16px;
+            font-weight: 700;
+        }
+        
+        .source-pnl.positive {
+            color: #22c55e;
+        }
+        
+        .source-pnl.negative {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Статистика</h1>
+        <button class="refresh-btn" onclick="loadStats()">🔄</button>
+    </div>
+    
+    <div id="content">
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Загрузка статистики...</p>
+        </div>
+    </div>
+    
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+        
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderStats(result.data);
+                } else {
+                    document.getElementById('content').innerHTML = 
+                        `<div class="loading">❌ ${result.error || 'Ошибка загрузки'}</div>`;
+                }
+            } catch (e) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="loading">❌ Ошибка сети</div>';
+            }
+        }
+        
+        function renderStats(data) {
+            const current = data.current_session;
+            const total = data.total;
+            const sessions = data.sessions || [];
+            const activeTrades = data.active_trades || 0;
+            const tradeStats = data.trade_stats || {};
+            
+            let html = '';
+            
+            // Current Session
+            if (current) {
+                const pnlClass = current.total_pnl_percent >= 0 ? 'positive' : 'negative';
+                const pnlSign = current.total_pnl_percent >= 0 ? '+' : '';
+                
+                html += `
+                    <div class="card session-active">
+                        <div class="card-header">
+                            <span class="card-emoji">🔴</span>
+                            <span class="card-title">Текущий сеанс</span>
+                            <span class="card-badge badge-active">ACTIVE</span>
+                        </div>
+                        
+                        <div style="font-size: 14px; color: #888; margin-bottom: 8px;">
+                            🕐 Работает: ${current.duration_formatted}
+                        </div>
+                        
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-value">${current.signals_count}</div>
+                                <div class="stat-label">Сигналов</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${current.active}</div>
+                                <div class="stat-label">Активных</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${current.wins}/${current.losses}</div>
+                                <div class="stat-label">Win/Loss</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value ${pnlClass}">${pnlSign}${current.total_pnl_percent.toFixed(2)}%</div>
+                                <div class="stat-label">PnL</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 12px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px;">
+                                <span>Win Rate</span>
+                                <span>${current.win_rate}%</span>
+                            </div>
+                            <div class="win-rate-bar">
+                                <div class="win-rate-fill" style="width: ${current.win_rate}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-emoji">⏹</span>
+                            <span class="card-title">Бот не запущен</span>
+                        </div>
+                        <p style="color: #888; font-size: 14px;">
+                            Запустите бота через панель управления чтобы начать новый сеанс.
+                        </p>
+                    </div>
+                `;
+            }
+            
+            // Total Statistics
+            if (total && total.total_sessions > 0) {
+                const totalPnlClass = total.total_pnl_percent >= 0 ? 'positive' : 'negative';
+                const totalPnlSign = total.total_pnl_percent >= 0 ? '+' : '';
+                
+                html += `
+                    <div class="card total-card">
+                        <div class="card-header">
+                            <span class="card-emoji">📈</span>
+                            <span class="card-title">Общая статистика</span>
+                        </div>
+                        
+                        <div class="stat-grid">
+                            <div class="stat-item">
+                                <div class="stat-value">${total.total_sessions}</div>
+                                <div class="stat-label">Сеансов</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${total.total_signals}</div>
+                                <div class="stat-label">Всего сигналов</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${total.total_wins}/${total.total_losses}</div>
+                                <div class="stat-label">Win/Loss</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value ${totalPnlClass}">${totalPnlSign}${total.total_pnl_percent.toFixed(2)}%</div>
+                                <div class="stat-label">Общий PnL</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 12px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-bottom: 4px;">
+                                <span>Win Rate</span>
+                                <span>${total.win_rate}%</span>
+                            </div>
+                            <div class="win-rate-bar">
+                                <div class="win-rate-fill" style="width: ${total.win_rate}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 12px; font-size: 14px; color: #aaa;">
+                            💵 Прибыль: <span class="${totalPnlClass}" style="font-weight: bold;">$${total.total_pnl_usd.toFixed(2)}</span>
+                            <br>
+                            🕐 Средний сеанс: ${total.avg_duration_formatted}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Source Stats
+            if (data.source_stats && Object.keys(data.source_stats).length > 0) {
+                html += `
+                    <div class="card source-stats">
+                        <div class="card-header">
+                            <span class="card-emoji">📊</span>
+                            <span class="card-title">По источникам сигналов</span>
+                        </div>
+                        
+                        <div class="source-grid">
+                `;
+                
+                const sourceEmojis = {
+                    brain: '🧠',
+                    momentum: '⚡',
+                    listing: '🆕',
+                    grid: '📊',
+                    funding: '💰'
+                };
+                
+                const sourceNames = {
+                    brain: 'Brain',
+                    momentum: 'Momentum',
+                    listing: 'Listing',
+                    grid: 'Grid',
+                    funding: 'Funding'
+                };
+                
+                Object.entries(data.source_stats).forEach(([source, stats]) => {
+                    const winRateClass = stats.win_rate >= 50 ? 'positive' : 'negative';
+                    const pnlClass = stats.pnl >= 0 ? 'positive' : 'negative';
+                    const pnlSign = stats.pnl >= 0 ? '+' : '';
+                    const emoji = sourceEmojis[source] || '📈';
+                    const name = sourceNames[source] || source;
+                    
+                    html += `
+                        <div class="source-item">
+                            <div class="source-icon">${emoji}</div>
+                            <div class="source-name">${name}</div>
+                            <div class="source-trades">${stats.total} сделок</div>
+                            <div class="source-winrate ${winRateClass}">${stats.win_rate.toFixed(0)}% win</div>
+                            <div class="source-pnl ${pnlClass}">${pnlSign}$${stats.pnl.toFixed(2)}</div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Sessions History
+            if (sessions.length > 0) {
+                html += `
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-emoji">📜</span>
+                            <span class="card-title">История сеансов</span>
+                        </div>
+                        
+                        <div class="sessions-list">
+                `;
+                
+                sessions.forEach((session, index) => {
+                    const pnlClass = session.total_pnl_percent >= 0 ? 'positive' : 'negative';
+                    const pnlSign = session.total_pnl_percent >= 0 ? '+' : '';
+                    const isActive = session.status === 'ACTIVE';
+                    
+                    // Format date
+                    let dateStr = '';
+                    try {
+                        const date = new Date(session.started_at);
+                        dateStr = date.toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit'}) + 
+                                  ' ' + date.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+                    } catch (e) {
+                        dateStr = session.started_at;
+                    }
+                    
+                    html += `
+                        <div class="session-item">
+                            <div class="session-info">
+                                <div class="session-date">
+                                    ${isActive ? '🔴' : '⚪'} ${dateStr}
+                                </div>
+                                <div class="session-duration">
+                                    ${session.duration_formatted} • ${session.signals_count} сигналов
+                                </div>
+                            </div>
+                            <div class="session-stats">
+                                <div class="session-pnl ${pnlClass}">
+                                    ${pnlSign}${session.total_pnl_percent.toFixed(2)}%
+                                </div>
+                                <div class="session-winrate">
+                                    ${session.wins}W/${session.losses}L (${session.win_rate}%)
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+            
+            html += `<div class="update-time">Обновлено: ${new Date().toLocaleTimeString()}</div>`;
+            
+            document.getElementById('content').innerHTML = html;
+        }
+        
+        // Load data
+        loadStats();
+        
+        // Auto refresh every 60 seconds
+        setInterval(loadStats, 60000);
+    </script>
+</body>
+</html>

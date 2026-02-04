@@ -98,7 +98,7 @@ class MasterStrategist:
     """
     👑 Master Strategist — Главный стратег
     
-    Claude Sonnet 4.5 анализирует рынок и решает:
+    Claude Haiku 3.5 анализирует рынок и решает:
     - Grid: aggressive/balanced/conservative/off
     - Funding: on/off
     - Technical: on/off
@@ -106,7 +106,7 @@ class MasterStrategist:
     НЕ трогает Director AI — он независимый!
     """
     
-    MODEL = "anthropic/claude-sonnet-4.5"  # Sonnet 4.5!
+    MODEL = "anthropic/claude-haiku-4"  # Haiku 4 для экономии
     STRATEGY_FILE = Path("data/master_strategy.json")
     ANALYSIS_INTERVAL = 30 * 60  # 30 минут
     
@@ -190,7 +190,7 @@ class MasterStrategist:
     
     async def analyze_market(self, market_data: Dict) -> MasterStrategy:
         """
-        🧠 Главный метод — анализ рынка через Claude Sonnet 4.5
+        🧠 Главный метод — анализ рынка через Claude Haiku 3.5
         
         Входные данные:
         - prices: текущие цены
@@ -208,7 +208,7 @@ class MasterStrategist:
         prompt = self._build_analysis_prompt(market_data)
         
         try:
-            logger.info("👑 Запуск анализа рынка через Claude Sonnet 4.5...")
+            logger.info("👑 Запуск анализа рынка через Claude Haiku 3.5...")
             
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(

@@ -74,7 +74,7 @@ class DirectorBrain:
     4. Возвращает решение с объяснением
     """
     
-    MODEL = "anthropic/claude-sonnet-4.5"
+    MODEL = "anthropic/claude-haiku-4"  # Haiku 4 для экономии
     
     def __init__(self):
         self.last_analysis: Dict[str, BrainDecision] = {}
@@ -88,7 +88,7 @@ class DirectorBrain:
         
         # Настройки
         self.min_confidence_to_trade = 65  # Минимум 65% уверенности
-        self.symbols = ["BTC", "ETH", "SOL", "BNB", "XRP"]
+        self.symbols = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "AVAX", "LINK"]
         
         # API key
         self.api_key = settings.openrouter_api_key
@@ -225,8 +225,8 @@ class DirectorBrain:
                 "fear_greed": metrics.fear_greed_index if metrics else 50,
                 "oi_change_1h": metrics.oi_change_1h if metrics else 0,
                 "oi_change_24h": metrics.oi_change_24h if metrics else 0,
-                "liquidations_24h_long": metrics.liquidations_24h_long if metrics else 0,
-                "liquidations_24h_short": metrics.liquidations_24h_short if metrics else 0,
+                "liquidations_24h_long": metrics.liq_long if metrics else 0,
+                "liquidations_24h_short": metrics.liq_short if metrics else 0,
             }
         except Exception as e:
             logger.warning(f"Failed to get whale metrics: {e}")

@@ -614,6 +614,109 @@ class DirectorAI:
         
         return text
 
+    def format_decision_message(self, decision: str, risk_level: str, guidance: dict) -> str:
+        """
+        🎩 Форматировать сообщение Director AI с объяснением решения
+        """
+        s = self.situation
+        if not s:
+            return f"🎩 *Director Decision*\n🎯 {decision.upper()}"
+        
+        # Risk emoji и уровень
+        risk_score = s.risk_score
+        risk_emoji = "🟢" if risk_score < 30 else "🟡" if risk_score < 60 else "🔴"
+        
+        # Текст решения
+        action_text = {
+            'close_longs': '🔻 ЗАКРЫТЬ ЛОНГИ',
+            'close_shorts': '🔺 ЗАКРЫТЬ ШОРТЫ', 
+            'close_all': '⛔ ЗАКРЫТЬ ВСЁ',
+            'pause_new': '⏸️ ПАУЗА',
+            'take_control': '🎩 ДИРЕКТОР У РУЛЯ',
+            'aggressive_long': '🚀 АГРЕССИВНЫЙ ЛОНГ',
+            'aggressive_short': '📉 АГРЕССИВНЫЙ ШОРТ',
+            'continue': '✅ ПРОДОЛЖАТЬ',
+            'hold': '⏳ ДЕРЖАТЬ',
+            'wait': '⏳ ЖДАТЬ',
+        }.get(decision, decision.upper())
+        
+        # Собираем причины
+        reasons = []
+        
+        # Fear & Greed
+        if s.fear_greed < 25:
+            reasons.append(f"😱 Fear & Greed = *{s.fear_greed}* (экстремальный страх)")
+        elif s.fear_greed < 40:
+            reasons.append(f"😨 Fear & Greed = *{s.fear_greed}* (страх)")
+        elif s.fear_greed > 75:
+            reasons.append(f"🤑 Fear & Greed = *{s.fear_greed}* (жадность)")
+        elif s.fear_greed > 60:
+            reasons.append(f"😊 Fear & Greed = *{s.fear_greed}* (оптимизм)")
+        
+        # Long/Short Ratio
+        if s.long_ratio > 70:
+            reasons.append(f"⚠️ *{s.long_ratio:.0f}%* трейдеров в лонгах — опасно!")
+        elif s.long_ratio > 65:
+            reasons.append(f"👀 *{s.long_ratio:.0f}%* в лонгах — повышенный риск")
+        elif s.long_ratio < 30:
+            reasons.append(f"⚠️ Только *{s.long_ratio:.0f}%* в лонгах — шорты перегружены")
+        elif s.long_ratio < 35:
+            reasons.append(f"👀 *{s.long_ratio:.0f}%* в лонгах — шортов много")
+        
+        # Whale Alert
+        if s.whale_alert_level == "critical":
+            reasons.append(f"🐋 Whale CRITICAL: {s.whale_message[:50]}")
+        elif s.whale_alert_level == "warning":
+            reasons.append(f"🐋 Whale WARNING")
+        
+        # Funding
+        if s.funding_rate < -0.03:
+            reasons.append(f"💰 Funding *{s.funding_rate:.4f}%* — шорты платят лонгам!")
+        elif s.funding_rate > 0.05:
+            reasons.append(f"💸 Funding *+{s.funding_rate:.4f}%* — лонги переплачивают")
+        
+        # OI
+        if s.oi_change_24h < -5:
+            reasons.append(f"📉 OI упал на *{s.oi_change_24h:.1f}%* за 24ч")
+        elif s.oi_change_24h > 10:
+            reasons.append(f"📈 OI вырос на *+{s.oi_change_24h:.1f}%* за 24ч")
+        
+        # News
+        if s.important_event_soon:
+            reasons.append(f"📅 Важное событие: {s.event_name}")
+        if s.news_sentiment == "bearish":
+            reasons.append("📰 Новости: медвежьи")
+        elif s.news_sentiment == "bullish":
+            reasons.append("📰 Новости: бычьи")
+        
+        # Разрешения
+        long_allowed = guidance.get('allow_longs', self.allow_new_longs)
+        short_allowed = guidance.get('allow_shorts', self.allow_new_shorts)
+        size_mult = guidance.get('size_multiplier', self.size_multiplier)
+        
+        # Формируем сообщение
+        text = f"""🎩 *DIRECTOR AI*
+
+{risk_emoji} Риск: *{risk_level.upper()}* ({risk_score}/100)
+🎯 Решение: *{action_text}*
+
+━━━━━━━━━━━━━━━━━━
+
+💭 *Почему:*
+{chr(10).join(reasons) if reasons else '• Рынок в нормальном состоянии'}
+
+━━━━━━━━━━━━━━━━━━
+
+📈 *Рекомендация:*
+🟢 LONG: {'✅ Можно' if long_allowed else '🚫 Не открывать'}
+🔴 SHORT: {'✅ Можно' if short_allowed else '🚫 Не открывать'}
+📦 Размер: x{size_mult:.1f}
+
+⏰ {datetime.now().strftime('%H:%M')}"""
+        
+        return text.strip()
+        return text
+
 
 # Singleton
 director_ai = DirectorAI()
@@ -622,6 +725,21 @@ director_ai = DirectorAI()
 async def get_director_decision() -> DirectorCommand:
     """Публичная функция для получения решения"""
     return await director_ai.make_decision()
+
+
+def get_director_state() -> dict:
+    """
+    Получить текущее состояние Director AI (без вызова API)
+    Используется для проверки можно ли открывать LONG/SHORT
+    """
+    return {
+        "allow_long": director_ai.allow_new_longs,
+        "allow_short": director_ai.allow_new_shorts,
+        "size_multiplier": director_ai.size_multiplier,
+        "mode": director_ai.current_mode.value if director_ai.current_mode else "unknown",
+        "last_decision": director_ai.last_command.decision.value if director_ai.last_command else None,
+        "reason": director_ai.last_command.reason[:100] if director_ai.last_command and director_ai.last_command.reason else None
+    }
 
 
 # ==========================================

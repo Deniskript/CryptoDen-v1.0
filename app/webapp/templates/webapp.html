@@ -668,24 +668,24 @@
                 <div class="card-content">
                     <div class="card-body">
                         
-                        <!-- Director AI -->
+                        <!-- Adaptive Brain -->
                         <div class="module-item">
                             <div class="module-info">
                                 <label class="enable-toggle">
-                                    <input type="checkbox" id="module-director-enabled" checked onchange="updateModule('director')">
+                                    <input type="checkbox" id="module-brain-enabled" checked onchange="updateModule('brain')">
                                     <span class="enable-slider"></span>
                                 </label>
                                 <div>
-                                    <div class="module-icon">🎩</div>
+                                    <div class="module-icon">🧠</div>
                                 </div>
                                 <div>
-                                    <div class="module-name">Director AI</div>
-                                    <div class="module-desc">Стратегические решения</div>
+                                    <div class="module-name">Adaptive Brain</div>
+                                    <div class="module-desc">Единый AI мозг</div>
                                 </div>
                             </div>
                             <div class="mode-toggle">
-                                <button class="mode-btn active" id="director-signal" onclick="setModuleMode('director', 'signal')">📢</button>
-                                <button class="mode-btn auto" id="director-auto" onclick="setModuleMode('director', 'auto')">🤖</button>
+                                <button class="mode-btn active" id="brain-signal" onclick="setModuleMode('brain', 'signal')">📢</button>
+                                <button class="mode-btn auto" id="brain-auto" onclick="setModuleMode('brain', 'auto')">🤖</button>
                             </div>
                         </div>
                         
@@ -773,24 +773,24 @@
                             </div>
                         </div>
                         
-                        <!-- Worker (RSI) -->
+                        <!-- Momentum Detector -->
                         <div class="module-item">
                             <div class="module-info">
                                 <label class="enable-toggle">
-                                    <input type="checkbox" id="module-worker-enabled" checked onchange="updateModule('worker')">
+                                    <input type="checkbox" id="module-momentum-enabled" checked onchange="updateModule('momentum')">
                                     <span class="enable-slider"></span>
                                 </label>
                                 <div>
-                                    <div class="module-icon">👷</div>
+                                    <div class="module-icon">⚡</div>
                                 </div>
                                 <div>
-                                    <div class="module-name">RSI Strategy</div>
-                                    <div class="module-desc">Классические индикаторы</div>
+                                    <div class="module-name">Momentum Detector</div>
+                                    <div class="module-desc">Резкие движения</div>
                                 </div>
                             </div>
                             <div class="mode-toggle">
-                                <button class="mode-btn active" id="worker-signal" onclick="setModuleMode('worker', 'signal')">📢</button>
-                                <button class="mode-btn auto" id="worker-auto" onclick="setModuleMode('worker', 'auto')">🤖</button>
+                                <button class="mode-btn auto active" id="momentum-auto" onclick="setModuleMode('momentum', 'auto')">🤖</button>
+                                <button class="mode-btn" id="momentum-signal" onclick="setModuleMode('momentum', 'signal')">📢</button>
                             </div>
                         </div>
                         
@@ -917,12 +917,12 @@
             bybit_testnet: true,
             
             modules: {
-                director: { enabled: true, mode: "signal" },
+                brain: { enabled: true, mode: "signal" },
+                momentum: { enabled: true, mode: "auto" },
                 grid: { enabled: true, mode: "signal" },
                 funding: { enabled: true, mode: "signal" },
                 arbitrage: { enabled: false, mode: "signal" },
-                listing: { enabled: true, mode: "signal" },
-                worker: { enabled: true, mode: "signal" }
+                listing: { enabled: true, mode: "signal" }
             },
             
             coins: {
@@ -1201,12 +1201,12 @@
             const content = document.getElementById('summary-content');
             
             const modulesMap = {
-                director: '🎩 Director',
+                brain: '🧠 Adaptive Brain',
+                momentum: '⚡ Momentum',
                 grid: '📊 Grid Bot',
                 funding: '💰 Funding',
                 arbitrage: '🔄 Arbitrage',
-                listing: '🆕 Listing',
-                worker: '👷 RSI'
+                listing: '🆕 Listing'
             };
             
             let html = '';

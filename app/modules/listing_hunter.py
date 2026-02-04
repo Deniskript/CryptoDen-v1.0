@@ -592,6 +592,19 @@ class ListingHunter(BaseModule):
     async def process_listing(self, listing: ListingEvent) -> Optional[ModuleSignal]:
         """Обработать обнаруженный листинг"""
         
+        # ФИЛЬТР PERPETUAL: пропускаем фьючерсы!
+        if listing.listing_type == ListingType.PERPETUAL:
+            logger.debug(f"Skip perpetual listing: {listing.symbol}")
+            return None
+        
+        if "perpetual" in listing.title.lower():
+            logger.debug(f"Skip perpetual listing (title): {listing.symbol}")
+            return None
+        
+        if "futures" in listing.title.lower():
+            logger.debug(f"Skip futures listing: {listing.symbol}")
+            return None
+        
         # Проверяем не обработан ли уже этот листинг
         if listing.id in self.listings:
             return None  # Уже обработан

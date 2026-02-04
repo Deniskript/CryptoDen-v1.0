@@ -12,30 +12,40 @@ from app.core.config import settings
 
 def get_main_keyboard() -> ReplyKeyboardMarkup:
     """
-    Главная клавиатура — только навигация
-    БЕЗ кнопок Запустить/Остановить (они в WebApp)
+    Главная клавиатура v3.0 — 6 кнопок
     """
     
     webapp_url = settings.webapp_url or "https://app.cryptoden.ru"
     
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            # Панель управления — WebApp
-            [KeyboardButton(
-                text="🎛 Панель управления",
-                web_app=WebAppInfo(url=webapp_url)
-            )],
-            # Навигация
             [
-                KeyboardButton(text="📊 Статус"),
-                KeyboardButton(text="📈 Сделки")
+                KeyboardButton(
+                    text="🦊 CryptoDen",
+                    web_app=WebAppInfo(url=webapp_url)
+                ),
+                KeyboardButton(
+                    text="📊 Статистика",
+                    web_app=WebAppInfo(url=f"{webapp_url}/stats")
+                )
             ],
             [
-                KeyboardButton(text="📰 Новости"),
-                KeyboardButton(text="📋 История")
+                KeyboardButton(
+                    text="🐋 Рынок",
+                    web_app=WebAppInfo(url=f"{webapp_url}/market")
+                ),
+                KeyboardButton(
+                    text="📰 Новости",
+                    web_app=WebAppInfo(url=f"{webapp_url}/news")
+                )
             ],
-            # Помощь
-            [KeyboardButton(text="❓ Помощь")]
+            [
+                KeyboardButton(
+                    text="🔍 Анализ",
+                    web_app=WebAppInfo(url=f"{webapp_url}/analyze")
+                ),
+                KeyboardButton(text="❓ Помощь")
+            ]
         ],
         resize_keyboard=True,
         is_persistent=True

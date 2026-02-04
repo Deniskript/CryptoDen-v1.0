@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐋 Рынок — CryptoDen</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 40px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .btc-card {
+            background: linear-gradient(135deg, #f7931a33 0%, #f7931a11 100%);
+            border-color: #f7931a44;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .btc-price {
+            font-size: 32px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btc-icon {
+            color: #f7931a;
+        }
+        
+        .btc-change {
+            margin-top: 8px;
+            font-size: 14px;
+        }
+        
+        .btc-change.positive { color: #22c55e; }
+        .btc-change.negative { color: #ef4444; }
+        
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .fear-bar {
+            height: 28px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 8px;
+        }
+        
+        .fear-fill {
+            height: 100%;
+            border-radius: 14px;
+            transition: width 0.5s ease;
+        }
+        
+        .fear-value {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-weight: bold;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .status-text {
+            text-align: center;
+            color: #94a3b8;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+        
+        .advice-text {
+            text-align: center;
+            color: #22c55e;
+            margin-top: 6px;
+            font-size: 13px;
+        }
+        
+        .long-short-bar {
+            display: flex;
+            height: 36px;
+            border-radius: 18px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .long-part {
+            background: linear-gradient(90deg, #22c55e, #16a34a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .short-part {
+            background: linear-gradient(90deg, #dc2626, #ef4444);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-label { 
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        
+        .metric-value { 
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .metric-value.positive { color: #22c55e; }
+        .metric-value.negative { color: #ef4444; }
+        
+        .funding-value {
+            text-align: center;
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .ai-card {
+            background: linear-gradient(135deg, #8b5cf633 0%, #8b5cf611 100%);
+            border-color: #8b5cf644;
+        }
+        
+        .ai-item {
+            padding: 8px 0;
+            color: #e0e0e0;
+            line-height: 1.4;
+            font-size: 14px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .update-time {
+            text-align: center;
+            color: #64748b;
+            font-size: 11px;
+            margin-top: 16px;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #ef4444;
+        }
+        
+        .refresh-btn {
+            background: #8b5cf6;
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+        
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🐋 Рынок</h1>
+    </div>
+    
+    <div id="content">
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Загрузка данных...</p>
+        </div>
+    </div>
+    
+    <script>
+        // Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+        
+        async function loadMarketData() {
+            try {
+                const response = await fetch('/api/market');
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderData(result.data);
+                } else {
+                    document.getElementById('content').innerHTML = 
+                        '<div class="error">❌ Ошибка загрузки<br><button class="refresh-btn" onclick="loadMarketData()">Повторить</button></div>';
+                }
+            } catch (e) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="error">❌ Ошибка сети<br><button class="refresh-btn" onclick="loadMarketData()">Повторить</button></div>';
+            }
+        }
+        
+        function renderData(data) {
+            const fg = data.fear_greed;
+            const ls = data.long_short;
+            const oi = data.open_interest;
+            const liq = data.liquidations;
+            const funding = data.funding;
+            
+            // Fear & Greed цвет
+            let fgColor = '#eab308';
+            if (fg.value < 25) fgColor = '#ef4444';
+            else if (fg.value < 45) fgColor = '#f97316';
+            else if (fg.value >= 75) fgColor = '#22c55e';
+            else if (fg.value >= 55) fgColor = '#84cc16';
+            
+            // BTC change class
+            const btcChangeClass = data.btc.change_24h >= 0 ? 'positive' : 'negative';
+            const btcChangeSign = data.btc.change_24h >= 0 ? '+' : '';
+            
+            let html = `
+                <!-- BTC Price -->
+                <div class="card btc-card">
+                    <div class="btc-price">
+                        <span class="btc-icon">₿</span>
+                        <span>$${data.btc.price.toLocaleString()}</span>
+                    </div>
+                    <div class="btc-change ${btcChangeClass}">
+                        ${data.btc.change_24h >= 0 ? '📈' : '📉'} ${btcChangeSign}${data.btc.change_24h.toFixed(2)}% за 24ч
+                    </div>
+                </div>
+                
+                <!-- Fear & Greed -->
+                <div class="card">
+                    <div class="card-title">${getFGEmoji(fg.value)} Fear & Greed</div>
+                    <div class="fear-bar">
+                        <div class="fear-fill" style="width: ${fg.value}%; background: ${fgColor}"></div>
+                        <span class="fear-value">${fg.value}</span>
+                    </div>
+                    <div class="status-text">${fg.status}</div>
+                    <div class="advice-text">💡 ${fg.advice}</div>
+                </div>
+                
+                <!-- Long/Short -->
+                <div class="card">
+                    <div class="card-title">📊 Long/Short Ratio</div>
+                    <div class="long-short-bar">
+                        <div class="long-part" style="width: ${ls.long_ratio}%">🟢 ${ls.long_ratio.toFixed(0)}%</div>
+                        <div class="short-part" style="width: ${ls.short_ratio}%">${ls.short_ratio.toFixed(0)}% 🔴</div>
+                    </div>
+                    <div class="status-text">${ls.status}</div>
+                </div>
+                
+                <!-- Funding -->
+                <div class="card">
+                    <div class="card-title">💰 Funding Rate</div>
+                    <div class="funding-value">
+                        ${funding.rate >= 0 ? '+' : ''}${(funding.rate * 100).toFixed(4)}%
+                    </div>
+                    <div class="status-text">${funding.status}</div>
+                </div>
+                
+                <!-- Open Interest -->
+                <div class="card">
+                    <div class="card-title">📈 Open Interest</div>
+                    <div class="metric-row">
+                        <span class="metric-label">1h:</span>
+                        <span class="metric-value ${oi.change_1h >= 0 ? 'positive' : 'negative'}">
+                            ${oi.change_1h >= 0 ? '+' : ''}${oi.change_1h.toFixed(1)}%
+                        </span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">24h:</span>
+                        <span class="metric-value ${oi.change_24h >= 0 ? 'positive' : 'negative'}">
+                            ${oi.change_24h >= 0 ? '+' : ''}${oi.change_24h.toFixed(1)}%
+                        </span>
+                    </div>
+                    <div class="status-text">${oi.status}</div>
+                </div>
+                
+                <!-- Liquidations -->
+                <div class="card">
+                    <div class="card-title">🔥 Ликвидации (24h)</div>
+                    <div class="metric-row">
+                        <span class="metric-label">Long:</span>
+                        <span class="metric-value positive">$${(liq.long / 1e6).toFixed(1)}M</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Short:</span>
+                        <span class="metric-value negative">$${(liq.short / 1e6).toFixed(1)}M</span>
+                    </div>
+                    <div class="status-text">${liq.status}</div>
+                </div>
+                
+                <!-- AI Conclusions -->
+                <div class="card ai-card">
+                    <div class="card-title">🧠 AI Вывод</div>
+                    ${data.ai_conclusions.map(c => `<div class="ai-item">• ${c}</div>`).join('')}
+                </div>
+                
+                <div class="update-time">
+                    Обновлено: ${new Date().toLocaleTimeString()}
+                </div>
+            `;
+            
+            document.getElementById('content').innerHTML = html;
+        }
+        
+        function getFGEmoji(value) {
+            if (value < 25) return '😱';
+            if (value < 45) return '😨';
+            if (value < 55) return '😐';
+            if (value < 75) return '😊';
+            return '🤑';
+        }
+        
+        // Загружаем данные
+        loadMarketData();
+        
+        // Обновляем каждые 60 сек
+        setInterval(loadMarketData, 60000);
+    </script>
+</body>
+</html>

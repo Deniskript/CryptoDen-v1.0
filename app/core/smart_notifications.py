@@ -1,115 +1,83 @@
 """
 Smart Notifications — Умная система уведомлений
-Координирует ВСЕ сообщения бота с AI анализом
+БЕЗ СПАМА + счётчики сигналов
 """
 import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from collections import deque
 
 from app.core.logger import logger
-from app.core.market_data_provider import market_data, MarketSnapshot
-
-
-class MessagePriority(Enum):
-    """Приоритеты сообщений"""
-    CRITICAL = 10
-    HIGH = 8
-    MEDIUM = 5
-    LOW = 3
-    INFO = 1
 
 
 class ModuleType(Enum):
-    """Типы модулей"""
-    SYSTEM = "system"
+    """Типы модулей для уведомлений"""
     DIRECTOR = "director"
+    WORKER = "worker"
     GRID = "grid"
     FUNDING = "funding"
+    ARBITRAGE = "arbitrage"
     LISTING = "listing"
-    WHALE = "whale"
-    NEWS = "news"
-    WORKER = "worker"
+    MASTER = "master"
 
 
 @dataclass
-class QueuedMessage:
-    """Сообщение в очереди"""
-    module: ModuleType
-    priority: MessagePriority
-    text: str
-    ai_prompt: str = None  # Промпт для AI
-    ai_context: str = None  # Контекст для AI
-    created_at: datetime = field(default_factory=datetime.now)
+class GridBuffer:
+    """Буфер для группировки Grid сигналов"""
+    signals: list = field(default_factory=list)
+    last_flush: datetime = field(default_factory=datetime.now)
     
-    def __lt__(self, other):
-        return self.priority.value > other.priority.value
-
-
-class BotContext:
-    """Контекст бота"""
-    
-    def __init__(self):
-        self.last_signal_time: Optional[datetime] = None
-        self.last_signal_symbol: Optional[str] = None
-        self.message_history: deque = deque(maxlen=20)
-        self.module_last_report: Dict[str, datetime] = {}
-        self.startup_time: Optional[datetime] = None
-        self.is_startup = True
-    
-    def record_signal(self, symbol: str, direction: str):
-        self.last_signal_time = datetime.now()
-        self.last_signal_symbol = symbol
-    
-    def had_recent_signal(self, minutes: int = 30) -> bool:
-        if not self.last_signal_time:
-            return False
-        return datetime.now() - self.last_signal_time < timedelta(minutes=minutes)
-    
-    def record_message(self, module: ModuleType, text: str):
-        self.message_history.append({
-            "module": module,
-            "text": text[:100],
+    def add(self, symbol: str, direction: str, price: float, profit: float = 0):
+        self.signals.append({
+            "symbol": symbol,
+            "direction": direction,
+            "price": price,
+            "profit": profit,
             "time": datetime.now()
         })
-        self.module_last_report[module.value] = datetime.now()
     
-    def time_since_module_report(self, module: ModuleType) -> timedelta:
-        last = self.module_last_report.get(module.value)
-        if not last:
-            return timedelta(hours=24)
-        return datetime.now() - last
-    
-    def is_startup_phase(self) -> bool:
-        if not self.startup_time:
+    def should_flush(self) -> bool:
+        if not self.signals:
             return False
-        return datetime.now() - self.startup_time < timedelta(minutes=10)
+        has_profit = any(s.get("profit", 0) > 0 for s in self.signals)
+        if has_profit:
+            return True
+        return datetime.now() - self.last_flush > timedelta(minutes=5)
+    
+    def flush(self) -> list:
+        signals = self.signals.copy()
+        self.signals = []
+        self.last_flush = datetime.now()
+        return signals
 
 
 class SmartNotifications:
-    """Умный координатор уведомлений с AI"""
-    
-    MIN_INTERVAL = timedelta(seconds=90)
-    
-    MODULE_INTERVALS = {
-        ModuleType.DIRECTOR: timedelta(minutes=15),
-        ModuleType.GRID: timedelta(minutes=20),
-        ModuleType.FUNDING: timedelta(minutes=25),
-        ModuleType.LISTING: timedelta(minutes=30),
-        ModuleType.WHALE: timedelta(minutes=10),
-        ModuleType.NEWS: timedelta(minutes=5),
-    }
+    """
+    Умная система уведомлений с счётчиками
+    """
     
     def __init__(self):
         self.enabled = False
-        self.context = BotContext()
-        self.queue: List[QueuedMessage] = []
-        self.last_sent_time: Optional[datetime] = None
         self._send_callback: Optional[Callable] = None
-        self._queue_task: Optional[asyncio.Task] = None
-        self._startup_sent = False  # Флаг чтобы отправить только ОДНО сообщение при старте
+        self.grid_buffer = GridBuffer()
+        self._buffer_task: Optional[asyncio.Task] = None
+        
+        # Защита от дублей
+        self._sent_listings: set = set()
+        self._last_worker_signal: Dict[str, datetime] = {}
+        
+        # ✅ СЧЁТЧИКИ СИГНАЛОВ
+        self.stats = {
+            "worker_signals": 0,
+            "director_signals": 0,
+            "grid_summaries": 0,
+            "listing_signals": 0,
+            "session_start": None,
+        }
+        
+        # ✅ ИСТОРИЯ СИГНАЛОВ (последние 50)
+        self.signal_history: List[dict] = []
         
         logger.info("📢 SmartNotifications initialized")
     
@@ -119,129 +87,167 @@ class SmartNotifications:
     async def start(self):
         """Запустить систему"""
         self.enabled = True
-        self.context.startup_time = datetime.now()
-        self.context.is_startup = True
         
-        self._queue_task = asyncio.create_task(self._process_queue())
+        # ✅ Сбросить счётчики при старте
+        self.stats = {
+            "worker_signals": 0,
+            "director_signals": 0,
+            "grid_summaries": 0,
+            "listing_signals": 0,
+            "session_start": datetime.now(),
+        }
+        self.signal_history = []
+        self._sent_listings = set()
         
-        # НЕ отправляем сообщение здесь - send_startup_sequence отправит одно сообщение
-        
+        self._buffer_task = asyncio.create_task(self._process_grid_buffer())
         logger.info("📢 SmartNotifications started")
     
     async def stop(self):
         """Остановить систему"""
         self.enabled = False
-        
-        if self._queue_task:
-            self._queue_task.cancel()
-            try:
-                await self._queue_task
-            except asyncio.CancelledError:
-                pass
-        
-        self.queue.clear()
+        if self._buffer_task:
+            self._buffer_task.cancel()
         logger.info("📢 SmartNotifications stopped")
     
     # ==========================================
-    # 🧠 AI АНАЛИЗ
+    # 📨 УНИВЕРСАЛЬНЫЕ МЕТОДЫ ОТПРАВКИ
     # ==========================================
     
-    async def _get_ai_analysis(self, prompt: str, context: str) -> Optional[str]:
-        """Получить AI анализ через Haiku"""
-        try:
-            from app.intelligence.haiku_explainer import haiku_explainer, ExplainRequest
-            
-            # Формируем запрос
-            result = await haiku_explainer.explain(
-                ExplainRequest(
-                    type="market_status",
-                    data={"prompt": prompt, "context": context}
-                )
-            )
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"AI analysis error: {e}")
-            return None
-    
-    # ==========================================
-    # 📤 МЕТОДЫ ДОБАВЛЕНИЯ В ОЧЕРЕДЬ
-    # ==========================================
-    
-    async def queue_director_status(
+    async def queue_message(
         self,
-        snapshot: MarketSnapshot = None,
-        has_signal: bool = False
+        text: str = None,
+        module = None,
+        priority: int = 2,
+        need_ai: bool = False,
+        **kwargs
     ):
-        """Статус Директора с реальными данными"""
+        """
+        Универсальный метод отправки сообщений
+        Совместим со старым API (module, text, priority, need_ai)
+        """
+        # Если text передан как kwargs
+        if text is None and 'text' in kwargs:
+            text = kwargs['text']
         
-        if self.context.had_recent_signal(30) and not has_signal:
+        if not text:
             return
         
-        if not self._can_module_report(ModuleType.DIRECTOR):
-            return
+        # Просто отправляем текст
+        await self._send(text)
         
-        # Получаем реальные данные если не переданы
-        if not snapshot:
-            snapshot = await market_data.get_snapshot()
+        # Увеличиваем счётчик director если это от director
+        if module and hasattr(module, 'value') and 'director' in str(module.value).lower():
+            self.stats["director_signals"] += 1
         
-        # RSI статус
-        rsi_emoji, rsi_text = market_data.get_rsi_status(snapshot.btc_rsi)
-        fg_emoji = market_data.get_fg_emoji(snapshot.fear_greed)
-        
-        # Определяем что видит директор
-        if snapshot.btc_rsi < 35:
-            outlook = "📈 Близко к зоне покупки!"
-            outlook_detail = "RSI в зоне перепроданности"
-        elif snapshot.btc_rsi > 65:
-            outlook = "📉 Близко к зоне продажи!"
-            outlook_detail = "RSI в зоне перекупленности"
-        else:
-            outlook = "⏳ Жду лучшую точку входа"
-            outlook_detail = "RSI в нейтральной зоне"
+        logger.debug(f"📨 queue_message sent (priority={priority})")
+    
+    async def queue_director_status(self, text: str):
+        """Отправить статус Director (алиас)"""
+        await self._send(text)
+    
+    async def send_simple_signal(
+        self,
+        title: str,
+        symbol: str,
+        direction: str,
+        entry: float,
+        confidence: int,
+        reason: str = ""
+    ):
+        """Отправить простой сигнал (для DirectorBrain)"""
+        dir_emoji = "🟢" if direction == "LONG" else "🔴"
+        dir_text = "ПОКУПАЙ" if direction == "LONG" else "ПРОДАВАЙ"
         
         text = f"""
-🎩 *ДИРЕКТОР*
+🧠 *{title}*
 
-- - - - -
+{dir_emoji} *{dir_text} {symbol}*
 
-📊 *Состояние рынка:*
+💰 Цена: *${entry:,.2f}*
+🎯 Уверенность: *{confidence}%*
 
-💰 BTC: *${snapshot.btc_price:,.0f}*
-📈 RSI: *{snapshot.btc_rsi:.0f}* {rsi_emoji} {rsi_text}
-{fg_emoji} Настроение: *{snapshot.fear_greed}* ({snapshot.fear_greed_text})
+{f"💡 {reason}" if reason else ""}
 
-- - - - -
-
-🔍 *Что я вижу:*
-
-• {outlook_detail}
-• Слежу за BTC, ETH, SOL, BNB...
-• {outlook}
+⏰ {datetime.now().strftime('%H:%M')}
 """
         
-        # AI контекст
-        ai_context = f"""
-BTC цена: ${snapshot.btc_price:,.0f}
-RSI(14): {snapshot.btc_rsi:.0f}
-Fear & Greed: {snapshot.fear_greed} ({snapshot.fear_greed_text})
-Изменение 24ч: {snapshot.btc_change_24h:+.1f}%
-"""
-        
-        ai_prompt = "Дай краткий анализ рынка (2-3 предложения). Что ожидать? Когда может быть сигнал?"
-        
-        msg = QueuedMessage(
-            module=ModuleType.DIRECTOR,
-            priority=MessagePriority.MEDIUM,
-            text=text.strip(),
-            ai_prompt=ai_prompt,
-            ai_context=ai_context
-        )
-        
-        self._add_to_queue(msg)
+        await self._send(text.strip())
+        self.stats["director_signals"] += 1
+        self._add_to_history("director", symbol, direction, entry)
+        logger.info(f"📤 Simple signal sent: {direction} {symbol}")
     
-    async def queue_signal(
+    def get_session_stats(self) -> dict:
+        """Получить статистику сессии"""
+        uptime = ""
+        if self.stats["session_start"]:
+            delta = datetime.now() - self.stats["session_start"]
+            hours = delta.seconds // 3600
+            minutes = (delta.seconds % 3600) // 60
+            if delta.days > 0:
+                uptime = f"{delta.days}д {hours}ч {minutes}мин"
+            elif hours > 0:
+                uptime = f"{hours}ч {minutes}мин"
+            else:
+                uptime = f"{minutes}мин"
+        
+        return {
+            "uptime": uptime,
+            "worker_signals": self.stats["worker_signals"],
+            "director_signals": self.stats["director_signals"],
+            "grid_summaries": self.stats["grid_summaries"],
+            "listing_signals": self.stats["listing_signals"],
+            "total_signals": (
+                self.stats["worker_signals"] + 
+                self.stats["director_signals"] + 
+                self.stats["listing_signals"]
+            ),
+            "signal_history": self.signal_history[-10:],  # Последние 10
+        }
+    
+    def _add_to_history(self, signal_type: str, symbol: str, direction: str, price: float):
+        """Добавить сигнал в историю"""
+        self.signal_history.append({
+            "type": signal_type,
+            "symbol": symbol,
+            "direction": direction,
+            "price": price,
+            "time": datetime.now(),
+        })
+        # Ограничиваем размер
+        if len(self.signal_history) > 50:
+            self.signal_history = self.signal_history[-50:]
+    
+    async def _send(self, text: str):
+        """Отправить сообщение"""
+        if not self._send_callback or not self.enabled:
+            return
+        try:
+            await self._send_callback(text)
+        except Exception as e:
+            logger.error(f"Send error: {e}")
+    
+    async def _process_grid_buffer(self):
+        """Обработка буфера Grid"""
+        while self.enabled:
+            try:
+                if self.grid_buffer.should_flush():
+                    signals = self.grid_buffer.flush()
+                    if signals:
+                        text = self._format_grid_summary(signals)
+                        await self._send(text)
+                        self.stats["grid_summaries"] += 1
+                await asyncio.sleep(30)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Grid buffer error: {e}")
+                await asyncio.sleep(30)
+    
+    # ==========================================
+    # 🔔 WORKER SIGNAL
+    # ==========================================
+    
+    async def send_worker_signal(
         self,
         symbol: str,
         direction: str,
@@ -249,533 +255,435 @@ Fear & Greed: {snapshot.fear_greed} ({snapshot.fear_greed_text})
         tp: float,
         sl: float,
         rsi: float,
-        strategy: str,
-        win_rate: float
+        ema_trend: str,
+        macd_signal: str,
+        win_rate: float,
+        ai_analysis: str = None
     ):
-        """СИГНАЛ — высший приоритет"""
+        """Worker сигнал с полным объяснением"""
         
-        self.context.record_signal(symbol, direction)
-        self._clear_low_priority()
+        # Защита от дублей
+        last = self._last_worker_signal.get(symbol)
+        if last and datetime.now() - last < timedelta(minutes=5):
+            return
+        self._last_worker_signal[symbol] = datetime.now()
         
-        if direction == "LONG":
-            dir_emoji = "🟢"
-            dir_text = "ПОКУПКА"
-        else:
-            dir_emoji = "🔴"
-            dir_text = "ПРОДАЖА"
+        # ✅ Увеличиваем счётчик
+        self.stats["worker_signals"] += 1
+        self._add_to_history("worker", symbol, direction, entry)
+        
+        dir_emoji = "🟢" if direction == "LONG" else "🔴"
+        dir_text = "ПОКУПАЙ" if direction == "LONG" else "ПРОДАВАЙ"
         
         tp_pct = abs((tp - entry) / entry * 100)
         sl_pct = abs((sl - entry) / entry * 100)
         
+        if rsi < 30:
+            rsi_status = "перепродан ✅"
+        elif rsi > 70:
+            rsi_status = "перекуплен ✅"
+        else:
+            rsi_status = "нейтрально"
+        
         text = f"""
 🔔 *СИГНАЛ*
 
-- - - - -
+{dir_emoji} *{dir_text} {symbol}*
+
+- - - - - - - -
+
+📊 *Как заходить:*
+
+💰 Вход: *${entry:,.2f}*
+🎯 Цель: *${tp:,.2f}* (+{tp_pct:.1f}%)
+🛑 Стоп: *${sl:,.2f}* (-{sl_pct:.1f}%)
+
+- - - - - - - -
+
+📈 *Почему сейчас:*
+
+• RSI: *{rsi:.0f}* — {rsi_status}
+• Тренд: *{ema_trend}* ✅
+• MACD: *{macd_signal}* ✅
+
+- - - - - - - -
+
+🧠 *Анализ:*
+
+"""
+        if ai_analysis:
+            lines = ai_analysis.split(". ")
+            for line in lines[:4]:
+                if line.strip():
+                    text += f"• *{line.strip()}*\n"
+        else:
+            text += f"• *RSI в зоне {'перепроданности' if rsi < 30 else 'перекупленности' if rsi > 70 else 'нейтральной'}*\n"
+            text += f"• *Тренд подтверждён EMA*\n"
+            text += f"• *MACD даёт сигнал*\n"
+        
+        text += f"""
+- - - - - - - -
+
+🎯 Win Rate: *{win_rate:.1f}%*
+📏 Размер: 3-5% депозита
+
+⏰ {datetime.now().strftime('%H:%M')}
+"""
+        
+        await self._send(text.strip())
+        logger.info(f"📤 Worker signal #{self.stats['worker_signals']}: {direction} {symbol}")
+    
+    # ==========================================
+    # 🎩 DIRECTOR SIGNAL
+    # ==========================================
+    
+    async def send_director_signal(
+        self,
+        symbol: str,
+        direction: str,
+        entry: float,
+        tp: float,
+        sl: float,
+        size_percent: int,
+        fear_greed: int,
+        long_ratio: float,
+        liquidations: float,
+        news_summary: str,
+        risk_score: int,
+        scenario: str,
+        ai_analysis: str = None
+    ):
+        """Director TAKE_CONTROL сигнал"""
+        
+        # ✅ Увеличиваем счётчик
+        self.stats["director_signals"] += 1
+        self._add_to_history("director", symbol, direction, entry)
+        
+        dir_emoji = "🟢" if direction == "LONG" else "🔴"
+        dir_text = "ПОКУПАЙ" if direction == "LONG" else "ПРОДАВАЙ"
+        
+        tp_pct = abs((tp - entry) / entry * 100)
+        sl_pct = abs((sl - entry) / entry * 100)
+        
+        if fear_greed < 25:
+            fg_emoji, fg_text = "😱", "экстремальный страх"
+        elif fear_greed < 45:
+            fg_emoji, fg_text = "😨", "страх"
+        elif fear_greed < 55:
+            fg_emoji, fg_text = "😐", "нейтрально"
+        elif fear_greed < 75:
+            fg_emoji, fg_text = "😊", "жадность"
+        else:
+            fg_emoji, fg_text = "🤑", "экстремальная жадность"
+        
+        if risk_score < 25:
+            risk_text = "низкий"
+        elif risk_score < 50:
+            risk_text = "средний"
+        else:
+            risk_text = "высокий"
+        
+        text = f"""
+🎩 *DIRECTOR*
 
 {dir_emoji} *{dir_text} {symbol}*
 
-- - - - -
+- - - - - - - -
 
-💰 *Вход:* ${entry:,.2f}
-🎯 *Цель:* ${tp:,.2f} (+{tp_pct:.1f}%)
-🛑 *Стоп:* ${sl:,.2f} (-{sl_pct:.1f}%)
+📊 *Как заходить:*
 
-- - - - -
+💰 Вход: *${entry:,.2f}*
+🎯 Цель: *${tp:,.2f}* (+{tp_pct:.1f}%)
+🛑 Стоп: *${sl:,.2f}* (-{sl_pct:.1f}%)
+📏 Размер: *{size_percent}%* {'(агрессивно!)' if size_percent > 15 else ''}
 
-📊 Стратегия: {strategy}
-🎯 Успешность: {win_rate:.0f}%
+- - - - - - - -
 
-- - - - -
+🐋 *Что видит Director:*
 
-⚠️ Откройте позицию вручную!
+• {fg_emoji} Fear: *{fear_greed}* — {fg_text}
+• 📊 Лонги: *{long_ratio:.0f}%*
+• 🔥 Ликвидации: *${liquidations/1e6:.1f}M*
+• 📰 *{news_summary[:50]}*
+
+- - - - - - - -
+
+🧠 *Почему сейчас:*
+
 """
-        
-        ai_context = f"""
-Сигнал: {direction} {symbol}
-Цена входа: ${entry:,.2f}
-RSI: {rsi:.0f}
-Стратегия: {strategy}
-Win Rate: {win_rate:.0f}%
-"""
-        
-        ai_prompt = "Объясни почему сейчас хороший момент для входа (2-3 предложения). Какие риски?"
-        
-        msg = QueuedMessage(
-            module=ModuleType.DIRECTOR,
-            priority=MessagePriority.CRITICAL,
-            text=text.strip(),
-            ai_prompt=ai_prompt,
-            ai_context=ai_context
-        )
-        
-        self._add_to_queue(msg)
-    
-    async def queue_news(
-        self,
-        title: str,
-        source: str,
-        sentiment: float,
-        importance: str
-    ):
-        """Новость с AI анализом"""
-        
-        if importance not in ["HIGH", "MEDIUM"]:
-            return
-        
-        if not self._can_module_report(ModuleType.NEWS):
-            return
-        
-        # Определяем тон
-        if sentiment > 0.2:
-            sent_emoji = "🟢"
-            sent_text = "Позитивная"
-        elif sentiment < -0.2:
-            sent_emoji = "🔴"
-            sent_text = "Негативная"
+        if ai_analysis:
+            lines = ai_analysis.split(". ")
+            for line in lines[:4]:
+                if line.strip():
+                    text += f"• *{line.strip()}*\n"
         else:
-            sent_emoji = "⚪"
-            sent_text = "Нейтральная"
+            text += f"• *Сценарий: {scenario}*\n"
+            if fear_greed < 25:
+                text += f"• *Толпа в панике — продаёт*\n"
+            if long_ratio < 40:
+                text += f"• *Мало лонгов = безопасно*\n"
+            if liquidations > 50_000_000:
+                text += f"• *Массовые ликвидации = разворот*\n"
         
-        importance_ru = "🔥 ВАЖНАЯ" if importance == "HIGH" else "📌 Средняя"
-        
-        # НЕ обрезаем заголовок сильно
-        short_title = title[:100] + "..." if len(title) > 100 else title
-        
-        text = f"""
-📰 *НОВОСТЬ*
+        text += f"""
+- - - - - - - -
 
-- - - - -
+⚠️ Risk: *{risk_score}/100* — {risk_text}
 
-📢 *"{short_title}"*
+💡 Редкая возможность!
 
-{sent_emoji} Тон: {sent_text}
-{importance_ru}
-
-- - - - -
-
-🔍 *Источник:* {source}
+⏰ {datetime.now().strftime('%H:%M')}
 """
         
-        ai_context = f"""
-Заголовок: {title}
-Источник: {source}
-Sentiment Score: {sentiment}
-"""
-        
-        ai_prompt = """
-Объясни эту новость простым языком (3-4 предложения на русском):
-1. Что произошло
-2. Как это повлияет на Биткоин и крипторынок
-3. Что делать трейдеру
-"""
-        
-        msg = QueuedMessage(
-            module=ModuleType.NEWS,
-            priority=MessagePriority.HIGH if importance == "HIGH" else MessagePriority.MEDIUM,
-            text=text.strip(),
-            ai_prompt=ai_prompt,
-            ai_context=ai_context
-        )
-        
-        self._add_to_queue(msg)
+        await self._send(text.strip())
+        logger.info(f"📤 Director signal #{self.stats['director_signals']}: {direction} {symbol}")
     
-    async def queue_listing(
+    # ==========================================
+    # 📊 GRID
+    # ==========================================
+    
+    def add_grid_signal(self, symbol: str, direction: str, price: float, profit: float = 0):
+        """Добавить Grid сигнал в буфер"""
+        self.grid_buffer.add(symbol, direction, price, profit)
+    
+    def _format_grid_summary(self, signals: list) -> str:
+        """Форматировать сводку Grid"""
+        
+        by_symbol = {}
+        total_profit = 0
+        
+        for s in signals:
+            sym = s["symbol"]
+            if sym not in by_symbol:
+                by_symbol[sym] = {"buys": [], "sells": [], "profit": 0}
+            
+            if s["direction"] == "BUY":
+                by_symbol[sym]["buys"].append(s["price"])
+            else:
+                by_symbol[sym]["sells"].append(s["price"])
+            
+            by_symbol[sym]["profit"] += s.get("profit", 0)
+            total_profit += s.get("profit", 0)
+        
+        text = "📊 *СЕТКА*\n\n"
+        
+        if total_profit > 0:
+            text += f"✅ *Профит: +${total_profit:.2f}*\n\n"
+        
+        text += "- - - - - - - -\n\n"
+        text += "📈 *Активность:*\n\n"
+        
+        for sym, data in by_symbol.items():
+            buys = len(data["buys"])
+            sells = len(data["sells"])
+            profit = data["profit"]
+            
+            if buys > 0:
+                avg_buy = sum(data["buys"]) / buys
+                text += f"🟢 *{sym}*: {buys} покупок @ ${avg_buy:,.4f}\n"
+            if sells > 0:
+                avg_sell = sum(data["sells"]) / sells
+                text += f"🔴 *{sym}*: {sells} продаж @ ${avg_sell:,.4f}\n"
+            if profit > 0:
+                text += f"   💰 +${profit:.2f}\n"
+        
+        text += "\n- - - - - - - -\n\n"
+        text += "🧠 *Как работает:*\n\n"
+        text += "• *Сетка ловит колебания*\n"
+        text += "• *Покупает внизу, продаёт вверху*\n"
+        
+        text += f"\n⏰ {datetime.now().strftime('%H:%M')}"
+        
+        return text.strip()
+    
+    # ==========================================
+    # 🆕 LISTING
+    # ==========================================
+    
+    async def send_listing_signal(
         self,
-        name: str,
         symbol: str,
+        name: str,
         exchange: str,
         listing_type: str,
-        is_tradeable: bool
+        price: float = None,
+        volume: float = None,
+        ai_description: str = None,
+        ai_analysis: str = None,
+        url: str = None,
+        listing_date: str = None
     ):
-        """Листинг с AI анализом"""
+        """Сигнал о листинге (только SPOT!) — улучшенный формат"""
         
-        priority = MessagePriority.CRITICAL if is_tradeable else MessagePriority.HIGH
+        key = f"{symbol}_{exchange}"
+        if key in self._sent_listings:
+            return
+        self._sent_listings.add(key)
         
-        if is_tradeable:
-            status = "⚡ *ТОРГИ НАЧАЛИСЬ!*"
-            action = "🚀 Можно покупать!"
+        # ✅ Увеличиваем счётчик
+        self.stats["listing_signals"] += 1
+        self._add_to_history("listing", symbol, "BUY", price or 0)
+        
+        # Определяем тип и эмодзи
+        if listing_type == "listing_scalp":
+            type_emoji = "⚡"
+            type_text = "ТОРГИ НАЧАЛИСЬ"
+            action_text = "Можно торговать прямо сейчас!"
+        elif listing_type == "pre_listing":
+            type_emoji = "📋"
+            type_text = "СКОРО ЛИСТИНГ"
+            action_text = "Готовьтесь к листингу"
+        elif listing_type == "launchpad":
+            type_emoji = "🚀"
+            type_text = "LAUNCHPAD"
+            action_text = "Возможность получить токены"
         else:
-            status = "⏳ *Ожидается листинг*"
-            action = "🔔 Сообщу когда начнутся торги"
+            type_emoji = "🆕"
+            type_text = "НОВЫЙ ЛИСТИНГ"
+            action_text = "Следите за монетой"
         
-        text = f"""
-🆕 *ЛИСТИНГ*
+        # Форматируем цену
+        if price and price > 0:
+            if price >= 1:
+                price_text = f"${price:,.2f}"
+            elif price >= 0.01:
+                price_text = f"${price:,.4f}"
+            else:
+                price_text = f"${price:,.8f}".rstrip('0').rstrip('.')
+        else:
+            price_text = "TBA"
+        
+        # Основной текст
+        text = f"""🆕 *ЛИСТИНГ*
 
-- - - - -
+{type_emoji} *{type_text}*
+
+━━━━━━━━━━━━━━━━━━
 
 🔥 *{name}* ({symbol})
 🏦 Биржа: *{exchange}*
-
-{status}
-
-- - - - -
-
-💡 {action}
+💰 Цена: *{price_text}*
 """
         
-        ai_context = f"""
-Листинг: {name} ({symbol})
-Биржа: {exchange}
-Тип: {listing_type}
-Торги начались: {'Да' if is_tradeable else 'Нет'}
-"""
+        if listing_date:
+            text += f"📅 Дата: *{listing_date}*\n"
         
-        ai_prompt = """
-Оцени этот листинг (3-4 предложения на русском):
-1. Что это за проект (если знаешь)
-2. Какой потенциал роста в первые часы
-3. Какие риски и когда лучше входить
-4. Общая оценка: стоит ли покупать
-"""
-        
-        msg = QueuedMessage(
-            module=ModuleType.LISTING,
-            priority=priority,
-            text=text.strip(),
-            ai_prompt=ai_prompt,
-            ai_context=ai_context
-        )
-        
-        self._add_to_queue(msg)
-    
-    async def queue_grid_status(
-        self,
-        symbol: str,
-        price: float,
-        support: float,
-        resistance: float
-    ):
-        """Статус Grid Bot"""
-        
-        if not self._can_module_report(ModuleType.GRID):
-            return
-        
-        distance_to_support = ((price - support) / price) * 100
-        distance_to_resistance = ((resistance - price) / price) * 100
-        
-        if distance_to_support < 0.3:
-            hint = "🟢 Близко к покупке!"
-        elif distance_to_resistance < 0.3:
-            hint = "🔴 Близко к продаже!"
-        else:
-            hint = "⏳ Жду подхода к уровням"
-        
-        text = f"""
-📊 *СЕТКА*
-
-- - - - -
-
-💰 {symbol}: *${price:,.0f}*
-
-📉 Покупка: ${support:,.0f} (-{distance_to_support:.1f}%)
-📈 Продажа: ${resistance:,.0f} (+{distance_to_resistance:.1f}%)
-
-- - - - -
-
-{hint}
-"""
-        
-        msg = QueuedMessage(
-            module=ModuleType.GRID,
-            priority=MessagePriority.LOW,
-            text=text.strip(),
-            ai_prompt=None,
-            ai_context=None
-        )
-        
-        self._add_to_queue(msg)
-    
-    async def queue_funding_status(
-        self,
-        rates: Dict[str, float],
-        minutes_to_funding: int
-    ):
-        """Статус Funding"""
-        
-        if not self._can_module_report(ModuleType.FUNDING):
-            return
-        
-        # Топ-3 по абсолютному значению
-        sorted_rates = sorted(rates.items(), key=lambda x: abs(x[1]), reverse=True)[:3]
-        
-        lines = []
-        has_opportunity = False
-        
-        for symbol, rate in sorted_rates:
-            pct = rate * 100
-            
-            if abs(pct) >= 0.05:
-                emoji = "⚠️"
-                has_opportunity = True
+        if volume and volume > 0:
+            if volume >= 1_000_000:
+                vol_text = f"${volume/1e6:.1f}M"
             else:
-                emoji = "✅"
-            
-            lines.append(f"{emoji} {symbol}: *{pct:+.3f}%*")
+                vol_text = f"${volume:,.0f}"
+            text += f"📊 Объём: *{vol_text}*\n"
         
-        if has_opportunity:
-            hint = "🔥 Есть возможность заработать!"
-        else:
-            hint = "✅ Всё спокойно, ставки в норме"
-        
-        # Часы и минуты
-        hours = minutes_to_funding // 60
-        mins = minutes_to_funding % 60
-        
-        if hours > 0:
-            time_text = f"{hours}ч {mins}мин"
-        else:
-            time_text = f"{mins} мин"
-        
-        text = f"""
-💰 *ФАНДИНГ*
+        text += f"""
+━━━━━━━━━━━━━━━━━━
 
-- - - - -
+📈 *{action_text}*
 
-⏰ До начисления: *{time_text}*
+💡 *Рекомендации:*
+• Вход: по рынку после листинга
+• Цель: +30-50%
+• Стоп: -15-20%
+• Размер: 1-2% депо (риск!)
 
-{chr(10).join(lines)}
+━━━━━━━━━━━━━━━━━━
 
-- - - - -
-
-{hint}
+⚠️ *DYOR!* Высокая волатильность!
+Скальп 15-30 минут максимум.
 """
         
-        ai_prompt = "Объясни что означают эти ставки финансирования (2-3 предложения). Как заработать?"
-        ai_context = f"Funding rates: {rates}, До начисления: {minutes_to_funding} мин"
+        if url:
+            text += f"\n🔗 [Подробнее]({url})"
         
-        msg = QueuedMessage(
-            module=ModuleType.FUNDING,
-            priority=MessagePriority.MEDIUM if has_opportunity else MessagePriority.LOW,
-            text=text.strip(),
-            ai_prompt=ai_prompt if has_opportunity else None,
-            ai_context=ai_context if has_opportunity else None
-        )
+        text += f"\n\n⏰ {datetime.now().strftime('%H:%M')}"
         
-        self._add_to_queue(msg)
-    
-    async def queue_whale(
-        self,
-        coin: str,
-        amount: float,
-        direction: str,
-        whale_type: str
-    ):
-        """Движение китов"""
-        
-        if not self._can_module_report(ModuleType.WHALE):
-            return
-        
-        if direction == "to_exchange":
-            emoji = "🔴"
-            action = "перевели НА биржу"
-            hint = "⚠️ Возможна крупная продажа"
-        else:
-            emoji = "🟢"
-            action = "вывели С биржи"
-            hint = "💎 Накапливают, не продают"
-        
-        text = f"""
-🐋 *КИТЫ*
-
-- - - - -
-
-{emoji} *{amount:,.0f} {coin}* {action}
-
-- - - - -
-
-{hint}
-"""
-        
-        ai_context = f"""
-Движение: {amount:,.0f} {coin}
-Направление: {direction}
-Тип: {whale_type}
-"""
-        
-        ai_prompt = "Объясни что означает это движение китов (2-3 предложения). Как повлияет на цену?"
-        
-        msg = QueuedMessage(
-            module=ModuleType.WHALE,
-            priority=MessagePriority.HIGH,
-            text=text.strip(),
-            ai_prompt=ai_prompt,
-            ai_context=ai_context
-        )
-        
-        self._add_to_queue(msg)
-    
-    async def queue_startup_module(self, module: ModuleType, text: str):
-        """Добавить сообщение модуля при запуске (с AI)"""
-        msg = QueuedMessage(
-            module=module,
-            priority=MessagePriority.INFO,
-            text=text.strip(),
-            ai_prompt=None,
-            ai_context=None
-        )
-        self._add_to_queue(msg)
+        await self._send(text.strip())
+        logger.info(f"📤 Listing signal #{self.stats['listing_signals']}: {symbol} on {exchange}")
     
     # ==========================================
-    # 🔧 ВНУТРЕННИЕ МЕТОДЫ
+    # 📊 СТАТУС СЕССИИ
     # ==========================================
     
-    def _add_to_queue(self, msg: QueuedMessage):
-        """Добавить сообщение в очередь"""
-        self.queue.append(msg)
-        self.queue.sort()
-    
-    def _can_module_report(self, module: ModuleType) -> bool:
-        """Может ли модуль сейчас отчитаться"""
-        if self.context.is_startup_phase():
-            return True
+    def format_session_stop_message(
+        self,
+        cycles: int,
+        active_trades: int,
+        max_trades: int,
+        total_trades: int,
+        win_rate: float,
+        total_pnl: float,
+        grid_cycles: int,
+        listings_found: int,
+        modules_enabled: list
+    ) -> str:
+        """Форматировать сообщение при остановке"""
         
-        interval = self.MODULE_INTERVALS.get(module, timedelta(minutes=10))
-        time_since = self.context.time_since_module_report(module)
+        stats = self.get_session_stats()
         
-        return time_since >= interval
-    
-    def _clear_low_priority(self):
-        """Очистить низкоприоритетные сообщения"""
-        self.queue = [
-            msg for msg in self.queue 
-            if msg.priority.value >= MessagePriority.HIGH.value
-        ]
-    
-    async def _process_queue(self):
-        """Обработка очереди сообщений"""
-        while self.enabled:
-            try:
-                await self._process_one()
-                await asyncio.sleep(5)
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"Queue processing error: {e}")
-                await asyncio.sleep(10)
-    
-    async def _process_one(self):
-        """Обработать одно сообщение из очереди"""
-        if not self.queue:
-            return
+        # Иконки модулей
+        module_icons = {
+            'director': '🎩', 'grid': '📊', 'funding': '💰',
+            'listing': '🆕', 'worker': '👷', 'arbitrage': '🔄'
+        }
+        modules_text = " ".join([module_icons.get(m, '📦') for m in modules_enabled])
         
-        # Проверяем интервал
-        if self.last_sent_time:
-            elapsed = datetime.now() - self.last_sent_time
-            
-            next_msg = self.queue[0]
-            if next_msg.priority == MessagePriority.CRITICAL:
-                min_wait = timedelta(seconds=30)
-            else:
-                min_wait = self.MIN_INTERVAL
-            
-            if elapsed < min_wait:
-                return
+        # История сигналов
+        history_text = ""
+        for sig in stats["signal_history"][-5:]:
+            emoji = "🟢" if sig["direction"] == "LONG" else "🔴"
+            time_str = sig["time"].strftime("%H:%M")
+            if sig["type"] == "worker":
+                history_text += f"   • {emoji} {sig['symbol']} @ ${sig['price']:,.0f} ({time_str})\n"
+            elif sig["type"] == "director":
+                history_text += f"   • 🎩 {sig['symbol']} @ ${sig['price']:,.0f} ({time_str})\n"
+            elif sig["type"] == "listing":
+                history_text += f"   • 🆕 {sig['symbol']} ({time_str})\n"
         
-        # Берём сообщение
-        msg = self.queue.pop(0)
+        if not history_text:
+            history_text = "   _Нет сигналов за сессию_\n"
         
-        # Добавляем AI анализ если есть промпт
-        final_text = msg.text
-        
-        if msg.ai_prompt and msg.ai_context:
-            try:
-                from app.intelligence.haiku_explainer import haiku_explainer, ExplainRequest
-                
-                # Специальный промпт для AI
-                full_prompt = f"{msg.ai_prompt}\n\nКонтекст:\n{msg.ai_context}"
-                
-                explanation = await haiku_explainer.explain(
-                    ExplainRequest(
-                        type="market_status",
-                        data={"prompt": full_prompt, "context": msg.ai_context}
-                    )
-                )
-                
-                if explanation:
-                    final_text = msg.text + f"""
+        text = f"""
+🔴 *БОТ ОСТАНОВЛЕН*
 
-- - - - -
+- - - - - - - -
 
-🧠 *Анализ:*
-_{explanation}_
+⏱ *Сессия:*
+
+• Работал: *{stats['uptime'] or 'N/A'}*
+• Циклов: *{cycles}*
+
+- - - - - - - -
+
+🔔 *Сигналы:*
+
+• 🔔 Worker: *{stats['worker_signals']}*
+• 🎩 Director: *{stats['director_signals']}*
+• 📊 Grid: *{grid_cycles} циклов*
+• 🆕 Листинги: *{listings_found}*
+
+- - - - - - - -
+
+📋 *Последние сигналы:*
+
+{history_text}
+- - - - - - - -
+
+📈 *Итоги:*
+
+• Открыто: *{active_trades}/{max_trades}*
+• Всего сделок: *{total_trades}*
+• Win Rate: *{win_rate:.1f}%*
+• P&L: *${total_pnl:+,.2f}*
+
+- - - - - - - -
+
+🔔 *Модули:* {modules_text}
+
+💡 История сохранена.
+
+⏰ {datetime.now().strftime('%H:%M')}
 """
-            except Exception as e:
-                logger.error(f"AI explain error: {e}")
-        
-        # Отправляем
-        await self._send_now(final_text, msg.module)
-    
-    async def _send_now(self, text: str, module: ModuleType):
-        """Отправить сообщение сейчас"""
-        if not self._send_callback:
-            logger.warning("No send callback set!")
-            return
-        
-        try:
-            await self._send_callback(text)
-            self.last_sent_time = datetime.now()
-            self.context.record_message(module, text)
-            logger.debug(f"📤 Sent {module.value} message")
-        except Exception as e:
-            logger.error(f"Send error: {e}")
-    
-    async def send_startup_sequence(self, initial_data: Dict = None):
-        """Отправить ОДНО сообщение при запуске с реальными данными"""
-        
-        # Только ОДНО сообщение при старте!
-        if self._startup_sent:
-            logger.debug("Startup message already sent, skipping")
-            return
-        self._startup_sent = True
-        
-        # Получаем реальные данные рынка
-        snapshot = await market_data.get_snapshot(force_refresh=True)
-        
-        # Часы и минуты для funding
-        minutes_to_funding = initial_data.get('minutes_to_funding', 120) if initial_data else 120
-        hours = minutes_to_funding // 60
-        mins = minutes_to_funding % 60
-        funding_time = f"{hours}ч {mins}мин" if hours > 0 else f"{mins} мин"
-        
-        coins_count = initial_data.get('coins_count', 7) if initial_data else 7
-        coins_list = initial_data.get('coins', ['BTC', 'ETH', 'SOL']) if initial_data else ['BTC', 'ETH', 'SOL']
-        
-        # RSI статус
-        rsi_emoji, rsi_text = market_data.get_rsi_status(snapshot.btc_rsi)
-        fg_emoji = market_data.get_fg_emoji(snapshot.fear_greed)
-        
-        # Ждём 30 сек после запуска
-        await asyncio.sleep(30)
-        
-        # ОДНО сообщение с полной информацией
-        startup_text = f"""
-🚀 *CryptoDen запущен*
-
-📊 *Рынок сейчас:*
-• BTC: *${snapshot.btc_price:,.0f}*
-• RSI: {rsi_emoji} {snapshot.btc_rsi:.0f} ({rsi_text})
-• Страх/Жадность: {fg_emoji} {snapshot.fear_greed}
-
-🎯 *Активные модули:*
-
-📊 *Сетка* — отслеживаю {coins_count} монет
-   {', '.join(coins_list[:5])}
-
-💰 *Фандинг* — до начисления {funding_time}
-
-🆕 *Листинги* — слежу за Binance, Bybit, OKX
-
-🐋 *Киты* — мониторю крупные движения
-
-✅ *Все системы работают*
-"""
-        
-        await self.queue_startup_module(ModuleType.DIRECTOR, startup_text)
-        
-        # Конец startup фазы
-        self.context.is_startup = False
-        
-        logger.info("✅ Startup sequence completed (single message)")
+        return text.strip()
 
 
 # Синглтон

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📰 Новости — CryptoDen</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+        }
+        
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        /* Mode Card */
+        .mode-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .mode-card.normal { border-color: #22c55e44; background: #22c55e11; }
+        .mode-card.alert { border-color: #eab30844; background: #eab30811; }
+        .mode-card.wait { border-color: #ef444444; background: #ef444411; }
+        
+        .mode-emoji { font-size: 32px; }
+        .mode-info { flex: 1; }
+        .mode-name { font-weight: bold; font-size: 18px; }
+        .mode-desc { color: #888; font-size: 14px; }
+        
+        /* News Card */
+        .news-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .news-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .news-sentiment {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .news-sentiment.positive { background: #22c55e22; color: #22c55e; }
+        .news-sentiment.negative { background: #ef444422; color: #ef4444; }
+        .news-sentiment.neutral { background: #88888822; color: #888; }
+        
+        .news-time {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .news-title {
+            font-size: 16px;
+            font-weight: 600;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+        
+        .news-meta {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .news-importance {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .news-coins {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .coin-tag {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            background: #8b5cf622;
+            color: #a78bfa;
+        }
+        
+        .news-source {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .news-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 12px 0;
+        }
+        
+        .news-impact {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 12px;
+        }
+        
+        .impact-title {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 6px;
+        }
+        
+        .impact-text {
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+        
+        .news-summary {
+            font-size: 14px;
+            color: #aaa;
+            line-height: 1.5;
+            margin-top: 8px;
+        }
+        
+        /* Events */
+        .events-card {
+            background: linear-gradient(135deg, #f9731633 0%, #f9731611 100%);
+            border-color: #f9731644;
+        }
+        
+        .events-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+        
+        .event-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .event-item:last-child {
+            border-bottom: none;
+        }
+        
+        /* Settings */
+        .settings-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .settings-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+        }
+        
+        .settings-content {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .setting-label {
+            color: #ccc;
+            font-size: 14px;
+        }
+        
+        .toggle-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: none;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .toggle-btn.active {
+            background: #22c55e;
+            color: #fff;
+        }
+        
+        .toggle-btn:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            color: #888;
+        }
+        
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 0;
+            color: #ccc;
+            font-size: 14px;
+        }
+        
+        .checkbox-row input {
+            width: 18px;
+            height: 18px;
+            accent-color: #8b5cf6;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .update-time {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 16px;
+        }
+        
+        .no-news {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📰 Новости</h1>
+        <button class="refresh-btn" onclick="loadNews()">🔄</button>
+    </div>
+    
+    <div id="content">
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Загрузка новостей...</p>
+        </div>
+    </div>
+    
+    <div id="settings-section"></div>
+    
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+        
+        let newsSettings = null;
+        let showSettings = false;
+        
+        async function loadNews() {
+            try {
+                const response = await fetch('/api/news');
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderNews(result.data);
+                } else {
+                    document.getElementById('content').innerHTML = 
+                        `<div class="loading">❌ ${result.error || 'Ошибка загрузки'}</div>`;
+                }
+            } catch (e) {
+                document.getElementById('content').innerHTML = 
+                    '<div class="loading">❌ Ошибка сети</div>';
+            }
+        }
+        
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/news/settings');
+                const result = await response.json();
+                if (result.success) {
+                    newsSettings = result.settings;
+                    renderSettings();
+                }
+            } catch (e) {
+                console.error('Settings load error:', e);
+            }
+        }
+        
+        async function saveSettings(newSettings) {
+            try {
+                const response = await fetch('/api/news/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newSettings)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    newsSettings = newSettings;
+                    renderSettings();
+                }
+            } catch (e) {
+                console.error('Settings save error:', e);
+            }
+        }
+        
+        function renderNews(data) {
+            const mode = data.mode;
+            const news = data.news;
+            const events = data.events;
+            
+            let modeClass = 'normal';
+            if (mode.code === 'NEWS_ALERT') modeClass = 'alert';
+            if (mode.code === 'WAIT_EVENT') modeClass = 'wait';
+            
+            let html = `
+                <!-- Market Mode -->
+                <div class="mode-card ${modeClass}">
+                    <div class="mode-emoji">${mode.emoji}</div>
+                    <div class="mode-info">
+                        <div class="mode-name">Режим: ${mode.name}</div>
+                        <div class="mode-desc">${mode.desc}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Events
+            if (events && events.length > 0) {
+                html += `
+                    <div class="news-card events-card">
+                        <div class="events-title">📅 Ближайшие события</div>
+                        ${events.map(e => `
+                            <div class="event-item">
+                                <span>${e.name}</span>
+                                <span style="color: #888">${e.date || 'Скоро'}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            // News
+            if (news && news.length > 0) {
+                news.forEach(item => {
+                    let sentimentClass = 'neutral';
+                    if (item.sentiment > 0.3) sentimentClass = 'positive';
+                    if (item.sentiment < -0.3) sentimentClass = 'negative';
+                    
+                    html += `
+                        <div class="news-card">
+                            <div class="news-header">
+                                <div class="news-sentiment ${sentimentClass}">
+                                    ${item.sentiment_emoji} ${item.sentiment_text}
+                                </div>
+                                <div class="news-time">${item.time_ago || ''}</div>
+                            </div>
+                            
+                            <div class="news-title">${item.title}</div>
+                            
+                            <div class="news-meta">
+                                <div class="news-importance">
+                                    ${item.importance_emoji} ${item.importance}
+                                </div>
+                                ${item.coins && item.coins.length > 0 ? `
+                                    <div class="news-coins">
+                                        ${item.coins.map(c => `<span class="coin-tag">${c}</span>`).join('')}
+                                    </div>
+                                ` : ''}
+                                <div class="news-source">${item.source}</div>
+                            </div>
+                            
+                            <div class="news-divider"></div>
+                            
+                            <div class="news-impact">
+                                <div class="impact-title">📈 Влияние на рынок:</div>
+                                <div class="impact-text">${item.impact}</div>
+                            </div>
+                            
+                            ${item.summary ? `
+                                <div class="news-summary">${item.summary}</div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<div class="no-news">Новостей пока нет</div>';
+            }
+            
+            html += `<div class="update-time">Обновлено: ${new Date().toLocaleTimeString()}</div>`;
+            
+            document.getElementById('content').innerHTML = html;
+        }
+        
+        function renderSettings() {
+            if (!newsSettings) return;
+            
+            const html = `
+                <div class="settings-card">
+                    <div class="settings-header" onclick="toggleSettings()">
+                        <div class="settings-title">🔔 Уведомления</div>
+                        <span>${showSettings ? '▼' : '▶'}</span>
+                    </div>
+                    
+                    ${showSettings ? `
+                        <div class="settings-content">
+                            <div class="setting-row">
+                                <span class="setting-label">Уведомления о новостях</span>
+                                <button class="toggle-btn ${newsSettings.enabled ? 'active' : ''}"
+                                        onclick="toggleEnabled()">
+                                    ${newsSettings.enabled ? '✅ ВКЛ' : '❌ ВЫКЛ'}
+                                </button>
+                            </div>
+                            
+                            ${newsSettings.enabled ? `
+                                <div class="checkbox-row">
+                                    <input type="checkbox" id="critical" 
+                                           ${newsSettings.critical_only ? 'checked' : ''}
+                                           onchange="updateSetting('critical_only', this.checked)">
+                                    <label for="critical">🟥 CRITICAL новости</label>
+                                </div>
+                                
+                                <div class="checkbox-row">
+                                    <input type="checkbox" id="high"
+                                           ${newsSettings.high_importance ? 'checked' : ''}
+                                           onchange="updateSetting('high_importance', this.checked)">
+                                    <label for="high">🟧 HIGH важность</label>
+                                </div>
+                                
+                                <div class="checkbox-row">
+                                    <input type="checkbox" id="medium"
+                                           ${newsSettings.medium_importance ? 'checked' : ''}
+                                           onchange="updateSetting('medium_importance', this.checked)">
+                                    <label for="medium">🟨 MEDIUM важность</label>
+                                </div>
+                                
+                                <div class="checkbox-row">
+                                    <input type="checkbox" id="events"
+                                           ${newsSettings.before_events ? 'checked' : ''}
+                                           onchange="updateSetting('before_events', this.checked)">
+                                    <label for="events">📅 За ${newsSettings.events_hours}ч до событий</label>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            document.getElementById('settings-section').innerHTML = html;
+        }
+        
+        function toggleSettings() {
+            showSettings = !showSettings;
+            renderSettings();
+        }
+        
+        function toggleEnabled() {
+            saveSettings({ ...newsSettings, enabled: !newsSettings.enabled });
+        }
+        
+        function updateSetting(key, value) {
+            saveSettings({ ...newsSettings, [key]: value });
+        }
+        
+        // Load data
+        loadNews();
+        loadSettings();
+        
+        // Auto refresh every 2 minutes
+        setInterval(loadNews, 120000);
+    </script>
+</body>
+</html>

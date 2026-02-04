@@ -85,21 +85,10 @@ class TelegramBot:
         return user_id == self.admin_id
     
     async def _set_commands(self):
+        """Установить команды бота v3.0 — только 2 команды"""
         commands = [
-            BotCommand(command="start", description="🔄 Главное меню"),
-            BotCommand(command="ai", description="🧠 Статус AI системы"),
-            BotCommand(command="brain", description="🧠 DirectorBrain статус"),
-            BotCommand(command="analyze", description="🧠 Анализ монеты (напр. /analyze BTC)"),
-            BotCommand(command="director", description="🎩 Решения Директора"),
-            BotCommand(command="director_trades", description="🎩 Сделки Директора"),
-            BotCommand(command="whale", description="🐋 Анализ китов"),
-            BotCommand(command="grid", description="📊 Grid Bot статус"),
-            BotCommand(command="funding", description="💰 Funding Scalper"),
-            BotCommand(command="arb", description="🔄 Arbitrage Scanner"),
-            BotCommand(command="listing", description="🆕 Listing Hunter"),
-            BotCommand(command="market", description="📊 Полная картина рынка"),
-            BotCommand(command="debug", description="🔍 Диагностика"),
-            BotCommand(command="help", description="❓ Помощь")
+            BotCommand(command="start", description="🏠 Главное меню"),
+            BotCommand(command="restart", description="🔄 Перезапуск бота")
         ]
         await self.bot.set_my_commands(commands)
     
@@ -160,7 +149,7 @@ class TelegramBot:
 
 *Модули:* {modules_text.strip()}
 
-🎛 Панель управления — настройки
+🚀 CryptoDen — управление ботом
 """
         return text.strip()
     
@@ -211,19 +200,47 @@ class TelegramBot:
         
         @self.dp.message(Command("start"))
         async def cmd_start(message: types.Message):
+            """Главное меню v3.0"""
             if not self._is_admin(message.from_user.id):
                 await message.answer("⛔ Доступ запрещён")
                 return
             
             await self._set_commands()
             
-            text = self._get_status_text()
-            # Отправляем ТОЛЬКО текст + Reply Keyboard (БЕЗ inline!)
+            text = """
+🦊 *CryptoDen v3.0*
+
+Добро пожаловать в умного крипто-бота!
+
+🧠 *Adaptive Brain* — анализирует рынок
+⚡ *Momentum* — ловит резкие движения
+🆕 *Listing Hunter* — новые монеты
+
+Используй кнопки ниже 👇
+"""
             await message.answer(
-                text,
+                text.strip(),
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=get_main_keyboard()
             )
+        
+        @self.dp.message(Command("restart"))
+        async def cmd_restart(message: types.Message):
+            """Перезапуск бота v3.0"""
+            if not self._is_admin(message.from_user.id):
+                await message.answer("⛔ Нет доступа")
+                return
+            
+            await message.answer("🔄 *Перезапускаю бота...*", parse_mode=ParseMode.MARKDOWN)
+            
+            try:
+                await self.monitor.stop()
+                await asyncio.sleep(2)
+                asyncio.create_task(self.monitor.start())
+                await message.answer("✅ *Бот перезапущен!*", parse_mode=ParseMode.MARKDOWN)
+            except Exception as e:
+                logger.error(f"Restart error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(Command("help"))
         async def cmd_help(message: types.Message):
@@ -233,18 +250,19 @@ class TelegramBot:
             text = """
 ❓ *Помощь CryptoDen Bot*
 
-*🎛 Панель управления* — открывает настройки:
+*🚀 CryptoDen* — открывает настройки:
 • Запустить / Остановить бота
 • API ключи Bybit
 • Выбор монет
 • Настройки рисков
 • AI параметры
+• Режимы модулей (Signal/Auto)
 
 *Кнопки навигации:*
-📊 Статус — текущее состояние
-📈 Сделки — открытые позиции  
+📊 Статус — текущее состояние бота
+🐋 Рынок — Fear & Greed, Funding, OI
 📰 Новости — рыночный контекст
-📋 История — закрытые сделки
+👤 Кабинет — статистика и P&L
 
 *Команды модулей:*
 /grid — 📊 Grid Bot статус
@@ -257,7 +275,7 @@ class TelegramBot:
 /ai — 🧠 Статус AI системы
 /director — 🎩 Решения Директора
 /director\\_trades — сделки Директора
-/whale — 🐋 Анализ китов
+/whale — 🐋 Детальный анализ китов
 /market — 📊 Полная картина рынка
 
 *Сервис:*
@@ -289,11 +307,35 @@ class TelegramBot:
                     await message.answer(text, parse_mode=ParseMode.MARKDOWN)
                 
                 elif action == 'stop_bot':
-                    # Останавливаем smart notifications
-                    await smart_notifications.stop()
+                    # Собираем статистику ПЕРЕД остановкой
+                    from app.modules.grid_bot import grid_bot
+                    from app.modules.listing_hunter import listing_hunter
                     
+                    stats = self.trade_manager.get_statistics()
+                    
+                    # Получаем включённые модули
+                    enabled_modules = [
+                        name for name, cfg in self.monitor.module_settings.items() 
+                        if cfg.get('enabled')
+                    ]
+                    
+                    # Форматируем красивое сообщение
+                    text = smart_notifications.format_session_stop_message(
+                        cycles=self.monitor.check_count,
+                        active_trades=len(self.trade_manager.get_active_trades()),
+                        max_trades=self.monitor.max_open_trades,
+                        total_trades=stats.get('total_trades', 0),
+                        win_rate=stats.get('win_rate', 0),
+                        total_pnl=stats.get('total_pnl', 0),
+                        grid_cycles=grid_bot.stats.get('total_trades', 0),
+                        listings_found=listing_hunter.stats.get('listings_detected', 0),
+                        modules_enabled=enabled_modules
+                    )
+                    
+                    # Останавливаем
+                    await smart_notifications.stop()
                     await self.monitor.stop()
-                    text = "🛑 *Бот остановлен*\n\n" + self._get_status_text()
+                    
                     await message.answer(text, parse_mode=ParseMode.MARKDOWN)
                 
                 elif action == 'update_settings':
@@ -313,27 +355,75 @@ class TelegramBot:
             text = self._get_status_text()
             await message.answer(text, parse_mode=ParseMode.MARKDOWN)
         
-        @self.dp.message(F.text == "📈 Сделки")
-        async def btn_trades(message: types.Message):
+        @self.dp.message(F.text == "🐋 Рынок")
+        async def btn_market(message: types.Message):
+            """Обзор рынка"""
             if not self._is_admin(message.from_user.id):
                 return
             
-            trades = self.trade_manager.get_active_trades()
+            loading = await message.answer("🐋 *Загружаю данные...*", parse_mode=ParseMode.MARKDOWN)
             
-            if not trades:
-                text = "📭 *Нет активных сделок*"
-            else:
-                text = f"📈 *Активные сделки ({len(trades)}):*\n"
-                for t in trades:
-                    emoji = "🟢" if t.unrealized_pnl >= 0 else "🔴"
-                    dir_emoji = "📈" if t.direction == "LONG" else "📉"
-                    text += f"""
-{dir_emoji} *{t.symbol}* {t.direction}
-┣ Вход: ${t.entry_price:,.4f}
-┣ {emoji} P&L: {t.unrealized_pnl_percent:+.2f}%
-┗ SL: ${t.stop_loss:,.2f} | TP: ${t.take_profit:,.2f}
+            try:
+                from app.ai.whale_ai import whale_ai
+                
+                if whale_ai.last_metrics:
+                    m = whale_ai.last_metrics
+                    
+                    # Fear & Greed
+                    if m.fear_greed_index < 25:
+                        fg_emoji = "😱"
+                        fg_text = "Экстремальный страх"
+                    elif m.fear_greed_index < 45:
+                        fg_emoji = "😨"
+                        fg_text = "Страх"
+                    elif m.fear_greed_index < 55:
+                        fg_emoji = "😐"
+                        fg_text = "Нейтрально"
+                    elif m.fear_greed_index < 75:
+                        fg_emoji = "😊"
+                        fg_text = "Жадность"
+                    else:
+                        fg_emoji = "🤑"
+                        fg_text = "Экстремальная жадность"
+                    
+                    # Funding
+                    if m.funding_rate > 0.05:
+                        fund_emoji = "🔴"
+                        fund_text = "Много лонгов"
+                    elif m.funding_rate < -0.05:
+                        fund_emoji = "🟢"
+                        fund_text = "Много шортов"
+                    else:
+                        fund_emoji = "⚪"
+                        fund_text = "Нейтрально"
+                    
+                    text = f"""
+🐋 *РЫНОК СЕЙЧАС*
+
+{fg_emoji} *Fear & Greed:* {m.fear_greed_index} — {fg_text}
+
+📊 *Long/Short:* {m.long_ratio:.0f}% / {m.short_ratio:.0f}%
+
+{fund_emoji} *Funding:* {m.funding_rate:+.4f}%
+_{fund_text}_
+
+📈 *OI изменение:*
+• 1h: {m.oi_change_1h:+.1f}%
+• 24h: {m.oi_change_24h:+.1f}%
+
+🔥 *Ликвидации (24h):*
+• Long: ${m.liq_long/1e6:.1f}M
+• Short: ${m.liq_short/1e6:.1f}M
+
+💡 *Вывод:* {'Рынок перегрет, осторожно с лонгами' if m.fear_greed_index > 70 else 'Страх на рынке, хорошо для покупок' if m.fear_greed_index < 30 else 'Нейтральная ситуация'}
 """
-            await message.answer(text.strip(), parse_mode=ParseMode.MARKDOWN)
+                else:
+                    text = "🐋 *Данные загружаются...*\n\nПопробуйте через минуту"
+                
+                await loading.edit_text(text.strip(), parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(F.text == "📰 Новости")
         async def btn_news(message: types.Message):
@@ -452,25 +542,55 @@ _{mode_desc}_
                     parse_mode=ParseMode.MARKDOWN
                 )
         
-        @self.dp.message(F.text == "📋 История")
-        async def btn_history(message: types.Message):
+        @self.dp.message(F.text == "👤 Кабинет")
+        async def btn_cabinet(message: types.Message):
+            """Личный кабинет — статистика"""
             if not self._is_admin(message.from_user.id):
                 return
             
-            history = self.trade_manager.trade_history[-10:]
-            
-            if not history:
-                await message.answer("📋 *История пуста*", parse_mode=ParseMode.MARKDOWN)
-                return
-            
-            text = "📋 *Последние сделки:*\n\n"
-            for t in reversed(history):
-                emoji = "✅" if t.unrealized_pnl >= 0 else "❌"
-                text += f"{emoji} {t.symbol}: {t.unrealized_pnl_percent:+.2f}%\n"
-            
             stats = self.trade_manager.get_statistics()
-            text += f"\n*Итого:* ${stats.get('total_pnl', 0):+.2f}"
-            await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+            
+            # Расчёт win rate
+            total = stats.get('total_trades', 0)
+            wins = stats.get('winning_trades', 0)
+            win_rate = (wins / total * 100) if total > 0 else 0
+            
+            # P&L
+            total_pnl = stats.get('total_pnl', 0)
+            today_pnl = stats.get('today_pnl', 0)
+            
+            pnl_emoji = "📈" if total_pnl >= 0 else "📉"
+            today_emoji = "🟢" if today_pnl >= 0 else "🔴"
+            
+            text = f"""
+👤 *КАБИНЕТ*
+
+💎 *Подписка:* Premium
+📅 *Активна до:* ∞
+
+━━━━━━━━━━━━━━━
+
+💰 *Баланс:* ${self.monitor.current_balance:,.2f}
+
+{pnl_emoji} *Общий P&L:* ${total_pnl:+,.2f}
+{today_emoji} *Сегодня:* ${today_pnl:+,.2f}
+
+📊 *Статистика:*
+• Всего сделок: {total}
+• Выигрышных: {wins}
+• Win Rate: {win_rate:.1f}%
+
+📈 *Лучшая сделка:* ${stats.get('best_trade', 0):+.2f}
+📉 *Худшая сделка:* ${stats.get('worst_trade', 0):+.2f}
+
+━━━━━━━━━━━━━━━
+
+🤖 *Бот:* {'🟢 Работает' if self.monitor.running else '🔴 Остановлен'}
+🧠 *AI:* {'✅ Включён' if self.monitor.ai_enabled else '❌ Выключен'}
+📝 *Режим:* {'Paper' if self.monitor.paper_trading else '💰 LIVE'}
+"""
+            
+            await message.answer(text.strip(), parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(F.text == "❓ Помощь")
         async def btn_help(message: types.Message):
@@ -478,24 +598,47 @@ _{mode_desc}_
                 return
             
             text = """
-❓ *Как пользоваться ботом*
+❓ *ПОМОЩЬ — CryptoDen v3.0*
 
-1️⃣ Нажмите *🎛 Панель управления*
-2️⃣ Настройте API ключи Bybit
-3️⃣ Выберите монеты для торговли
-4️⃣ Настройте риски
-5️⃣ Нажмите *ЗАПУСТИТЬ БОТА*
+━━━━━━━━━━━━━━━━━━
 
-*Правила:*
-• 15% от баланса на сделку
-• Максимум 6 сделок
-• AI анализирует каждый сигнал
+📱 *КНОПКИ:*
 
-*Команды AI:*
-/ai — полный статус AI системы
-/director — решения Директора
-/whale — анализ китов
-/debug — диагностика
+🦊 *CryptoDen* — панель управления
+• Включить/выключить бота
+• Настроить модули
+• API ключи и риски
+
+📊 *Статистика* — результаты торговли
+• Win Rate по дням/неделям
+• P&L по источникам сигналов
+• История сделок
+
+🐋 *Рынок* — whale метрики
+• Fear & Greed Index
+• Long/Short Ratio
+• Funding Rate
+
+📰 *Новости* — крипто новости
+• Sentiment анализ
+• Важные события
+
+🔍 *Анализ* — анализ монеты
+• Выбери монету
+• Получи рекомендацию AI
+
+━━━━━━━━━━━━━━━━━━
+
+⚙️ *КОМАНДЫ:*
+/start — главное меню
+/restart — перезапуск бота
+
+━━━━━━━━━━━━━━━━━━
+
+🧠 *МОДУЛИ:*
+• Brain — умный анализ рынка
+• Momentum — резкие движения
+• Listing — новые монеты
 """
             await message.answer(text, parse_mode=ParseMode.MARKDOWN)
         
@@ -640,69 +783,116 @@ _{mode_desc}_
         
         @self.dp.message(Command("brain"))
         async def cmd_brain(message: types.Message):
-            """🧠 DirectorBrain — статус AI анализа рынка"""
+            """🧠 Adaptive Brain v3.0 — статус единого AI мозга"""
             if not self._is_admin(message.from_user.id):
                 return
             
             try:
-                from app.ai.director_brain import director_brain
-                text = director_brain.get_status_text()
-                await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+                from app.brain import adaptive_brain
+                
+                text = f"""
+🧠 *Adaptive Brain v3.0*
+
+━━━━━━━━━━━━━━━━━━
+
+📊 *Монеты:*
+• Топ-20: {len(adaptive_brain.COINS_TOP20)}
+• Динамические: {len(adaptive_brain.dynamic_coins)}
+• Всего: {len(adaptive_brain.COINS_TOP20) + len(adaptive_brain.dynamic_coins)}
+
+💾 *Кэш:* {len(adaptive_brain._cache)} записей
+
+⚙️ *Настройки:*
+• Модель: {adaptive_brain.model}
+• Мин. уверенность: {adaptive_brain.MIN_CONFIDENCE}%
+• Интервал анализа: {adaptive_brain.ANALYSIS_INTERVAL} сек
+
+🎯 *Пороги:*
+• Long ratio max: {adaptive_brain.THRESHOLDS['long_ratio_max']}%
+• Short ratio max: {adaptive_brain.THRESHOLDS['short_ratio_max']}%
+• Funding extreme: {adaptive_brain.THRESHOLDS['funding_extreme']}%
+• Fear extreme: {adaptive_brain.THRESHOLDS['fear_extreme_low']}-{adaptive_brain.THRESHOLDS['fear_extreme_high']}
+• RSI: {adaptive_brain.THRESHOLDS['rsi_oversold']}-{adaptive_brain.THRESHOLDS['rsi_overbought']}
+
+━━━━━━━━━━━━━━━━━━
+
+✅ *Статус:* Активен
+⚡ *v3.0 — Один мозг вместо 4 агентов!*
+
+*Команды:*
+/analyze BTC — анализ монеты
+/momentum — Momentum Detector
+/brain_trades — активные сделки
+"""
+                await message.answer(text.strip(), parse_mode=ParseMode.MARKDOWN)
             except Exception as e:
-                logger.error(f"DirectorBrain status error: {e}")
+                logger.error(f"Adaptive Brain status error: {e}")
                 await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(Command("analyze"))
         async def cmd_analyze(message: types.Message):
-            """🧠 DirectorBrain — принудительный анализ"""
+            """🧠 Adaptive Brain — анализ монеты"""
             if not self._is_admin(message.from_user.id):
                 return
             
             # Получаем символ из аргументов
             args = message.text.split()
-            symbol = args[1].upper() if len(args) > 1 else "BTC"
+            if len(args) < 2:
+                await message.answer("❌ *Использование:* /analyze BTC", parse_mode=ParseMode.MARKDOWN)
+                return
+            
+            symbol = args[1].upper()
             
             loading = await message.answer(f"🧠 *Анализирую {symbol}...*", parse_mode=ParseMode.MARKDOWN)
             
             try:
-                from app.ai.director_brain import director_brain
+                from app.brain import adaptive_brain, TradeAction
                 
-                # Принудительный анализ
-                decision = await director_brain.analyze_symbol(symbol, force=True)
+                # Анализ через Adaptive Brain
+                decision = await adaptive_brain.analyze(symbol)
                 
-                emoji = "🟢" if decision.action == "LONG" else "🔴" if decision.action == "SHORT" else "⏸"
-                manip_text = f"⚠️ {decision.manipulation_type.value}" if decision.manipulation_detected else "❌ Нет"
-                
-                entry_text = f"${decision.entry_price:,.2f}" if decision.entry_price else "N/A"
-                sl_text = f"${decision.stop_loss:,.2f}" if decision.stop_loss else "N/A"
-                tp_text = f"${decision.take_profit:,.2f}" if decision.take_profit else "N/A"
+                # Форматирование результата
+                emoji = "🟢" if decision.action == TradeAction.LONG else "🔴" if decision.action == TradeAction.SHORT else "⚪"
+                action_text = decision.action.value
                 
                 text = f"""
-🧠 *Анализ {symbol}*
+{emoji} *{symbol} — {action_text}*
 
-{emoji} *Решение: {decision.action}*
-📊 Уверенность: {decision.confidence}%
+━━━━━━━━━━━━━━━━━━
 
-*Фаза рынка:* {decision.market_phase.value}
-*Направление 1h:* {decision.direction_1h}
-*Манипуляция:* {manip_text}
+📊 *Режим рынка:* {decision.regime.value.upper()}
+⚠️ *Уверенность:* {decision.confidence}%
 
-*Entry:* {entry_text}
-*Stop Loss:* {sl_text}
-*Take Profit:* {tp_text}
+━━━━━━━━━━━━━━━━━━
 
-*Анализ:*
-_{decision.reasoning[:400]}{'...' if len(decision.reasoning) > 400 else ''}_
+🧠 *Анализ:*
+{decision.reasoning[:350]}{'...' if len(decision.reasoning) > 350 else ''}
 
-*Ключевые факторы:*
+━━━━━━━━━━━━━━━━━━
+
+📈 *Ключевые факторы:*
 """
                 for factor in decision.key_factors[:5]:
                     text += f"• {factor}\n"
                 
-                await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+                if decision.restrictions:
+                    text += "\n⚠️ *Ограничения:*\n"
+                    for r in decision.restrictions[:3]:
+                        text += f"• {r}\n"
+                
+                if decision.action in [TradeAction.LONG, TradeAction.SHORT]:
+                    text += f"""
+━━━━━━━━━━━━━━━━━━
+
+📍 *Вход:* ${decision.entry_price:,.2f}
+🛑 *Стоп:* ${decision.stop_loss:,.2f}
+🎯 *Цель:* ${decision.take_profit:,.2f}
+"""
+                
+                await loading.edit_text(text.strip(), parse_mode=ParseMode.MARKDOWN)
                 
             except Exception as e:
-                logger.error(f"DirectorBrain analyze error: {e}")
+                logger.error(f"Adaptive Brain analyze error: {e}")
                 await loading.edit_text(f"❌ *Ошибка анализа:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(Command("grid"))
@@ -811,122 +1001,206 @@ _{decision.reasoning[:400]}{'...' if len(decision.reasoning) > 400 else ''}_
                 logger.error(f"Listing mode error: {e}")
                 await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
-        @self.dp.message(Command("director"))
-        async def cmd_director(message: types.Message):
-            """🎩 Director AI — стратегические решения"""
+        @self.dp.message(Command("momentum"))
+        async def cmd_momentum(message: types.Message):
+            """⚡ Momentum Detector — детектор резких движений"""
             if not self._is_admin(message.from_user.id):
                 return
             
-            loading = await message.answer("🎩 *Анализирую ситуацию...*", parse_mode=ParseMode.MARKDOWN)
-            
             try:
-                from app.ai.director_ai import director_ai, get_director_decision
+                from app.brain import momentum_detector
                 
-                # Получаем решение
-                command = await get_director_decision()
+                text = f"""
+⚡ *Momentum Detector*
+
+━━━━━━━━━━━━━━━━━━
+
+🔍 *Отслеживание:* Каждые 5 секунд
+
+📊 *Пороги срабатывания:*
+• 1 мин: ±{momentum_detector.THRESHOLDS['price_change_1m']}%
+• 5 мин: ±{momentum_detector.THRESHOLDS['price_change_5m']}%
+• Объём: {momentum_detector.THRESHOLDS['volume_ratio']}x
+
+🕐 *Кулдаун:* {momentum_detector.ALERT_COOLDOWN} сек
+
+📈 *Статус:* {'🟢 Активен' if momentum_detector._running else '🔴 Остановлен'}
+
+━━━━━━━━━━━━━━━━━━
+
+💾 *История цен (последние 5):*
+"""
                 
-                # Статус
-                text = director_ai.get_status_text()
+                for symbol, history in list(momentum_detector._price_history.items())[:5]:
+                    text += f"• {symbol}: {len(history)} точек\n"
                 
-                await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+                if not momentum_detector._price_history:
+                    text += "  _Пока нет данных_\n"
+                
+                text += f"""
+━━━━━━━━━━━━━━━━━━
+
+⚡ *v3.0 — Мгновенная реакция на рынок!*
+"""
+                
+                await message.answer(text.strip(), parse_mode=ParseMode.MARKDOWN)
                 
             except Exception as e:
-                logger.error(f"Director AI error: {e}")
-                await loading.edit_text(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+                logger.error(f"Momentum Detector error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
-        @self.dp.message(Command("director_trades"))
-        async def cmd_director_trades(message: types.Message):
-            """🎩 Сделки Director Trader"""
+        @self.dp.message(Command("brain_trades"))
+        async def cmd_brain_trades(message: types.Message):
+            """🧠 Сделки Adaptive Brain"""
             if not self._is_admin(message.from_user.id):
                 return
             
             try:
-                from app.ai.director_ai import director_trader
+                from app.core.trade_tracker import trade_tracker
                 
-                text = director_trader.get_status_text()
+                active = trade_tracker.get_active_trades()
+                
+                if not active:
+                    await message.answer("📊 *Нет активных сделок от Adaptive Brain*", parse_mode=ParseMode.MARKDOWN)
+                    return
+                
+                text = "🧠 *АКТИВНЫЕ СДЕЛКИ ADAPTIVE BRAIN*\n\n"
+                
+                for trade in active:
+                    emoji = "🟢" if trade.direction == "LONG" else "🔴"
+                    pnl_emoji = "📈" if trade.pnl_percent >= 0 else "📉"
+                    
+                    text += f"""
+{emoji} *{trade.symbol} {trade.direction}*
+• Вход: ${trade.entry_price:,.2f}
+• Текущая: ${trade.current_price:,.2f}
+• SL: ${trade.stop_loss:,.2f}
+• TP: ${trade.take_profit:,.2f}
+{pnl_emoji} P&L: {trade.pnl_percent:+.2f}% (${trade.pnl_usd:+.2f})
+• Уверенность: {trade.confidence}%
+
+"""
+                
+                await message.answer(text.strip(), parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Brain trades error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("tracker"))
+        async def cmd_tracker(message: types.Message):
+            """🎯 Trade Tracker — статистика сигнальных сделок"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            try:
+                from app.core.trade_tracker import trade_tracker
+                
+                text = trade_tracker.get_status_text()
                 
                 await message.answer(text, parse_mode=ParseMode.MARKDOWN)
                 
             except Exception as e:
-                logger.error(f"Director trades error: {e}")
+                logger.error(f"Tracker error: {e}")
+                await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
+        
+        @self.dp.message(Command("session"))
+        async def cmd_session(message: types.Message):
+            """📊 Session Tracker — статистика сеансов"""
+            if not self._is_admin(message.from_user.id):
+                return
+            
+            try:
+                from app.core.session_tracker import session_tracker
+                
+                text = session_tracker.get_status_text()
+                
+                await message.answer(text, parse_mode=ParseMode.MARKDOWN)
+                
+            except Exception as e:
+                logger.error(f"Session error: {e}")
                 await message.answer(f"❌ *Ошибка:* {e}", parse_mode=ParseMode.MARKDOWN)
         
         @self.dp.message(Command("market"))
         async def cmd_market(message: types.Message):
-            """📊 Полная картина рынка (все парсеры)"""
+            """📊 Полная картина рынка от Adaptive Brain"""
             if not self._is_admin(message.from_user.id):
                 return
             
-            loading = await message.answer("📊 *Собираю данные рынка...*", parse_mode=ParseMode.MARKDOWN)
+            loading = await message.answer("🧠 *Анализирую рынок...*", parse_mode=ParseMode.MARKDOWN)
             
             try:
-                from app.parsers.coinglass_parser import get_market_data
-                from app.parsers.twitter_parser import twitter_parser
-                from app.parsers.rss_parser import rss_parser
-                
-                # Собираем всё параллельно
+                from app.brain import adaptive_brain
+                from app.ai.whale_ai import whale_ai
                 import asyncio
-                market_task = get_market_data("BTC")
-                whale_task = twitter_parser.get_whale_summary()
-                news_task = rss_parser.get_news_summary()
                 
-                market, whale, news = await asyncio.gather(
-                    market_task, whale_task, news_task,
-                    return_exceptions=True
-                )
+                # Получаем метрики
+                m = whale_ai.last_metrics
                 
-                # Обрабатываем ошибки
-                if isinstance(market, Exception):
-                    market = {"liquidations": {}, "open_interest": {}, "funding": {}, "analysis": {}}
-                if isinstance(whale, Exception):
-                    whale = {}
-                if isinstance(news, Exception):
-                    news = {}
+                if not m:
+                    await loading.edit_text("⏳ *Данные загружаются...*\n\nПопробуйте через минуту", parse_mode=ParseMode.MARKDOWN)
+                    return
+                
+                # Анализируем топ-3 монеты
+                top_coins = ["BTC", "ETH", "SOL"]
+                decisions = []
+                
+                for symbol in top_coins:
+                    try:
+                        decision = await adaptive_brain.analyze(symbol)
+                        decisions.append((symbol, decision))
+                    except Exception as e:
+                        logger.error(f"Market analyze error for {symbol}: {e}")
                 
                 # Формируем отчёт
-                liq = market.get("liquidations", {})
-                oi = market.get("open_interest", {})
-                funding = market.get("funding", {})
-                analysis = market.get("analysis", {})
-                
-                text = f"""📊 *ПОЛНАЯ КАРТИНА РЫНКА (BTC)*
+                text = f"""
+🧠 *ADAPTIVE BRAIN — РЫНОК*
 
-🔥 *Ликвидации (1h):*
-  📉 Long: ${liq.get('long_1h', 0)/1e6:.1f}M
-  📈 Short: ${liq.get('short_1h', 0)/1e6:.1f}M
-  🎯 Dominant: {liq.get('dominant', 'neutral')}
+━━━━━━━━━━━━━━━━━━
 
-📈 *Open Interest:*
-  📊 Change 1h: {oi.get('change_1h', 0):+.1f}%
-  📊 Change 24h: {oi.get('change_24h', 0):+.1f}%
-  📈 Trend: {oi.get('trend', 'neutral')}
+🐋 *Whale метрики:*
+• Fear & Greed: {m.fear_greed_index} ({
+    "Extreme Fear" if m.fear_greed_index < 25 else 
+    "Fear" if m.fear_greed_index < 45 else 
+    "Neutral" if m.fear_greed_index < 55 else 
+    "Greed" if m.fear_greed_index < 75 else 
+    "Extreme Greed"
+})
+• Long/Short: {m.long_ratio:.0f}% / {m.short_ratio:.0f}%
+• Funding: {m.funding_rate:+.4f}%
+• OI 24h: {m.oi_change_24h:+.1f}%
 
-💰 *Funding:*
-  💵 Rate: {funding.get('current', 0):+.4f}%
-  🎯 Sentiment: {funding.get('sentiment', 'neutral')}
+━━━━━━━━━━━━━━━━━━
 
-🐋 *Киты (Twitter):*
-  💸 Net Flow: ${whale.get('net_flow', 0)/1e6:+.1f}M
-  🎯 Sentiment: {whale.get('sentiment', 'neutral')}
+📊 *Анализ топ-монет:*
 
-📰 *Новости (RSS):*
-  📊 Total: {news.get('total', 0)}
-  🚨 Critical: {news.get('critical', 0)}
-  🎯 Sentiment: {news.get('sentiment', 'neutral')}
-
-🎯 *Анализ:*
-  ⚠️ Risk Score: {analysis.get('risk_score', 0)}/100
-  📊 Overall: {analysis.get('overall_sentiment', 'neutral')}
 """
                 
-                # Добавляем сигналы
-                signals = analysis.get('signals', [])
-                if signals:
-                    text += "\n*⚠️ Сигналы:*\n"
-                    for s in signals[:5]:
-                        text += f"  • {s}\n"
+                for symbol, decision in decisions:
+                    emoji = "🟢" if decision.action.value == "LONG" else "🔴" if decision.action.value == "SHORT" else "⚪"
+                    text += f"""
+{emoji} *{symbol}:* {decision.action.value}
+• Режим: {decision.regime.value}
+• Уверенность: {decision.confidence}%
+• {decision.reasoning[:80]}...
+
+"""
                 
-                await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+                text += f"""
+━━━━━━━━━━━━━━━━━━
+
+💡 *Рекомендация:*
+"""
+                
+                # Общая рекомендация
+                if m.fear_greed_index < 30:
+                    text += "Страх на рынке — хорошо для покупок"
+                elif m.fear_greed_index > 70:
+                    text += "Жадность — осторожно с покупками"
+                else:
+                    text += "Нейтральный рынок — ждите сигналы"
+                
+                await loading.edit_text(text.strip(), parse_mode=ParseMode.MARKDOWN)
                 
             except Exception as e:
                 logger.error(f"Market data error: {e}")
@@ -934,7 +1208,7 @@ _{decision.reasoning[:400]}{'...' if len(decision.reasoning) > 400 else ''}_
         
         @self.dp.message(Command("ai"))
         async def cmd_ai_status(message: types.Message):
-            """📊 Полный статус AI системы"""
+            """🧠 Статус AI системы v3.0"""
             if not self._is_admin(message.from_user.id):
                 return
             
@@ -942,51 +1216,58 @@ _{decision.reasoning[:400]}{'...' if len(decision.reasoning) > 400 else ''}_
             
             try:
                 from app.ai.whale_ai import whale_ai
-                from app.ai.director_ai import director_ai
-                from app.ai.trading_coordinator import trading_coordinator
+                from app.brain import adaptive_brain, momentum_detector
                 
-                # Whale AI (не делаем запрос, используем кэш)
-                whale_text = "🐋 *Whale AI*\n"
+                # Whale AI
+                whale_text = "🐋 *Whale AI (Разведка)*\n"
                 if whale_ai.last_metrics:
                     m = whale_ai.last_metrics
                     whale_text += f"• Funding: {m.funding_rate:+.4f}%\n"
                     whale_text += f"• L/S: {m.long_ratio:.0f}% / {m.short_ratio:.0f}%\n"
-                    whale_text += f"• F&G: {m.fear_greed}\n"
+                    whale_text += f"• F&G: {m.fear_greed_index}\n"
                 else:
                     whale_text += "• _Нет данных_\n"
                 
-                # Director AI
-                director_text = "\n🎩 *Director AI*\n"
-                director_text += f"• Mode: {director_ai.current_mode.value}\n"
-                if director_ai.situation:
-                    s = director_ai.situation
-                    risk_emoji = {"normal": "🟢", "elevated": "🟡", "high": "🟠", "extreme": "🔴"}
-                    director_text += f"• Risk: {risk_emoji.get(s.risk_level, '⚪')} {s.risk_level} ({s.risk_score}/100)\n"
-                director_text += f"• LONG: {'✅' if director_ai.allow_new_longs else '🚫'}\n"
-                director_text += f"• SHORT: {'✅' if director_ai.allow_new_shorts else '🚫'}\n"
-                director_text += f"• Size: x{director_ai.size_multiplier:.1f}\n"
+                # Adaptive Brain
+                brain_text = "\n🧠 *Adaptive Brain (Главный мозг)*\n"
+                brain_text += f"• Модель: {adaptive_brain.model}\n"
+                brain_text += f"• Монет: {len(adaptive_brain.COINS_TOP20) + len(adaptive_brain.dynamic_coins)}\n"
+                brain_text += f"• Кэш: {len(adaptive_brain._cache)} записей\n"
+                brain_text += f"• Мин. уверенность: {adaptive_brain.MIN_CONFIDENCE}%\n"
                 
-                # Coordinator
-                coord_text = "\n🎯 *Coordinator*\n"
-                coord_text += f"• Сигналов: {trading_coordinator.signals_generated}\n"
-                coord_text += f"• Выполнено: {trading_coordinator.actions_executed}\n"
-                coord_text += f"• Вмешательств: {trading_coordinator.director_interventions}\n"
+                # Momentum Detector
+                momentum_text = "\n⚡ *Momentum Detector (Резкие движения)*\n"
+                momentum_text += f"• Статус: {'🟢 Активен' if momentum_detector._running else '🔴 Остановлен'}\n"
+                momentum_text += f"• Порог 1м: ±{momentum_detector.THRESHOLDS['price_change_1m']}%\n"
+                momentum_text += f"• Порог 5м: ±{momentum_detector.THRESHOLDS['price_change_5m']}%\n"
                 
                 # Monitor
-                monitor_text = "\n📊 *Monitor*\n"
+                monitor_text = "\n📊 *Monitor (Управление)*\n"
                 monitor_text += f"• Running: {'✅' if self.monitor.running else '❌'}\n"
                 monitor_text += f"• Cycles: {self.monitor.check_count}\n"
                 monitor_text += f"• Balance: ${self.monitor.current_balance:,.2f}\n"
                 
-                text = f"""🧠 *AI SYSTEM STATUS*
+                text = f"""🧠 *AI SYSTEM v3.0*
+
+━━━━━━━━━━━━━━━━━━
 
 {whale_text}
-{director_text}
-{coord_text}
+{brain_text}
+{momentum_text}
 {monitor_text}
+
+━━━━━━━━━━━━━━━━━━
+
+⚡ *v3.0 — Один мозг вместо 4 агентов!*
+
+*Команды:*
+/brain — статус Adaptive Brain
+/analyze BTC — анализ монеты
+/momentum — Momentum Detector
+/brain_trades — активные сделки
 """
                 
-                await loading.edit_text(text, parse_mode=ParseMode.MARKDOWN)
+                await loading.edit_text(text.strip(), parse_mode=ParseMode.MARKDOWN)
                 
             except Exception as e:
                 logger.error(f"AI status error: {e}")
@@ -1000,7 +1281,15 @@ _{decision.reasoning[:400]}{'...' if len(decision.reasoning) > 400 else ''}_
         try:
             await self.bot.send_message(self.admin_id, text, parse_mode=ParseMode.MARKDOWN)
         except Exception as e:
-            logger.error(f"Telegram error: {e}")
+            # Если ошибка Markdown — отправляем без форматирования
+            if "parse entities" in str(e).lower() or "can't parse" in str(e).lower():
+                try:
+                    await self.bot.send_message(self.admin_id, text)
+                    logger.warning(f"Sent without Markdown due to: {e}")
+                except Exception as e2:
+                    logger.error(f"Telegram error (retry): {e2}")
+            else:
+                logger.error(f"Telegram error: {e}")
     
     async def notify_signal(self, signal):
         emoji = "📈" if signal.direction == "LONG" else "📉"
@@ -1083,17 +1372,32 @@ Confidence: {decision.confidence}%
                     os.remove(STOP_REQUESTED_FILE)
                     
                     if self.monitor.running:
-                        # Останавливаем smart notifications
+                        # Собираем статистику ПЕРЕД остановкой
+                        from app.modules.grid_bot import grid_bot
+                        from app.modules.listing_hunter import listing_hunter
+                        
+                        stats = self.trade_manager.get_statistics()
+                        enabled_modules = [
+                            name for name, cfg in self.monitor.module_settings.items() 
+                            if cfg.get('enabled')
+                        ]
+                        
+                        text = smart_notifications.format_session_stop_message(
+                            cycles=self.monitor.check_count,
+                            active_trades=len(self.trade_manager.get_active_trades()),
+                            max_trades=self.monitor.max_open_trades,
+                            total_trades=stats.get('total_trades', 0),
+                            win_rate=stats.get('win_rate', 0),
+                            total_pnl=stats.get('total_pnl', 0),
+                            grid_cycles=grid_bot.stats.get('total_trades', 0),
+                            listings_found=listing_hunter.stats.get('listings_detected', 0),
+                            modules_enabled=enabled_modules
+                        )
+                        
                         await smart_notifications.stop()
-                        
                         await self.monitor.stop()
-                        
-                        # Обновляем статус для WebApp
                         update_bot_status_file(running=False)
                         
-                        await self.send_message("🛑 *Бот остановлен через WebApp*")
-                        
-                        text = self._get_status_text()
                         await self.bot.send_message(self.admin_id, text, parse_mode=ParseMode.MARKDOWN)
                         
             except Exception as e:
@@ -1101,28 +1405,260 @@ Confidence: {decision.confidence}%
             
             await asyncio.sleep(2)
     
+    async def send_animated_startup(self, settings_data: dict):
+        """
+        🚀 Анимированный запуск бота
+        """
+        
+        # Определяем режим
+        has_api = bool(
+            settings_data.get('bybit_api_key') and 
+            settings_data.get('bybit_api_secret') and
+            len(settings_data.get('bybit_api_key', '')) > 10
+        )
+        
+        # ШАГ 1
+        msg = await self.bot.send_message(
+            self.admin_id,
+            "⏳ *Запускаю CryptoDen...*",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        await asyncio.sleep(0.8)
+        
+        # ШАГ 2
+        await msg.edit_text(
+            "⏳ *Запускаю CryptoDen...*\n"
+            "✅ Подключение к данным",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        await asyncio.sleep(0.8)
+        
+        # ШАГ 3
+        await msg.edit_text(
+            "⏳ *Запускаю CryptoDen...*\n"
+            "✅ Подключение к данным\n"
+            "✅ Загрузка индикаторов",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        await asyncio.sleep(0.8)
+        
+        # ШАГ 4
+        await msg.edit_text(
+            "⏳ *Запускаю CryptoDen...*\n"
+            "✅ Подключение к данным\n"
+            "✅ Загрузка индикаторов\n"
+            "✅ Анализ рынка",
+            parse_mode=ParseMode.MARKDOWN
+        )
+        await asyncio.sleep(1)
+        
+        # Получаем реальные данные
+        market = await self._get_market_data_for_startup()
+        
+        # Финальное сообщение
+        if has_api:
+            final_text = self._format_startup_auto(settings_data, market)
+        else:
+            final_text = self._format_startup_signal(settings_data, market)
+        
+        await msg.edit_text(final_text, parse_mode=ParseMode.MARKDOWN)
+    
+    async def _get_market_data_for_startup(self) -> dict:
+        """Получить реальные данные рынка"""
+        data = {
+            "btc_price": 0,
+            "btc_rsi": 50,
+            "fear_greed": 50,
+            "fear_greed_text": "Нейтрально",
+            "funding_rate": 0,
+            "minutes_to_funding": 120,
+        }
+        
+        try:
+            # Цена BTC
+            from app.trading.bybit.client import BybitClient
+            async with BybitClient(testnet=False) as client:
+                price = await client.get_price("BTC")
+                if price:
+                    data["btc_price"] = price
+            
+            # RSI
+            from app.backtesting.data_loader import BybitDataLoader
+            from app.strategies.indicators import TechnicalIndicators
+            
+            loader = BybitDataLoader()
+            df = loader.load_from_cache("BTC", "5m")
+            if df is not None and len(df) >= 20:
+                ind = TechnicalIndicators()
+                data["btc_rsi"] = ind.rsi(df['close'].tail(50), 14)
+            
+            # Fear & Greed + Funding
+            from app.ai.whale_ai import whale_ai
+            if whale_ai.last_metrics:
+                data["fear_greed"] = whale_ai.last_metrics.fear_greed_index
+                data["funding_rate"] = whale_ai.last_metrics.funding_rate
+            else:
+                try:
+                    metrics = await whale_ai.get_market_metrics("BTC")
+                    if metrics:
+                        data["fear_greed"] = metrics.fear_greed_index
+                        data["funding_rate"] = metrics.funding_rate
+                except:
+                    pass
+            
+            # Fear & Greed текст
+            fg = data["fear_greed"]
+            if fg < 25:
+                data["fear_greed_text"] = "Экстремальный страх"
+            elif fg < 45:
+                data["fear_greed_text"] = "Страх"
+            elif fg < 55:
+                data["fear_greed_text"] = "Нейтрально"
+            elif fg < 75:
+                data["fear_greed_text"] = "Жадность"
+            else:
+                data["fear_greed_text"] = "Экстремальная жадность"
+            
+            # Время до Funding
+            from datetime import datetime
+            now = datetime.utcnow()
+            for h in [0, 8, 16]:
+                if now.hour < h:
+                    data["minutes_to_funding"] = (h - now.hour) * 60 - now.minute
+                    break
+            else:
+                data["minutes_to_funding"] = (24 - now.hour) * 60 - now.minute
+                
+        except Exception as e:
+            logger.error(f"Startup market data error: {e}")
+        
+        return data
+    
+    def _format_startup_signal(self, settings_data: dict, market: dict) -> str:
+        """Сообщение для SIGNAL режима (без API)"""
+        
+        # Fear & Greed
+        fg = market.get("fear_greed", 50)
+        if fg < 25:
+            fg_emoji = "😱"
+        elif fg < 45:
+            fg_emoji = "😨"
+        elif fg < 55:
+            fg_emoji = "😐"
+        elif fg < 75:
+            fg_emoji = "😊"
+        else:
+            fg_emoji = "🤑"
+        
+        # RSI
+        rsi = market.get("btc_rsi", 50)
+        if rsi < 30:
+            rsi_text = "перепродан ✅"
+        elif rsi > 70:
+            rsi_text = "перекуплен ⚠️"
+        else:
+            rsi_text = "нейтрально"
+        
+        # Funding
+        mins = market.get("minutes_to_funding", 120)
+        hours = mins // 60
+        mins_left = mins % 60
+        funding_time = f"{hours}ч {mins_left}мин" if hours > 0 else f"{mins_left} мин"
+        
+        # Модули
+        modules = self.monitor.module_settings
+        module_icons = {
+            'director': '🎩', 'grid': '📊', 'funding': '💰',
+            'arbitrage': '🔄', 'listing': '🆕', 'worker': '👷'
+        }
+        active = [module_icons.get(n, '📦') for n, cfg in modules.items() if cfg.get('enabled')]
+        
+        # Монеты
+        active_coins = self.monitor.symbols
+        coins_text = ", ".join(active_coins[:6])
+        if len(active_coins) > 6:
+            coins_text += f" +{len(active_coins)-6}"
+        
+        # BTC
+        btc_price = market.get("btc_price", 0)
+        btc_str = f"${btc_price:,.0f}" if btc_price > 0 else "загрузка..."
+        
+        from datetime import datetime
+        return f"""
+🚀 *CryptoDen ЗАПУЩЕН!*
+
+📢 *Режим:* Сигналы
+_Вы получаете рекомендации, торгуете сами_
+
+━━━━━━━━━━━━━━━━━━
+
+📊 *РЫНОК СЕЙЧАС:*
+
+₿ *BTC:* {btc_str}
+📉 *RSI:* {rsi:.0f} ({rsi_text})
+{fg_emoji} *Fear & Greed:* {fg} ({market.get('fear_greed_text', 'Нейтрально')})
+💰 *Funding:* {market.get('funding_rate', 0):+.3f}%
+⏰ *До начисления:* {funding_time}
+
+━━━━━━━━━━━━━━━━━━
+
+🔔 *Модули:* {" ".join(active)}
+🪙 *Монеты:* {coins_text}
+
+━━━━━━━━━━━━━━━━━━
+
+💡 *Что дальше:*
+Анализирую рынок... Сигнал придёт 
+с объяснением и рекомендацией!
+
+⏰ {datetime.now().strftime('%H:%M:%S')}
+""".strip()
+    
+    def _format_startup_auto(self, settings_data: dict, market: dict) -> str:
+        """Сообщение для AUTO режима (с API)"""
+        
+        # Базовые данные из signal формата
+        base = self._format_startup_signal(settings_data, market)
+        
+        # Добавляем баланс
+        balance = self.monitor.current_balance
+        trade_size = balance * self.monitor.balance_percent_per_trade
+        pct = int(self.monitor.balance_percent_per_trade * 100)
+        
+        # Заменяем заголовок
+        from datetime import datetime
+        header = f"""
+🚀 *CryptoDen ЗАПУЩЕН!*
+
+🤖 *Режим:* Авто-торговля
+_Бот торгует самостоятельно_
+
+💰 *Баланс:* ${balance:,.2f}
+📊 *Позиций:* 0/{self.monitor.max_open_trades}
+🎯 *Сделка:* ${trade_size:.0f} ({pct}%)
+"""
+        
+        # Заменяем первую часть
+        parts = base.split("━━━━━━━━━━━━━━━━━━")
+        if len(parts) >= 2:
+            return header.strip() + "\n\n━━━━━━━━━━━━━━━━━━" + "━━━━━━━━━━━━━━━━━━".join(parts[1:])
+        
+        return base
+    
     async def _apply_settings_and_start(self, settings_data: dict):
-        """Применить настройки из WebApp и запустить бота"""
+        """Применить настройки и запустить с анимацией"""
         try:
             self._apply_settings(settings_data)
+            logger.info(f"📱 Settings applied: {len(self.monitor.symbols)} coins")
             
-            logger.info(f"📱 WebApp settings applied: {len(self.monitor.symbols)} coins")
-            
-            # Запускаем smart notifications
+            # Запускаем smart notifications (без startup сообщения!)
             await smart_notifications.start()
+            
+            # АНИМИРОВАННЫЙ ЗАПУСК
+            await self.send_animated_startup(settings_data)
             
             # Запускаем монитор
             asyncio.create_task(self.monitor.start())
-            
-            # ОДНО сообщение при старте
-            startup_data = {
-                "btc_price": 0,
-                "btc_rsi": 50,
-                "fear_greed": 50,
-                "coins_count": len(self.monitor.symbols),
-                "minutes_to_funding": 120,
-            }
-            await smart_notifications.send_startup_sequence(startup_data)
             
             # Обновляем статус для WebApp
             update_bot_status_file(

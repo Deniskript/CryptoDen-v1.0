@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🔍 Анализ — CryptoDen</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 100px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: #888;
+            font-size: 14px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .coin-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .coin-btn {
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .coin-btn:hover {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: #8b5cf6;
+        }
+        
+        .coin-btn.active {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            border-color: #8b5cf6;
+        }
+        
+        .analyze-btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+        }
+        
+        .analyze-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            display: none;
+        }
+        
+        .result.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        
+        .result-action {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .result-action.long {
+            color: #22c55e;
+        }
+        
+        .result-action.short {
+            color: #ef4444;
+        }
+        
+        .result-action.wait {
+            color: #888;
+        }
+        
+        .confidence {
+            font-size: 18px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .confidence.high {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+        
+        .confidence.medium {
+            background: rgba(234, 179, 8, 0.2);
+            color: #eab308;
+        }
+        
+        .confidence.low {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        .levels {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 16px 0;
+        }
+        
+        .level-item {
+            text-align: center;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .level-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        
+        .level-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .level-value.entry {
+            color: #8b5cf6;
+        }
+        
+        .level-value.stop {
+            color: #ef4444;
+        }
+        
+        .level-value.target {
+            color: #22c55e;
+        }
+        
+        .reasoning {
+            padding: 16px;
+            border-radius: 12px;
+            background: rgba(139, 92, 246, 0.1);
+            border-left: 3px solid #8b5cf6;
+            margin: 16px 0;
+        }
+        
+        .reasoning-title {
+            font-size: 14px;
+            color: #8b5cf6;
+            margin-bottom: 8px;
+        }
+        
+        .reasoning-text {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .factors {
+            margin-top: 16px;
+        }
+        
+        .factors-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        
+        .factor-item {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            font-size: 13px;
+        }
+        
+        .restrictions {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .restrictions-title {
+            font-size: 14px;
+            color: #ef4444;
+            margin-bottom: 8px;
+        }
+        
+        .restriction-item {
+            font-size: 13px;
+            color: #ef4444;
+            margin: 4px 0;
+        }
+        
+        .regime {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: rgba(139, 92, 246, 0.2);
+            color: #8b5cf6;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Анализ</h1>
+        <p>AI анализ монеты от Adaptive Brain</p>
+    </div>
+    
+    <div class="card">
+        <div class="coin-selector" id="coinSelector">
+            <!-- Монеты добавляются динамически -->
+        </div>
+        
+        <button class="analyze-btn" id="analyzeBtn" onclick="analyzeCoin()">
+            🧠 Анализировать
+        </button>
+    </div>
+    
+    <div class="card result" id="result">
+        <!-- Результат анализа -->
+    </div>
+    
+    <script>
+        const coins = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 'MATIC'];
+        let selectedCoin = 'BTC';
+        
+        // Инициализация Telegram WebApp
+        if (window.Telegram && window.Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+        
+        // Создаём кнопки монет
+        function initCoins() {
+            const container = document.getElementById('coinSelector');
+            container.innerHTML = coins.map(coin => `
+                <button class="coin-btn ${coin === selectedCoin ? 'active' : ''}" 
+                        onclick="selectCoin('${coin}')">
+                    ${coin}
+                </button>
+            `).join('');
+        }
+        
+        function selectCoin(coin) {
+            selectedCoin = coin;
+            document.querySelectorAll('.coin-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.trim() === coin);
+            });
+        }
+        
+        async function analyzeCoin() {
+            const btn = document.getElementById('analyzeBtn');
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = '🔄 Анализирую...';
+            
+            result.classList.add('show');
+            result.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>Анализирую ${selectedCoin}...</div>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`/api/analyze/${selectedCoin}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderResult(data.data);
+                } else {
+                    result.innerHTML = `<div class="loading">❌ ${data.error || 'Ошибка анализа'}</div>`;
+                }
+            } catch (e) {
+                result.innerHTML = `<div class="loading">❌ Ошибка сети</div>`;
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '🧠 Анализировать';
+        }
+        
+        function renderResult(data) {
+            const result = document.getElementById('result');
+            
+            const actionClass = data.action.toLowerCase();
+            const actionEmoji = data.action === 'LONG' ? '🟢' : data.action === 'SHORT' ? '🔴' : '⚪';
+            
+            let confidenceClass = 'low';
+            if (data.confidence >= 70) confidenceClass = 'high';
+            else if (data.confidence >= 50) confidenceClass = 'medium';
+            
+            let levelsHtml = '';
+            if (data.entry_price && data.stop_loss && data.take_profit) {
+                levelsHtml = `
+                    <div class="levels">
+                        <div class="level-item">
+                            <div class="level-label">📍 Вход</div>
+                            <div class="level-value entry">$${data.entry_price.toLocaleString()}</div>
+                        </div>
+                        <div class="level-item">
+                            <div class="level-label">🛑 Стоп</div>
+                            <div class="level-value stop">$${data.stop_loss.toLocaleString()}</div>
+                        </div>
+                        <div class="level-item">
+                            <div class="level-label">🎯 Цель</div>
+                            <div class="level-value target">$${data.take_profit.toLocaleString()}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            let factorsHtml = '';
+            if (data.key_factors && data.key_factors.length > 0) {
+                factorsHtml = `
+                    <div class="factors">
+                        <div class="factors-title">📈 Ключевые факторы:</div>
+                        ${data.key_factors.map(f => `<div class="factor-item">• ${f}</div>`).join('')}
+                    </div>
+                `;
+            }
+            
+            let restrictionsHtml = '';
+            if (data.restrictions && data.restrictions.length > 0) {
+                restrictionsHtml = `
+                    <div class="restrictions">
+                        <div class="restrictions-title">⚠️ Ограничения:</div>
+                        ${data.restrictions.map(r => `<div class="restriction-item">• ${r}</div>`).join('')}
+                    </div>
+                `;
+            }
+            
+            result.innerHTML = `
+                <div class="result-header">
+                    <div class="result-action ${actionClass}">
+                        ${actionEmoji} ${data.action} ${data.symbol}
+                    </div>
+                    <div class="confidence ${confidenceClass}">
+                        ${data.confidence}%
+                    </div>
+                </div>
+                
+                ${levelsHtml}
+                
+                <div class="reasoning">
+                    <div class="reasoning-title">🧠 Анализ:</div>
+                    <div class="reasoning-text">${data.reasoning || 'Нет данных'}</div>
+                </div>
+                
+                ${factorsHtml}
+                ${restrictionsHtml}
+                
+                <div class="regime">📊 Режим: ${data.regime || 'range'}</div>
+            `;
+        }
+        
+        // Инициализация
+        initCoins();
+    </script>
+</body>
+</html>
