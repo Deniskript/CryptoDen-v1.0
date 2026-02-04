@@ -93,7 +93,7 @@ class AdaptiveBrain:
     }
     
     def __init__(self):
-        self.model = "anthropic/claude-3-haiku-20240307"
+        self.model = "anthropic/claude-3.5-haiku-20241022"
         self.api_url = "https://openrouter.ai/api/v1/chat/completions"
         logger.info("🧠 Adaptive Brain v3.0 initialized")
     
@@ -104,6 +104,18 @@ class AdaptiveBrain:
                 return self._cache[symbol]
             
             market_data = await self._collect_market_data(symbol)
+            
+            # Проверка на отсутствие данных о цене
+            if not market_data.current_price or market_data.current_price == 0:
+                logger.warning(f"⚠️ No price data for {symbol}, skipping")
+                return BrainDecision(
+                    action=TradeAction.WAIT,
+                    symbol=symbol,
+                    confidence=0,
+                    reasoning=f"No price data for {symbol}",
+                    source="brain"
+                )
+            
             regime = self._detect_regime(market_data)
             restrictions = self._check_restrictions(market_data)
             
