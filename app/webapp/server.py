@@ -181,163 +181,161 @@ def get_market():
     """Получить данные рынка"""
     try:
         import asyncio
-        from app.ai.whale_ai import whale_ai
+        from app.ai.whale_ai import WhaleAI
         from app.trading.bybit.client import BybitClient
         
-        # Создаём новый event loop для синхронного контекста
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            # Сбрасываем кэш whale_ai для свежих данных
-            whale_ai.last_metrics = None
-            
-            # Получаем метрики
-            metrics = loop.run_until_complete(whale_ai.get_market_metrics("BTC"))
-            
-            # Логирование для отладки
-            print(f"🐋 DEBUG: metrics.fear_greed_index={metrics.fear_greed_index}")
-            print(f"🐋 DEBUG: metrics.long_ratio={metrics.long_ratio}")
-            print(f"🐋 DEBUG: metrics.short_ratio={metrics.short_ratio}")
+        # Создаём новый WhaleAI instance для каждого запроса
+        async def fetch_data():
+            whale = WhaleAI()
+            metrics = await whale.get_market_metrics("BTC")
             
             # Получаем цену BTC
             btc_price = 0
-            btc_change_24h = 0
             try:
                 client = BybitClient(testnet=False)
-                btc_price = loop.run_until_complete(client.get_price("BTC")) or 0
+                btc_price = await client.get_price("BTC") or 0
             except:
                 pass
             
-            if not metrics:
-                return jsonify({"success": False, "error": "Failed to get metrics"})
-            
-            # Статусы
-            fg_status = ""
-            fg_advice = ""
-            if metrics.fear_greed_index < 25:
-                fg_status = "Экстремальный страх"
-                fg_advice = "Хорошо для покупок"
-            elif metrics.fear_greed_index < 45:
-                fg_status = "Страх"
-                fg_advice = "Можно покупать осторожно"
-            elif metrics.fear_greed_index < 55:
-                fg_status = "Нейтрально"
-                fg_advice = "Ждите сигнал"
-            elif metrics.fear_greed_index < 75:
-                fg_status = "Жадность"
-                fg_advice = "Осторожно с покупками"
-            else:
-                fg_status = "Экстремальная жадность"
-                fg_advice = "Опасно покупать"
-            
-            ls_status = ""
-            if metrics.long_ratio > 65:
-                ls_status = "Много лонгов ⚠️ Риск ликвидаций"
-            elif metrics.long_ratio < 35:
-                ls_status = "Много шортов ⚠️ Возможен шорт-сквиз"
-            else:
-                ls_status = "Баланс"
-            
-            funding_status = ""
-            if metrics.funding_rate > 0.05:
-                funding_status = "Лонги переплачивают ⚠️"
-            elif metrics.funding_rate < -0.05:
-                funding_status = "Шорты переплачивают ⚠️"
-            else:
-                funding_status = "Нейтрально"
-            
-            oi_status = ""
-            if metrics.oi_change_24h < -5:
-                oi_status = "Сильное падение — закрытие позиций"
-            elif metrics.oi_change_24h < -2:
-                oi_status = "Падает — осторожность"
-            elif metrics.oi_change_24h > 5:
-                oi_status = "Сильный рост — новые позиции"
-            elif metrics.oi_change_24h > 2:
-                oi_status = "Растёт — интерес к рынку"
-            else:
-                oi_status = "Стабильно"
-            
-            liq_status = ""
-            total_liq = metrics.liq_long + metrics.liq_short
-            if total_liq > 100_000_000:
-                liq_status = "Массовые ликвидации! ⚠️"
-            elif total_liq > 50_000_000:
-                liq_status = "Повышенные ликвидации"
-            elif metrics.liq_long > metrics.liq_short * 2:
-                liq_status = "Лонги страдают"
-            elif metrics.liq_short > metrics.liq_long * 2:
-                liq_status = "Шорты страдают"
-            else:
-                liq_status = "Умеренные"
-            
-            # AI выводы
-            ai_conclusions = []
-            if metrics.fear_greed_index < 30:
-                ai_conclusions.append("Рынок в страхе — исторически хорошо для покупок")
-            if metrics.fear_greed_index > 70:
-                ai_conclusions.append("Рынок перегрет — осторожно с покупками")
-            if metrics.long_ratio > 65:
-                ai_conclusions.append("Много лонгов — риск каскадных ликвидаций")
-            if metrics.long_ratio < 35:
-                ai_conclusions.append("Мало лонгов — возможен рост")
-            if metrics.oi_change_24h < -5:
-                ai_conclusions.append("OI падает — трейдеры закрывают позиции")
-            if metrics.funding_rate > 0.05:
-                ai_conclusions.append("Funding высокий — лонги переплачивают")
-            if total_liq > 50_000_000:
-                ai_conclusions.append("Крупные ликвидации — возможен разворот")
-            
-            # Рекомендация
-            if metrics.fear_greed_index < 30 and metrics.long_ratio < 50:
-                ai_conclusions.append("✅ Хорошие условия для покупки")
-            elif metrics.fear_greed_index > 70 and metrics.long_ratio > 60:
-                ai_conclusions.append("⚠️ Опасно покупать, ждите коррекцию")
-            else:
-                ai_conclusions.append("⏳ Ждите чёткий сигнал от бота")
-            
-            if not ai_conclusions:
-                ai_conclusions.append("Рынок спокойный, ждите сигнал")
-            
-            return jsonify({
-                "success": True,
-                "data": {
-                    "btc": {
-                        "price": btc_price,
-                        "change_24h": btc_change_24h
-                    },
-                    "fear_greed": {
-                        "value": metrics.fear_greed_index,
-                        "status": fg_status,
-                        "advice": fg_advice
-                    },
-                    "long_short": {
-                        "long_ratio": metrics.long_ratio,
-                        "short_ratio": metrics.short_ratio,
-                        "status": ls_status
-                    },
-                    "funding": {
-                        "rate": metrics.funding_rate,
-                        "status": funding_status
-                    },
-                    "open_interest": {
-                        "change_1h": metrics.oi_change_1h,
-                        "change_24h": metrics.oi_change_24h,
-                        "status": oi_status
-                    },
-                    "liquidations": {
-                        "long": metrics.liq_long,
-                        "short": metrics.liq_short,
-                        "total": total_liq,
-                        "status": liq_status
+            return metrics, btc_price
+        
+        # Запускаем через asyncio.run (создаёт и закрывает loop автоматически)
+        metrics, btc_price = asyncio.run(fetch_data())
+        
+        # Логирование для отладки
+        print(f"🐋 DEBUG: metrics.fear_greed_index={metrics.fear_greed_index}")
+        print(f"🐋 DEBUG: metrics.long_ratio={metrics.long_ratio}")
+        print(f"🐋 DEBUG: metrics.short_ratio={metrics.short_ratio}")
+        
+        btc_change_24h = 0
+        
+        if not metrics:
+            return jsonify({"success": False, "error": "Failed to get metrics"})
+        
+        # Статусы
+        fg_status = ""
+        fg_advice = ""
+        if metrics.fear_greed_index < 25:
+            fg_status = "Экстремальный страх"
+            fg_advice = "Хорошо для покупок"
+        elif metrics.fear_greed_index < 45:
+            fg_status = "Страх"
+            fg_advice = "Можно покупать осторожно"
+        elif metrics.fear_greed_index < 55:
+            fg_status = "Нейтрально"
+            fg_advice = "Ждите сигнал"
+        elif metrics.fear_greed_index < 75:
+            fg_status = "Жадность"
+            fg_advice = "Осторожно с покупками"
+        else:
+            fg_status = "Экстремальная жадность"
+            fg_advice = "Опасно покупать"
+        
+        ls_status = ""
+        if metrics.long_ratio > 65:
+            ls_status = "Много лонгов ⚠️ Риск ликвидаций"
+        elif metrics.long_ratio < 35:
+            ls_status = "Много шортов ⚠️ Возможен шорт-сквиз"
+        else:
+            ls_status = "Баланс"
+        
+        funding_status = ""
+        if metrics.funding_rate > 0.05:
+            funding_status = "Лонги переплачивают ⚠️"
+        elif metrics.funding_rate < -0.05:
+            funding_status = "Шорты переплачивают ⚠️"
+        else:
+            funding_status = "Нейтрально"
+        
+        oi_status = ""
+        if metrics.oi_change_24h < -5:
+            oi_status = "Сильное падение — закрытие позиций"
+        elif metrics.oi_change_24h < -2:
+            oi_status = "Падает — осторожность"
+        elif metrics.oi_change_24h > 5:
+            oi_status = "Сильный рост — новые позиции"
+        elif metrics.oi_change_24h > 2:
+            oi_status = "Растёт — интерес к рынку"
+        else:
+            oi_status = "Стабильно"
+        
+        liq_status = ""
+        total_liq = metrics.liq_long + metrics.liq_short
+        if total_liq > 100_000_000:
+            liq_status = "Массовые ликвидации! ⚠️"
+        elif total_liq > 50_000_000:
+            liq_status = "Повышенные ликвидации"
+        elif metrics.liq_long > metrics.liq_short * 2:
+            liq_status = "Лонги страдают"
+        elif metrics.liq_short > metrics.liq_long * 2:
+            liq_status = "Шорты страдают"
+        else:
+            liq_status = "Умеренные"
+        
+        # AI выводы
+        ai_conclusions = []
+        if metrics.fear_greed_index < 30:
+            ai_conclusions.append("Рынок в страхе — исторически хорошо для покупок")
+        if metrics.fear_greed_index > 70:
+            ai_conclusions.append("Рынок перегрет — осторожно с покупками")
+        if metrics.long_ratio > 65:
+            ai_conclusions.append("Много лонгов — риск каскадных ликвидаций")
+        if metrics.long_ratio < 35:
+            ai_conclusions.append("Мало лонгов — возможен рост")
+        if metrics.oi_change_24h < -5:
+            ai_conclusions.append("OI падает — трейдеры закрывают позиции")
+        if metrics.funding_rate > 0.05:
+            ai_conclusions.append("Funding высокий — лонги переплачивают")
+        if total_liq > 50_000_000:
+            ai_conclusions.append("Крупные ликвидации — возможен разворот")
+        
+        # Рекомендация
+        if metrics.fear_greed_index < 30 and metrics.long_ratio < 50:
+            ai_conclusions.append("✅ Хорошие условия для покупки")
+        elif metrics.fear_greed_index > 70 and metrics.long_ratio > 60:
+            ai_conclusions.append("⚠️ Опасно покупать, ждите коррекцию")
+        else:
+            ai_conclusions.append("⏳ Ждите чёткий сигнал от бота")
+        
+        if not ai_conclusions:
+            ai_conclusions.append("Рынок спокойный, ждите сигнал")
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "btc": {
+                    "price": btc_price,
+                    "change_24h": btc_change_24h
+                },
+                "fear_greed": {
+                    "value": metrics.fear_greed_index,
+                    "status": fg_status,
+                    "advice": fg_advice
+                },
+                "long_short": {
+                    "long_ratio": metrics.long_ratio,
+                    "short_ratio": metrics.short_ratio,
+                    "status": ls_status
+                },
+                "funding": {
+                    "rate": metrics.funding_rate,
+                    "status": funding_status
+                },
+                "open_interest": {
+                    "change_1h": metrics.oi_change_1h,
+                    "change_24h": metrics.oi_change_24h,
+                    "status": oi_status
+                },
+                "liquidations": {
+                    "long": metrics.liq_long,
+                    "short": metrics.liq_short,
+                    "total": total_liq,
+                    "status": liq_status
                     },
                     "ai_conclusions": ai_conclusions,
                     "updated_at": metrics.timestamp.isoformat() if metrics.timestamp else None
                 }
             })
-        finally:
-            loop.close()
             
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
